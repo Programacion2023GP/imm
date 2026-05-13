@@ -24,6 +24,7 @@ export interface UserPermissions {
 
 // ==================== AUDITORÍA ====================
 export interface AuditLog {
+  [x: string]: ReactNode;
   id: string;
   action: 'CREATE' | 'UPDATE' | 'DELETE' | 'BULK_DELETE' | 'BULK_UPDATE' | 'IMPORT' | 'EXPORT';
   resource: string;

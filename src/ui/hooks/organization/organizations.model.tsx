@@ -2,7 +2,7 @@
 import { ConfigCrud } from "../../../models/genericmodels.model";
 
 // 1. Interfaz del formulario (lo que se guarda en BD)
-export interface DepartmentForm {
+export interface OrganizationForm {
    id: number;
    uuid: string;
    organization_id: number | null;
@@ -13,23 +13,26 @@ export interface DepartmentForm {
    end_date: Date | null;
    active: boolean;
 
-   //  metadata: {
-   //     department_id?: number;
-   //     position?: string;
-   //     hire_date?: string;
-   //  } | null;
+   metadata: {
+      department_id?: number;
+      position?: string;
+      hire_date?: string;
+   } | null;
    created_at: string;
    updated_at: string;
    deleted_at: string | null;
 }
 
 // 2. Interfaz para la tabla (datos enriquecidos)
-export interface DepartmentTableRow extends DepartmentForm {
-   organization: string;
+export interface OrganizationTableRow extends OrganizationForm {
+   role_name: string;
+   status_name: string;
+   department_name: string;
+   full_name: string;
 }
 
 // 3. Configuración CORREGIDA
-export const user2CrudConfig = ConfigCrud<DepartmentForm, DepartmentTableRow>()
+export const user2CrudConfig = ConfigCrud<OrganizationForm, OrganizationTableRow>()
    .fields({
       text: ["uuid", "code", "name", "start_date", "end_date"],
       select: ["organization_id"],
@@ -39,7 +42,12 @@ export const user2CrudConfig = ConfigCrud<DepartmentForm, DepartmentTableRow>()
       organization_id: {
          keyId: "id",
          keyLabel: "name",
-         options: useOrga,
+         options: [
+            { id: "admin", name: "Administrador" },
+            { id: "user", name: "Usuario" },
+            { id: "manager", name: "Manager" },
+            { id: "viewer", name: "Espectador" },
+         ],
          label: "Rol",
          validation: ({ yup }) => yup.string().required("Rol requerido"),
       },
