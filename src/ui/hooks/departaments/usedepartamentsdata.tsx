@@ -23,11 +23,11 @@ const useDepartamentsData = (): DepartamentsDataReturn => {
       [],
    );
 
-   return useGenericData<Departaments>({
+   return useGenericData<DepartmentForm>({
       defaultValues: initialState,
       prefix: "departments",
       autoFetch: true,
-      // persistKey: "departaments-persist",
+      // persistKey: "departments-persist",
       hooks: {
          onError: (msg) => console.error("[Departaments]", msg),
       },

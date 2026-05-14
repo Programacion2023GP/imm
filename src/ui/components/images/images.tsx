@@ -1,8 +1,16 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
 import { IoIosClose } from "react-icons/io";
-import { motion, AnimatePresence, PanInfo } from "framer-motion";
-import { FaSpinner, FaExclamationTriangle, FaCompress, FaExpand, FaDownload, FaSearchPlus, FaSearchMinus } from "react-icons/fa";
+import { motion, AnimatePresence, type PanInfo } from "framer-motion";
+import {
+   FaSpinner,
+   FaExclamationTriangle,
+   FaCompress,
+   FaExpand,
+   FaDownload,
+   FaSearchPlus,
+   FaSearchMinus,
+} from "react-icons/fa";
 
 interface PhotoZoomProps {
    src?: string;
@@ -33,7 +41,7 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
    maxZoom = 5,
    containerClassName = "",
    imageClassName = "",
-   onZoomChange
+   onZoomChange,
 }) => {
    const [isZoomed, setIsZoomed] = useState(false);
    const [imageError, setImageError] = useState(false);
@@ -48,7 +56,9 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
    const imgRef = useRef<HTMLImageElement>(null);
    const containerRef = useRef<HTMLDivElement>(null);
    const modalRef = useRef<HTMLDivElement>(null);
-   const portalContainer = useRef<HTMLDivElement>(document.createElement("div"));
+   const portalContainer = useRef<HTMLDivElement>(
+      document.createElement("div"),
+   );
 
    const hasImage = imageSrc && !imageError;
 
@@ -58,7 +68,7 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
       sm: "w-10 h-10",
       md: "w-12 h-12",
       lg: "w-16 h-16",
-      xl: "w-20 h-20"
+      xl: "w-20 h-20",
    };
 
    // Clases de forma
@@ -67,7 +77,7 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
       circle: "rounded-full",
       rounded: "rounded-md",
       "rounded-lg": "rounded-lg",
-      "rounded-full": "rounded-full"
+      "rounded-full": "rounded-full",
    };
 
    // Estilo de imagen según forma
@@ -140,11 +150,11 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
          if (zoomLevel > 1) {
             setPosition((prev) => ({
                x: prev.x + info.delta.x,
-               y: prev.y + info.delta.y
+               y: prev.y + info.delta.y,
             }));
          }
       },
-      [zoomLevel]
+      [zoomLevel],
    );
 
    // Toggle zoom
@@ -152,7 +162,11 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
       (e?: React.MouseEvent | React.KeyboardEvent) => {
          if (e) {
             e.stopPropagation();
-            if (e.type === "keydown" && (e as React.KeyboardEvent).key !== "Enter" && (e as React.KeyboardEvent).key !== " ") {
+            if (
+               e.type === "keydown" &&
+               (e as React.KeyboardEvent).key !== "Enter" &&
+               (e as React.KeyboardEvent).key !== " "
+            ) {
                return;
             }
          }
@@ -172,7 +186,7 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
             showControlsTemporarily();
          }
       },
-      [hasImage, isZoomed, onZoomChange, showControlsTemporarily]
+      [hasImage, isZoomed, onZoomChange, showControlsTemporarily],
    );
 
    const handleClose = useCallback(
@@ -186,7 +200,7 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
             onZoomChange(false);
          }
       },
-      [onZoomChange]
+      [onZoomChange],
    );
 
    // Manejo de teclado mejorado
@@ -234,14 +248,26 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
                   e.preventDefault();
                   const step = 30;
                   setPosition((prev) => ({
-                     x: prev.x + (e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0),
-                     y: prev.y + (e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0)
+                     x:
+                        prev.x +
+                        (e.key === "ArrowLeft"
+                           ? -step
+                           : e.key === "ArrowRight"
+                             ? step
+                             : 0),
+                     y:
+                        prev.y +
+                        (e.key === "ArrowUp"
+                           ? -step
+                           : e.key === "ArrowDown"
+                             ? step
+                             : 0),
                   }));
                }
                break;
          }
       },
-      [isZoomed, zoomLevel, zoomIn, zoomOut, toggleFullscreen]
+      [isZoomed, zoomLevel, zoomIn, zoomOut, toggleFullscreen],
    );
 
    // Scroll zoom
@@ -259,11 +285,11 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
          } else if (zoomLevel > 1) {
             setPosition((prev) => ({
                x: prev.x - e.deltaX,
-               y: prev.y - e.deltaY
+               y: prev.y - e.deltaY,
             }));
          }
       },
-      [isZoomed, zoomLevel, zoomIn, zoomOut]
+      [isZoomed, zoomLevel, zoomIn, zoomOut],
    );
 
    // Descargar imagen
@@ -317,7 +343,9 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
       document.addEventListener("keydown", handleKeyDownWrapper);
 
       const handleWheelWrapper = (e: WheelEvent) => handleWheel(e);
-      document.addEventListener("wheel", handleWheelWrapper, { passive: false });
+      document.addEventListener("wheel", handleWheelWrapper, {
+         passive: false,
+      });
 
       return () => {
          document.removeEventListener("keydown", handleKeyDownWrapper);
@@ -389,8 +417,7 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
                   role="button"
                   tabIndex={0}
                   onKeyDown={toggleZoom}
-                  aria-label={`Ver imagen ampliada: ${alt}`}
-               >
+                  aria-label={`Ver imagen ampliada: ${alt}`}>
                   <img
                      ref={imgRef}
                      src={imageSrc}
@@ -400,17 +427,23 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
                      onLoad={handleImageLoad}
                      loading="lazy"
                      style={{
-                        aspectRatio: shape === "circle" ? "1/1" : "auto"
+                        aspectRatio: shape === "circle" ? "1/1" : "auto",
                      }}
                   />
                   {!imageLoaded && (
-                     <div className={`absolute inset-0 flex items-center justify-center bg-gray-200 ${shapeClass}`}>
-                        <FaSpinner className="text-gray-400 animate-spin" size={14} />
+                     <div
+                        className={`absolute inset-0 flex items-center justify-center bg-gray-200 ${shapeClass}`}>
+                        <FaSpinner
+                           className="text-gray-400 animate-spin"
+                           size={14}
+                        />
                      </div>
                   )}
-                  <div className={`absolute inset-0 bg-black opacity-0 hover:opacity-20 transition-opacity duration-300 ${shapeClass}`} />
+                  <div
+                     className={`absolute inset-0 bg-black opacity-0 hover:opacity-20 transition-opacity duration-300 ${shapeClass}`}
+                  />
                </motion.div>
-               <div className="absolute bottom-1 right-1 bg-black bg-opacity-50 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+               <div className="absolute p-1 transition-opacity duration-300 bg-black bg-opacity-50 rounded-full opacity-0 pointer-events-none bottom-1 right-1 group-hover:opacity-100">
                   <FaSearchPlus size={10} className="text-white" />
                </div>
             </div>
@@ -419,20 +452,27 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
 
       return (
          <div
-            className={`${thumbnailSizes[thumbnailSize]} ${shapeClass} bg-gray-200 flex flex-col items-center justify-center border border-gray-300 ${containerClassName}`}
-            title="No hay imagen disponible"
-         >
-            <FaExclamationTriangle className="text-gray-400 mb-1" size={14} />
-            <span className="text-xs text-gray-500 text-center leading-tight">{placeholderText}</span>
+            className={`${thumbnailSizes[thumbnailSize]} ${shapeClass} bg-gray-200 flex flex-col items-center justify-center border border-gray-300 rounded-2xl ${containerClassName}`}
+            title="No hay imagen disponible">
+            <FaExclamationTriangle className="mb-1 text-gray-400" size={10} />
+            <span className="text-[7px] leading-tight text-center text-gray-500 text-wrap">
+               {placeholderText}
+            </span>
          </div>
       );
    };
 
    return (
-      <div className={`relative inline-block ${containerClassName}`} ref={containerRef}>
+      <div
+         className={`relative inline-block ${containerClassName}`}
+         ref={containerRef}>
          {renderThumbnail()}
 
-         {description && hasImage && <p className="mt-2 text-sm text-gray-600 text-center max-w-xs break-words line-clamp-2">{description}</p>}
+         {description && hasImage && (
+            <p className="max-w-xs mt-2 text-sm text-center text-gray-600 break-words line-clamp-2">
+               {description}
+            </p>
+         )}
 
          {/* Modal de zoom usando portal */}
          {ReactDOM.createPortal(
@@ -444,35 +484,35 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
                      initial={{ opacity: 0 }}
                      animate={{ opacity: isFullscreen ? 1 : 0.95 }}
                      exit={{ opacity: 0 }}
-                     onClick={hideControls}
-                  >
+                     onClick={hideControls}>
                      {/* Controles superiores */}
                      <motion.div
                         className={`fixed top-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 bg-black/80 backdrop-blur-md rounded-full px-4 py-2 z-50 transition-all duration-300 ${
-                           showControls ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
+                           showControls
+                              ? "opacity-100 translate-y-0"
+                              : "opacity-0 -translate-y-2 pointer-events-none"
                         }`}
                         onMouseEnter={showControlsTemporarily}
-                        onMouseLeave={hideControls}
-                     >
+                        onMouseLeave={hideControls}>
                         <button
                            onClick={(e) => {
                               e.stopPropagation();
                               zoomOut();
                            }}
-                           className="p-2 text-white hover:bg-white/20 rounded-full transition-colors"
-                           aria-label="Alejar"
-                        >
+                           className="p-2 text-white transition-colors rounded-full hover:bg-white/20"
+                           aria-label="Alejar">
                            <FaSearchMinus size={18} />
                         </button>
-                        <span className="text-white font-medium min-w-[60px] text-center text-sm">{Math.round(zoomLevel * 100)}%</span>
+                        <span className="text-white font-medium min-w-[60px] text-center text-sm">
+                           {Math.round(zoomLevel * 100)}%
+                        </span>
                         <button
                            onClick={(e) => {
                               e.stopPropagation();
                               zoomIn();
                            }}
-                           className="p-2 text-white hover:bg-white/20 rounded-full transition-colors"
-                           aria-label="Acercar"
-                        >
+                           className="p-2 text-white transition-colors rounded-full hover:bg-white/20"
+                           aria-label="Acercar">
                            <FaSearchPlus size={18} />
                         </button>
                         <button
@@ -480,42 +520,50 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
                               e.stopPropagation();
                               resetZoom();
                            }}
-                           className="p-2 text-white hover:bg-white/20 rounded-full transition-colors"
-                           aria-label="Restablecer zoom"
-                        >
+                           className="p-2 text-white transition-colors rounded-full hover:bg-white/20"
+                           aria-label="Restablecer zoom">
                            <FaCompress size={18} />
                         </button>
 
                         {showDownload && (
                            <>
-                              <div className="h-5 w-px bg-white/40" />
+                              <div className="w-px h-5 bg-white/40" />
                               <button
                                  onClick={(e) => {
                                     e.stopPropagation();
                                     downloadImage();
                                  }}
-                                 className="p-2 text-white hover:bg-white/20 rounded-full transition-colors"
-                                 aria-label="Descargar imagen"
-                              >
+                                 className="p-2 text-white transition-colors rounded-full hover:bg-white/20"
+                                 aria-label="Descargar imagen">
                                  <FaDownload size={18} />
                               </button>
                            </>
                         )}
 
-                        <div className="h-5 w-px bg-white/40" />
+                        <div className="w-px h-5 bg-white/40" />
                         <button
                            onClick={(e) => {
                               e.stopPropagation();
                               toggleFullscreen();
                            }}
-                           className="p-2 text-white hover:bg-white/20 rounded-full transition-colors"
-                           aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
-                        >
-                           {isFullscreen ? <FaCompress size={18} /> : <FaExpand size={18} />}
+                           className="p-2 text-white transition-colors rounded-full hover:bg-white/20"
+                           aria-label={
+                              isFullscreen
+                                 ? "Salir de pantalla completa"
+                                 : "Pantalla completa"
+                           }>
+                           {isFullscreen ? (
+                              <FaCompress size={18} />
+                           ) : (
+                              <FaExpand size={18} />
+                           )}
                         </button>
 
-                        <div className="h-5 w-px bg-white/40" />
-                        <button onClick={handleClose} className="p-2 text-white hover:bg-red-500/80 rounded-full transition-colors" aria-label="Cerrar">
+                        <div className="w-px h-5 bg-white/40" />
+                        <button
+                           onClick={handleClose}
+                           className="p-2 text-white transition-colors rounded-full hover:bg-red-500/80"
+                           aria-label="Cerrar">
                            <IoIosClose size={24} />
                         </button>
                      </motion.div>
@@ -528,7 +576,7 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
                            left: (-window.innerWidth * (zoomLevel - 1)) / 2,
                            right: (window.innerWidth * (zoomLevel - 1)) / 2,
                            top: (-window.innerHeight * (zoomLevel - 1)) / 2,
-                           bottom: (window.innerHeight * (zoomLevel - 1)) / 2
+                           bottom: (window.innerHeight * (zoomLevel - 1)) / 2,
                         }}
                         dragElastic={0}
                         dragMomentum={false}
@@ -536,18 +584,17 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
                         animate={{
                            x: position.x,
                            y: position.y,
-                           scale: zoomLevel
+                           scale: zoomLevel,
                         }}
                         transition={{
                            type: "spring",
                            stiffness: 400,
-                           damping: 30
+                           damping: 30,
                         }}
                         onClick={(e) => e.stopPropagation()}
                         style={{
-                           cursor: zoomLevel > 1 ? "grab" : "default"
-                        }}
-                     >
+                           cursor: zoomLevel > 1 ? "grab" : "default",
+                        }}>
                         <img
                            src={imageSrc}
                            alt={alt}
@@ -558,8 +605,10 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
 
                         {!imageLoaded && (
                            <div className="absolute inset-0 flex items-center justify-center">
-                              <FaSpinner className="text-white text-3xl animate-spin mr-3" />
-                              <span className="text-white text-lg">Cargando imagen...</span>
+                              <FaSpinner className="mr-3 text-3xl text-white animate-spin" />
+                              <span className="text-lg text-white">
+                                 Cargando imagen...
+                              </span>
                            </div>
                         )}
                      </motion.div>
@@ -568,27 +617,35 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
                      {(title || description) && (
                         <motion.div
                            className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 max-w-3xl w-full px-4 z-50 transition-all duration-300 ${
-                              showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
+                              showControls
+                                 ? "opacity-100 translate-y-0"
+                                 : "opacity-0 translate-y-2 pointer-events-none"
                            }`}
                            onMouseEnter={showControlsTemporarily}
-                           onMouseLeave={hideControls}
-                        >
-                           <div className="bg-black/80 backdrop-blur-md rounded-2xl p-4 text-white">
-                              {title && <h2 className="text-xl font-bold mb-2 text-center">{title}</h2>}
-                              {description && <p className="text-center text-gray-200 text-sm md:text-base">{description}</p>}
+                           onMouseLeave={hideControls}>
+                           <div className="p-4 text-white bg-black/80 backdrop-blur-md rounded-2xl">
+                              {title && (
+                                 <h2 className="mb-2 text-xl font-bold text-center">
+                                    {title}
+                                 </h2>
+                              )}
+                              {description && (
+                                 <p className="text-sm text-center text-gray-200 md:text-base">
+                                    {description}
+                                 </p>
+                              )}
                            </div>
                         </motion.div>
                      )}
 
                      {/* Indicador de atajos */}
                      <motion.div
-                        className="fixed bottom-4 right-4 bg-black/60 text-white text-xs p-3 rounded-xl backdrop-blur-sm z-50"
+                        className="fixed z-50 p-3 text-xs text-white bottom-4 right-4 bg-black/60 rounded-xl backdrop-blur-sm"
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 0.7, x: 0 }}
                         whileHover={{ opacity: 1 }}
-                        onClick={(e) => e.stopPropagation()}
-                     >
-                        {/* <div className="font-semibold mb-1">Atajos:</div>
+                        onClick={(e) => e.stopPropagation()}>
+                        {/* <div className="mb-1 font-semibold">Atajos:</div>
                         <div>ESC: Cerrar</div>
                         <div>Ctrl + +/-: Zoom</div>
                         <div>Ctrl + 0: Reset</div>
@@ -597,11 +654,17 @@ const PhotoZoom: React.FC<PhotoZoomProps> = ({
                      </motion.div>
 
                      {/* Overlay para cerrar */}
-                     <div className="absolute inset-0 z-40" onClick={handleClose} aria-label="Cerrar visor" role="button" tabIndex={-1} />
+                     <div
+                        className="absolute inset-0 z-40"
+                        onClick={handleClose}
+                        aria-label="Cerrar visor"
+                        role="button"
+                        tabIndex={-1}
+                     />
                   </motion.div>
                )}
             </AnimatePresence>,
-            portalContainer.current
+            portalContainer.current,
          )}
       </div>
    );

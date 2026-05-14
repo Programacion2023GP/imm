@@ -1,20 +1,15 @@
 // config/users.crud.ts
 import { env } from "../../../constant";
 import { ConfigCrud } from "../../../models/genericmodels.model";
-import { formatDatetime } from "../../../utils/helpers";
 import PhotoZoom from "../../components/images/images";
-import useOrganizationsData from "../organization/useOrganizationsData";
 
 // 1. Interfaz del formulario (lo que se guarda en BD)
-export interface DepartmentForm {
+export interface UserForm {
    id: number;
-   uuid: string;
-   organization_id: number | null;
-   code: string | null;
-   name: string | null;
-   seal_image: string | null;
-   start_date: Date | null;
-   end_date: Date | null;
+   employee_id: number | null;
+   username: string;
+   email: string | null;
+   password: string;
    active: boolean;
 
    //  metadata: {
@@ -28,19 +23,37 @@ export interface DepartmentForm {
 }
 
 // 2. Interfaz para la tabla (datos enriquecidos)
-export interface DepartmentTableRow extends DepartmentForm {
-   organization: string;
+export interface UserTableRow extends UserForm {
+   employee_code: string | null;
+   hire_date: Date | null;
+   employee_active: boolean;
+   name: string | null;
+   plast_name: string | null;
+   mlast_name: string | null;
+   full_name: string | null;
+   full_name_reverse: string | null;
+   rfc: string | null;
+   curp: string | null;
+   phone: string | null;
+   avatar: string | null;
+   signature_image: string | null;
+   position_uuid: string | null;
+   position_name: string | null;
+   department_uuid: string | null;
+   department_name: string | null;
+   organization_id: number | null;
+   organization_name: string | null;
+   administration_id: number | null;
+   administration_name: string | null;
+   president_name: string | null;
+   administration_logo: string | null;
 }
 
 // 3. Configuración CORREGIDA
-export const departmentCrudConfig = ConfigCrud<
-   DepartmentForm,
-   DepartmentTableRow
->()
+export const userCrudConfig = ConfigCrud<UserForm, UserTableRow>()
    .fields({
-      text: ["uuid", "code", "name", "start_date", "end_date"],
-      select: ["organization_id"],
-      file: ["seal_image"],
+      text: ["username", "email", "password", "created_at"],
+      select: ["employee_id"],
       toggle: ["active"],
    })
    .text({
@@ -63,26 +76,22 @@ export const departmentCrudConfig = ConfigCrud<
       start_date: {
          label: "Fecha Inicial",
          placeholder: "DD/MM/AAAA",
-         type: "date",
-
          validation: ({ yup }) =>
             yup.string().required("Fecha Inicial Requerido"),
       },
       end_date: {
          label: "Fecha Final",
          placeholder: "DD/MM/AAAA",
-         type: "date",
-
-         validation: ({ yup }) => yup.string().notRequired(),
+         validation: ({ yup }) =>
+            yup.string().required("Fecha Final Requerido"),
       },
    })
    .select({
       organization_id: {
          label: "Organización",
          keyId: "id",
-         keyLabel: "name",
-         // options: [],
-         selectOptionsHook: () => useOrganizationsData().items,
+         keyLabel: "label",
+         options: [],
          validation: ({ yup }) => yup.string().required("Rol requerido"),
       },
    })
@@ -109,10 +118,10 @@ export const departmentCrudConfig = ConfigCrud<
       seal_image: {
          label: "Sello",
          render: (value, row) => (
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center gap-2">
                <div className="flex items-center justify-center w-8 h-8 text-sm font-semibold text-white rounded-full bg-gradient-to-br from-blue-500 to-indigo-600">
                   <PhotoZoom
-                     src={value}
+                     src={`${env.API_URL_IMG}/${value}`}
                      alt="Sello"
                      title="Sello del departamento"
                   />
@@ -157,13 +166,11 @@ export const departmentCrudConfig = ConfigCrud<
       },
       start_date: {
          label: "Fecha Inicio",
-         render: (value, _row) => `${formatDatetime(value, false)}`,
-         getFilterValue: (value) => `${formatDatetime(value, false)}`,
+         render: (value, _row) => `${value}`,
       },
       end_date: {
          label: "Fecha Fin",
-         render: (value, _row) => `${formatDatetime(value, false)}`,
-         getFilterValue: (value) => `${formatDatetime(value, false)}`,
+         render: (value, _row) => `${value}`,
       },
       active: {
          label: "Estado",
@@ -197,7 +204,8 @@ export const departmentCrudConfig = ConfigCrud<
                   label: "Pendiente",
                },
             };
-            const config = statusConfig[value] || statusConfig.false;
+            const config =
+               statusConfig[value?.toLowerCase()] || statusConfig.false;
             return (
                <span
                   className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold ${config.bg} ${config.text}`}>

@@ -1,14 +1,14 @@
 // hooks/useDepartamentsData.ts
 import { useMemo } from "react";
 import { useGenericData, type GenericDataReturn } from "react-zustore";
-import type { Organizations } from "./organizations.model";
+import type { OrganizationForm } from "./organizations.model";
 
 // ✅ Exportado — necesario para SuperCrud<Organizations> en la page
 
-export type OrganizationsDataReturn = GenericDataReturn<Organizations>;
+export type OrganizationsDataReturn = GenericDataReturn<OrganizationForm>;
 
 const useOrganizationsData = (): OrganizationsDataReturn => {
-   const initialState = useMemo<Organizations>(
+   const initialState = useMemo<OrganizationForm>(
       () => ({
          id: 0,
          uuid: null,
@@ -26,11 +26,11 @@ const useOrganizationsData = (): OrganizationsDataReturn => {
       [],
    );
 
-   return useGenericData<Organizations>({
+   return useGenericData<OrganizationForm>({
       defaultValues: initialState,
-      prefix: "departments",
+      prefix: "organizations",
       autoFetch: true,
-      // persistKey: "departaments-persist",
+      // persistKey: "organization-persist",
       hooks: {
          onError: (msg) => console.error("[Organizations]", msg),
       },

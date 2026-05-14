@@ -5,106 +5,78 @@ import { ConfigCrud } from "../../../models/genericmodels.model";
 export interface OrganizationForm {
    id: number;
    uuid: string;
-   organization_id: number | null;
    code: string | null;
    name: string | null;
-   seal_image: string | null;
-   start_date: Date | null;
-   end_date: Date | null;
    active: boolean;
 
-   metadata: {
-      department_id?: number;
-      position?: string;
-      hire_date?: string;
-   } | null;
-   created_at: string;
-   updated_at: string;
-   deleted_at: string | null;
+   // metadata: {
+   //    department_id?: number;
+   //    position?: string;
+   //    hire_date?: string;
+   // } | null;
+   created_at?: string;
+   updated_at?: string;
+   deleted_at?: string | null;
 }
 
 // 2. Interfaz para la tabla (datos enriquecidos)
-export interface OrganizationTableRow extends OrganizationForm {
-   role_name: string;
-   status_name: string;
-   department_name: string;
-   full_name: string;
-}
+export interface OrganizationTableRow extends OrganizationForm {}
 
 // 3. Configuración CORREGIDA
-export const user2CrudConfig = ConfigCrud<OrganizationForm, OrganizationTableRow>()
+export const oraniztionCrudConfig = ConfigCrud<
+   OrganizationForm,
+   OrganizationTableRow
+>()
    .fields({
-      text: ["uuid", "code", "name", "start_date", "end_date"],
-      select: ["organization_id"],
-      file: ["seal_image"],
+      text: ["uuid", "code", "name"],
+      toggle: ["active"],
    })
    .select({
       organization_id: {
+         label: "Organización",
          keyId: "id",
-         keyLabel: "name",
-         options: [
-            { id: "admin", name: "Administrador" },
-            { id: "user", name: "Usuario" },
-            { id: "manager", name: "Manager" },
-            { id: "viewer", name: "Espectador" },
-         ],
-         label: "Rol",
+         keyLabel: "label",
+         options: [],
          validation: ({ yup }) => yup.string().required("Rol requerido"),
-      },
-      status_id: {
-         keyId: "id",
-         keyLabel: "name",
-         options: [
-            { id: "active", name: "Activo" },
-            { id: "inactive", name: "Inactivo" },
-            { id: "suspended", name: "Suspendido" },
-            { id: "pending", name: "Pendiente" },
-         ],
-         label: "Estado",
       },
    })
    .text({
-      username: {
-         label: "Usuario",
-         placeholder: "juan.perez",
+      uuid: {
+         label: "UUID",
+         placeholder: "9X9999XX9X9XX9",
+         validation: ({ yup }) => yup.string().notRequired(),
+      },
+      code: {
+         label: "Código",
+         placeholder: "AD",
+         validation: ({ yup }) => yup.string().required("Código Requerido"),
+      },
+      name: {
+         label: "Organización",
+         placeholder: "Nombre de la organización",
          validation: ({ yup }) =>
-            yup
-               .string()
-               .min(3, "Mínimo 3 caracteres")
-               .required("Usuario requerido"),
-      },
-      email: {
-         label: "Correo electrónico",
-         placeholder: "juan@empresa.com",
-         validation: ({ yup }) =>
-            yup.string().email("Correo inválido").required("Correo requerido"),
-      },
-      first_name: {
-         label: "Nombre",
-         placeholder: "Juan",
-         validation: ({ yup }) => yup.string().required("Nombre requerido"),
-      },
-      last_name: {
-         label: "Apellido",
-         placeholder: "Pérez",
-         validation: ({ yup }) => yup.string().required("Apellido requerido"),
+            yup.string().required("Organización requerido"),
       },
    })
-   .table({
-      username: {
-         label: "Usuario",
-         render: (value, row) => (
-            <div className="flex items-center gap-2">
-               <div className="flex items-center justify-center w-8 h-8 text-sm font-semibold text-white rounded-full bg-gradient-to-br from-blue-500 to-indigo-600">
-                  {row.first_name?.charAt(0)}
-                  {row.last_name?.charAt(0)}
-               </div>
-               <span className="font-medium text-gray-900">{value}</span>
-            </div>
-         ),
+   .toggle({
+      active: {
+         label: "Organización Activo",
       },
-      email: {
-         label: "Correo",
+   })
+   // .layout({
+   //    mode: "box",
+   //    sections: ["Información General", "Estado y Manager"],
+   //    fieldsPerSection: {
+   //       "Información General": ["uuid", "name"],
+   //       "Estado y Manager": ["active", "organization_id"],
+   //    },
+   // })
+   .table({
+      uuid: {
+         label: "UUID",
+      },
+      code: {
+         label: "Codigo",
          render: (value) => (
             <a
                href={`mailto:${value}`}
@@ -113,41 +85,24 @@ export const user2CrudConfig = ConfigCrud<OrganizationForm, OrganizationTableRow
             </a>
          ),
       },
-      full_name: {
-         label: "Nombre completo",
-         render: (_, row) => `${row.first_name} ${row.last_name}`,
+      name: {
+         label: "Organización",
+         render: (value, _row) => `${value}`,
       },
-      role_name: {
-         label: "Rol",
-         render: (value) => {
-            const colors: Record<string, string> = {
-               admin: "bg-purple-100 text-purple-800",
-               user: "bg-blue-100 text-blue-800",
-               manager: "bg-green-100 text-green-800",
-               viewer: "bg-gray-100 text-gray-800",
-            };
-            return (
-               <span
-                  className={`px-2 py-1 rounded-full text-xs font-semibold ${colors[value?.toLowerCase()] || "bg-gray-100 text-gray-800"}`}>
-                  {value}
-               </span>
-            );
-         },
-      },
-      status_name: {
+      active: {
          label: "Estado",
          render: (value) => {
             const statusConfig: Record<
                string,
                { bg: string; text: string; dot: string; label: string }
             > = {
-               active: {
+               true: {
                   bg: "bg-green-100",
                   text: "text-green-800",
                   dot: "bg-green-500",
                   label: "Activo",
                },
-               inactive: {
+               false: {
                   bg: "bg-gray-100",
                   text: "text-gray-800",
                   dot: "bg-gray-500",
@@ -167,7 +122,7 @@ export const user2CrudConfig = ConfigCrud<OrganizationForm, OrganizationTableRow
                },
             };
             const config =
-               statusConfig[value?.toLowerCase()] || statusConfig.inactive;
+               statusConfig[value?.toLowerCase()] || statusConfig.false;
             return (
                <span
                   className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold ${config.bg} ${config.text}`}>

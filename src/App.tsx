@@ -28,6 +28,8 @@ import { FaUserDoctor } from "react-icons/fa6";
 import Spinner from "./ui/components/loading/loading";
 import { RiFileList3Line } from "react-icons/ri";
 import { configureGeneric } from "react-zustore";
+import { env } from "./constant";
+import type { UserTableRow } from "./ui/hooks/users/users.model";
 
 // Lazy imports para todas las páginas
 const PageDepartaments = lazy(
@@ -43,10 +45,11 @@ configureGeneric({
    },
    endpoints: {
       getAll: (prefix) => `${prefix}`,
+      create: (prefix) => `${prefix}/createOrUpdate`,
    },
 });
 fetch("http://127.0.0.1:8000/api/departments")
-   .then((res) => console.log("Respuesta:", res))
+   .then((res) => {}) //console.log("Respuesta:", res))
    .catch((err) => console.error("Error:", err));
 // Definición de tipos
 interface BaseSidebarItem {
@@ -246,7 +249,7 @@ const MainLayout = () => {
       <div className="flex h-screen w-full overflow-hidden bg-[#f8f9fa]">
          {open && (
             <div className="flex-shrink-0 w-64 shadow-md">
-               <Sidebar name="Sistema" borderR>
+               <Sidebar name={env.NAME_SYSTEM} borderR>
                   {renderSidebarItems(sidebarItems)}
                </Sidebar>
             </div>
@@ -256,7 +259,7 @@ const MainLayout = () => {
             <Header
                setOpenSidebar={toggleSidebar}
                isSidebarOpen={open}
-               userName={localStorage.getItem("name") || ""}
+               // authUser={null}
             />
 
             <main ref={mainRef} className="flex-1 p-6 overflow-auto bg-white">
