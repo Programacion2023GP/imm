@@ -8,7 +8,7 @@ const PageDepartments = ({}) => {
    return (
       <>
          <SuperCrud
-            titles={{
+            formTitles={{
                modalTitleAdd: "Agregar Departamento",
                modalTitleUpdate: "Editar Departamento",
             }}

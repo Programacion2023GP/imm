@@ -6,6 +6,8 @@ import * as GiIcons from "react-icons/gi"; // Heroicons 2
 import * as FiIcons from "react-icons/fi"; // Heroicons 2
 import * as RiIcons from "react-icons/ri"; // Heroicons 2
 import * as LuIcons from "react-icons/lu"; // Luicide Icons 2
+import * as HiIcons from "react-icons/hi2"; // Hi2
+import * as PiIcons from "react-icons/pi"; // Hi2
 
 const icons = {
    //    Fa: FaIcons,
@@ -15,6 +17,8 @@ const icons = {
    Gi: GiIcons,
    Fi: FiIcons,
    Ri: RiIcons,
-   Lu: LuIcons
+   Lu: LuIcons,
+   Hi: HiIcons,
+   Pi: PiIcons,
 };
 export default icons;

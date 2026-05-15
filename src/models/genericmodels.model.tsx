@@ -1,7 +1,7 @@
 // models/genericmodels.model.ts
 import * as yup from "yup";
 import React from "react";
-import type { GenericDataReturn } from "react-zustore"; // 👈 Agregado
+import type { GenericDataReturn } from "react-zustore";
 import type { FilePreset } from "../ui/formik/FormikInputs/forminputimage";
 
 // ====================== TIPOS BASE ======================
@@ -131,9 +131,32 @@ type ValidationContext<TFormValues = any> = {
 type TableColumnConfig<TTable> = {
    label: string;
    render?: (value: any, record: TTable) => React.ReactNode;
-      getFilterValue?: (value: any) => string; // ← nuevo
-
+   getFilterValue?: (value: any) => string;
 };
+
+// ====================== NUEVOS TIPOS PARA TABLA ======================
+interface TableActionButton<TRecord = any> {
+   label: string;
+   icon?: string | React.ReactNode; // ✅ Cambiar de 'iconName' a 'icon' que acepta string o ReactNode
+   iconName?: string; // Mantener por compatibilidad (deprecated)
+   tooltip?: string;
+   handleOnClick: (record: TRecord) => void;
+   color?: string;
+   permission?: boolean;
+   multiple?: boolean | null;
+}
+
+interface TableActionsConfig<TRecord = any> {
+   isEditing?: boolean; // muestra botón de editar
+   isDelete?: boolean; // muestra botón de eliminar
+   moreButtons?: TableActionButton<TRecord>[];
+}
+
+interface TableHeaderConfig {
+   title?: string;
+   subtitle?: string;
+   icon?: string | React.ReactNode; // ✅ Acepta string (clase CSS) o componente React
+}
 
 // ====================== TIPOS PARA OVERRIDES Y RENDER ======================
 export interface OverrideComponents {
@@ -149,10 +172,11 @@ export interface OverrideComponents {
    checkbox?: React.ComponentType<OverrideFieldProps>;
    date?: React.ComponentType<OverrideFieldProps>;
    range?: React.ComponentType<OverrideFieldProps>;
-   table?: React.ComponentType<OverrideTableProps>;
+   tableColumns?: React.ComponentType<OverrideTableProps>;
    submitButton?: React.ComponentType<OverrideSubmitButtonProps>;
    [fieldName: string]: React.ComponentType<any> | undefined;
 }
+
 export interface OverrideFieldProps {
    name: string;
    label?: string;
@@ -166,6 +190,7 @@ export interface OverrideFieldProps {
    placeholder?: string;
    [key: string]: any;
 }
+
 export interface OverrideSelectProps extends OverrideFieldProps {
    options?: Array<{ id: string | number; name: string; [key: string]: any }>;
    multiple?: boolean;
@@ -182,7 +207,19 @@ export interface OverrideTableProps<T = any> {
    onEdit?: (row: T) => void;
    onDelete?: (row: T) => void;
    loading?: boolean;
+   // nuevas props opcionales para acciones y cabecera
+   actionsConfig?: TableActionsConfig<T>;
+   headerConfig?: TableHeaderConfig;
 }
+
+export interface OverrideSubmitButtonProps {
+   isSubmitting?: boolean;
+   label?: string;
+   loadingLabel?: string;
+   onClick?: () => void;
+}
+
+// ====================== BUILD RESULT ======================
 export type BuildResult<TForm = any, TTable = any> = {
    textFields: string[];
    selectFields: string[];
@@ -195,6 +232,8 @@ export type BuildResult<TForm = any, TTable = any> = {
    toggleFields: string[];
    checkboxFields: string[];
    textConfigs: Record<string, TextConfig<TForm>>;
+   tableColumns: Record<string, TableColumnConfig<TTable>>;
+
    selectConfigs: Record<string, SelectConfig<TForm>>;
    fileConfigs: Record<string, FileUploadConfig<TForm>>;
    colorConfigs: Record<string, ColorPickerConfig<TForm>>;
@@ -205,6 +244,8 @@ export type BuildResult<TForm = any, TTable = any> = {
    toggleConfigs: Record<string, ToggleConfig<TForm>>;
    checkboxConfigs: Record<string, CheckboxConfig<TForm>>;
    tableConfig: Record<string, TableColumnConfig<TTable>>;
+   tableActions?: TableActionsConfig<TTable>; // NUEVO
+   tableHeader?: TableHeaderConfig; // NUEVO
    uiLayout: any;
    validationSchema: any;
    overrides: OverrideComponents;
@@ -212,15 +253,8 @@ export type BuildResult<TForm = any, TTable = any> = {
    getOptionLabel: (field: string, option: any) => string;
    getOptionValue: (field: string, option: any) => any;
 };
-export interface OverrideSubmitButtonProps {
-   isSubmitting?: boolean;
-   label?: string;
-   loadingLabel?: string;
-   onClick?: () => void;
-}
 
-// models/genericmodels.model.ts
-
+// ====================== RENDER CONTEXT ======================
 export type RenderContext<TForm, TTable> = {
    fields: {
       text: Array<{
@@ -296,7 +330,6 @@ export type RenderContext<TForm, TTable> = {
          props: any;
       }>;
    };
-   // ✅ CORREGIDO: Ahora Form recibe children con formikBag completo
    Formik: React.ComponentType<{
       children: (formikBag: {
          values: TForm;
@@ -318,6 +351,7 @@ export type RenderContext<TForm, TTable> = {
       openWith: (data?: TForm) => void;
    };
 };
+
 // ====================== CONSTRUCTOR PRINCIPAL ======================
 export const ConfigCrud = <
    TForm extends object,
@@ -348,6 +382,10 @@ export const ConfigCrud = <
    let checkboxConfigs: Record<string, CheckboxConfig<TForm>> = {};
    let tableConfig: Record<string, TableColumnConfig<TTable>> = {};
    let uiLayoutConfig: any = null;
+
+   // Nuevas configuraciones para tabla
+   let tableActionsConfig: TableActionsConfig<TTable> | undefined = undefined;
+   let tableHeaderConfig: TableHeaderConfig | undefined = undefined;
 
    // Overrides y render personalizado
    let overrideComponents: OverrideComponents = {};
@@ -502,12 +540,22 @@ export const ConfigCrud = <
                checkboxConfigs = { ...checkboxConfigs, ...newConfig };
                return methods;
             },
-            table: (
+            tableColumns: (
                newConfig: Partial<
                   Record<keyof TTable, TableColumnConfig<TTable>>
                >,
             ) => {
                tableConfig = { ...tableConfig, ...newConfig };
+               return methods;
+            },
+            // NUEVO: configurar acciones de la tabla
+            tableActions: (actions: TableActionsConfig<TTable>) => {
+               tableActionsConfig = actions;
+               return methods;
+            },
+            // NUEVO: configurar cabecera de la tabla
+            tableHeader: (header: TableHeaderConfig) => {
+               tableHeaderConfig = header;
                return methods;
             },
             layout: <TNames extends readonly string[]>(uiConfig: {
@@ -518,7 +566,6 @@ export const ConfigCrud = <
                uiLayoutConfig = uiConfig;
                return methods;
             },
-            // 🔥 CORREGIDO: override con tipos específicos
             override: (overrides: {
                text?: React.ComponentType<OverrideFieldProps>;
                select?: React.ComponentType<OverrideSelectProps>;
@@ -532,21 +579,28 @@ export const ConfigCrud = <
                checkbox?: React.ComponentType<OverrideFieldProps>;
                date?: React.ComponentType<OverrideFieldProps>;
                range?: React.ComponentType<OverrideFieldProps>;
-               table?: React.ComponentType<OverrideTableProps<TTable>>;
+               tableColumns?: React.ComponentType<OverrideTableProps<TTable>>;
                submitButton?: React.ComponentType<OverrideSubmitButtonProps>;
                [fieldName: string]: React.ComponentType<any> | undefined;
             }) => {
                overrideComponents = { ...overrideComponents, ...overrides };
                return methods;
             },
-            // 🔥 Render personalizado
             render: (
                fn: (ctx: RenderContext<TForm, TTable>) => React.ReactNode,
             ) => {
                renderFunction = fn;
                return methods;
             },
+            // En el método build(), corrige esta línea:
             build: (): BuildResult<TForm, TTable> => ({
+               // ❌ Error: No se encuentra el nombre 'tableColumns'
+               // tableColumns: tableColumns,
+
+               // ✅ Corrección: usa tableConfig que es la variable que contiene las columnas
+               tableColumns: tableConfig, // tableConfig es la variable correcta
+               tableConfig: tableConfig, // mantener por compatibilidad
+
                textFields: textFieldsList,
                selectFields: selectFieldsList,
                fileFields: fileFieldsList,
@@ -567,7 +621,8 @@ export const ConfigCrud = <
                radioConfigs,
                toggleConfigs,
                checkboxConfigs,
-               tableConfig,
+               tableActions: tableActionsConfig,
+               tableHeader: tableHeaderConfig,
                uiLayout: uiLayoutConfig,
                validationSchema: buildValidationSchema(),
                getOptionLabel: (field: string, option: any) => {
@@ -603,4 +658,7 @@ export type {
    RadioGroupConfig,
    ToggleConfig,
    CheckboxConfig,
+   TableActionButton,
+   TableActionsConfig,
+   TableHeaderConfig,
 };

@@ -4,6 +4,7 @@ import { ConfigCrud } from "../../../models/genericmodels.model";
 import { formatDatetime } from "../../../utils/helpers";
 import PhotoZoom from "../../components/images/images";
 import useOrganizationsData from "../organization/useOrganizationsData";
+import icons from "./../../../constant/icons";
 
 // 1. Interfaz del formulario (lo que se guarda en BD)
 export interface DepartmentForm {
@@ -105,7 +106,7 @@ export const departmentCrudConfig = ConfigCrud<
    //       "Estado y Manager": ["active", "organization_id"],
    //    },
    // })
-   .table({
+   .tableColumns({
       seal_image: {
          label: "Sello",
          render: (value, row) => (
@@ -208,6 +209,32 @@ export const departmentCrudConfig = ConfigCrud<
             );
          },
       },
+   })
+   .tableHeader({
+      title: "probando titulo",
+      subtitle: "aqwq",
+      icon: <>dd</>,
+   })
+   .tableActions({
+      isEditing: true,
+      isDelete: true,
+      moreButtons: [
+         {
+            label: "Ver perfil",
+            icon: <icons.Hi.HiUser />,
+
+            handleOnClick: (row) => console.log(row),
+            color: "blue",
+            permission: true,
+         },
+         {
+            label: "Ver perfil",
+            icon: "pi-user",
+            handleOnClick: (row) => console.log(row),
+            color: "red",
+            permission: true,
+         },
+      ],
    })
    // .override({
    //   text: ({ label, value, onChange, error, placeholder }) => (

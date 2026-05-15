@@ -48,9 +48,7 @@ configureGeneric({
       create: (prefix) => `${prefix}/createOrUpdate`,
    },
 });
-fetch("http://127.0.0.1:8000/api/departments")
-   .then((res) => {}) //console.log("Respuesta:", res))
-   .catch((err) => console.error("Error:", err));
+
 // Definición de tipos
 interface BaseSidebarItem {
    id: string | number;

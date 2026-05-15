@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 /* ─────────────────────────────────────────────────────────────────
-   DESIGN TOKENS (sin cambios)
+   DESIGN TOKENS
 ───────────────────────────────────────────────────────────────── */
 const DS = {
    bg: "#FAFAF9",
@@ -40,7 +40,7 @@ const DS = {
 };
 
 /* ─────────────────────────────────────────────────────────────────
-   TIPOS DE ARCHIVO (sin cambios)
+   TIPOS DE ARCHIVO
 ───────────────────────────────────────────────────────────────── */
 export type FilePreset = "images" | "documents" | "spreadsheets" | "presentations" | "videos" | "audio" | "archives" | "code" | "all";
 
@@ -151,6 +151,8 @@ interface FileEntry {
    errorMsg?: string;
    preview?: string;
    isImage: boolean;
+   existingUrl?: string;
+   existingData?: any;
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -168,6 +170,10 @@ const formatBytes = (bytes: number): string => {
 
 const isImageFile = (file: File) => file.type.startsWith("image/");
 
+const isImageUrl = (url: string): boolean => {
+   return /\.(jpg|jpeg|png|gif|webp|svg|avif)$/i.test(url);
+};
+
 const getFileTypeIcon = (file: File): string => {
    const type = file.type;
    if (type.startsWith("image/")) return "🖼";
@@ -182,41 +188,19 @@ const getFileTypeIcon = (file: File): string => {
    return "📄";
 };
 
-const getStatusColor = (status: FileStatus) => {
-   switch (status) {
-      case "success":
-         return DS.successText;
-      case "error":
-         return DS.errorText;
-      case "loading":
-         return DS.accent;
-      default:
-         return DS.text3;
-   }
-};
-
 /* ─────────────────────────────────────────────────────────────────
-   🆕 COMPRESIÓN DE IMÁGENES (canvas)
+   COMPRESIÓN DE IMÁGENES
 ───────────────────────────────────────────────────────────────── */
 interface CompressionOptions {
    maxWidth?: number;
    maxHeight?: number;
-   quality?: number; // 0 - 1
-   maxSizeMB?: number; // opcional: si se especifica, se ajusta la calidad iterativamente
+   quality?: number;
+   maxSizeMB?: number;
 }
 
-/**
- * Comprime una imagen usando canvas.
- * @param file Archivo de imagen original
- * @param options Opciones de compresión
- * @returns Promise<File> con la imagen comprimida (o el original si falla)
- */
 const compressImage = async (file: File, options: CompressionOptions = {}): Promise<File> => {
    const { maxWidth = 1920, maxHeight = 1920, quality = 0.8, maxSizeMB } = options;
-
-   // Solo procesar imágenes
    if (!file.type.startsWith("image/")) return file;
-
    return new Promise((resolve) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -226,32 +210,24 @@ const compressImage = async (file: File, options: CompressionOptions = {}): Prom
          img.onload = () => {
             let width = img.width;
             let height = img.height;
-
-            // Redimensionar si excede los límites
             if (width > maxWidth || height > maxHeight) {
                const ratio = Math.min(maxWidth / width, maxHeight / height);
                width = Math.round(width * ratio);
                height = Math.round(height * ratio);
             }
-
             const canvas = document.createElement("canvas");
             canvas.width = width;
             canvas.height = height;
             const ctx = canvas.getContext("2d");
             ctx?.drawImage(img, 0, 0, width, height);
-
-            // Función para obtener blob con calidad dada
             const getBlob = (q: number): Promise<Blob | null> => {
                return new Promise((res) => {
                   canvas.toBlob((blob) => res(blob), file.type, q);
                });
             };
-
             (async () => {
                let finalQuality = quality;
                let blob = await getBlob(finalQuality);
-
-               // Si se especifica maxSizeMB y el blob lo supera, reducimos calidad iterativamente
                if (maxSizeMB && blob && blob.size > maxSizeMB * 1024 * 1024) {
                   let low = 0.3;
                   let high = quality;
@@ -267,15 +243,10 @@ const compressImage = async (file: File, options: CompressionOptions = {}): Prom
                   }
                   finalQuality = high;
                }
-
                if (blob) {
-                  const compressedFile = new File([blob], file.name, {
-                     type: file.type,
-                     lastModified: Date.now()
-                  });
+                  const compressedFile = new File([blob], file.name, { type: file.type, lastModified: Date.now() });
                   resolve(compressedFile);
                } else {
-                  // Fallback: devolver original
                   resolve(file);
                }
             })();
@@ -287,31 +258,17 @@ const compressImage = async (file: File, options: CompressionOptions = {}): Prom
 };
 
 /* ─────────────────────────────────────────────────────────────────
-   SUBCOMPONENTES (sin cambios)
+   SUBCOMPONENTES
 ───────────────────────────────────────────────────────────────── */
 const ProgressBar = ({ progress, status }: { progress: number; status: FileStatus }) => {
    const color = status === "error" ? DS.errorText : status === "success" ? DS.successText : DS.accent;
-
    return (
-      <div
-         style={{
-            height: 3,
-            background: DS.surface,
-            borderRadius: 99,
-            overflow: "hidden",
-            marginTop: 6
-         }}
-      >
+      <div style={{ height: 3, background: DS.surface, borderRadius: 99, overflow: "hidden", marginTop: 6 }}>
          <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            style={{
-               height: "100%",
-               background: color,
-               borderRadius: 99,
-               transition: DS.transition
-            }}
+            style={{ height: "100%", background: color, borderRadius: 99, transition: DS.transition }}
          />
       </div>
    );
@@ -357,22 +314,14 @@ const StatusIcon = ({ status }: { status: FileStatus }) => {
    if (status === "success") {
       return (
          <svg style={{ width: 16, height: 16, color: DS.successText, flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
-            <path
-               fillRule="evenodd"
-               d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-               clipRule="evenodd"
-            />
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
          </svg>
       );
    }
    if (status === "error") {
       return (
          <svg style={{ width: 16, height: 16, color: DS.errorText, flexShrink: 0 }} viewBox="0 0 20 20" fill="currentColor">
-            <path
-               fillRule="evenodd"
-               d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-               clipRule="evenodd"
-            />
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
          </svg>
       );
    }
@@ -380,56 +329,34 @@ const StatusIcon = ({ status }: { status: FileStatus }) => {
 };
 
 /* ─────────────────────────────────────────────────────────────────
-   FORMIK FILE INPUT — PROPS (con opciones de compresión)
+   PROPS DEL COMPONENTE
 ───────────────────────────────────────────────────────────────── */
 export interface FormikFileInputProps {
-   /** Nombre del campo en Formik */
    name: string;
-   /** Etiqueta visible del campo */
    label: string;
-   /** Presets de tipo de archivo o array de presets */
    preset?: FilePreset | FilePreset[];
-   /** Extensiones personalizadas adicionales (ej. [".pdf", ".doc"]) */
    customExtensions?: string[];
-   /** Accept attribute personalizado (override preset) */
    customAccept?: string;
-   /** Máximo de archivos permitidos */
    maxFiles?: number;
-   /** Tamaño máximo en MB (override preset) */
    maxSizeMB?: number;
-   /** Permitir múltiples archivos */
    multiple?: boolean;
-   /** Deshabilitar el campo */
    disabled?: boolean;
-   /** Mostrar previsualizaciones de imagen */
    showPreviews?: boolean;
-   /** Modo compacto */
    compact?: boolean;
-   /** Descripción extra debajo del campo */
    hint?: string;
-   /** Callback cuando los archivos cambian */
    onFilesChange?: (files: File[]) => void;
-   /** Simular progreso de carga (ms) — 0 = inmediato */
    simulateLoadMs?: number;
-   /** Columnas responsivas (no implementado en este ejemplo) */
    responsive?: { sm?: number; md?: number; lg?: number; xl?: number };
    padding?: boolean;
-
-   // 🆕 Opciones de compresión de imágenes
-   /** Si debe comprimir automáticamente las imágenes (por defecto true) */
    compressImages?: boolean;
-   /** Ancho máximo después de compresión (por defecto 1920) */
    imageMaxWidth?: number;
-   /** Alto máximo después de compresión (por defecto 1920) */
    imageMaxHeight?: number;
-   /** Calidad de compresión 0-1 (por defecto 0.8) */
    imageQuality?: number;
-   /** Tamaño máximo final en MB para la imagen comprimida (opcional, ajusta calidad iterativamente) */
    imageMaxSizeMB?: number;
 }
 
 /* ─────────────────────────────────────────────────────────────────
-   COMPONENTE PRINCIPAL
+   COMPONENTE PRINCIPAL (CORREGIDO, SIN BUCLE INFINITO)
 ───────────────────────────────────────────────────────────────── */
 export const FormikFileInput: React.FC<FormikFileInputProps> = ({
    name,
@@ -455,6 +382,7 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
    const formik = useFormikContext<any>();
    const inputRef = useRef<HTMLInputElement>(null);
    const dropRef = useRef<HTMLDivElement>(null);
+   const isInternalUpdate = useRef(false); // ← Evita bucles infinitos
 
    const [entries, setEntries] = useState<FileEntry[]>([]);
    const [isDragging, setIsDragging] = useState(false);
@@ -483,26 +411,136 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
    const effectiveAccept = customAccept || resolvedConfig.accept;
    const effectiveMaxMB = maxSizeMB || resolvedConfig.maxSizeMB;
    const allExtensions = customExtensions
-      ? [...new Set([...resolvedConfig.extensions, ...customExtensions.map((e) => e.replace(".", ""))])]
+      ? [...new Set([...resolvedConfig.extensions, ...customExtensions.map(e => e.replace(".", ""))])]
       : resolvedConfig.extensions;
-
    const effectiveMultiple = multiple || maxFiles > 1;
 
-   // Error de Formik
-   const touched = (formik.touched as any)[name];
-   const errorMsg = touched && (formik.errors as any)[name] ? String((formik.errors as any)[name]) : null;
+   // Formik touched/errors
+   const touched = formik?.touched?.[name];
+   const errorMsg = touched && formik?.errors?.[name] ? String(formik.errors[name]) : null;
 
-   // Sincronizar con Formik
+   // ──────────────────────────────────────────────────────────────
+   // Convertir valor de Formik a FileEntry[]
+   // ──────────────────────────────────────────────────────────────
+   const convertToFileEntries = useCallback((value: any): FileEntry[] => {
+      if (!value) return [];
+      const items = Array.isArray(value) ? value : [value];
+      return items
+         .map((item: any, idx: number) => {
+            if (item instanceof File) {
+               const isImg = isImageFile(item);
+               return {
+                  id: `file-${Date.now()}-${idx}-${item.name}`,
+                  file: item,
+                  status: "success",
+                  progress: 100,
+                  preview: isImg ? URL.createObjectURL(item) : undefined,
+                  isImage: isImg
+               };
+            }
+            if (typeof item === "string") {
+               const isImg = isImageUrl(item);
+               const fileName = item.split("/").pop() || "Archivo";
+               const placeholderFile = new File([], fileName);
+               return {
+                  id: `existing-${idx}-${fileName}`,
+                  file: placeholderFile,
+                  status: "success",
+                  progress: 100,
+                  preview: isImg ? item : undefined,
+                  isImage: isImg,
+                  existingUrl: item
+               };
+            }
+            if (typeof item === "object" && item !== null) {
+               const url = item.url || item.src || "";
+               const name = item.name || item.filename || "Archivo";
+               const isImg = isImageUrl(url);
+               const placeholderFile = new File([], name);
+               return {
+                  id: `existing-${idx}-${name}`,
+                  file: placeholderFile,
+                  status: "success",
+                  progress: 100,
+                  preview: isImg ? url : undefined,
+                  isImage: isImg,
+                  existingUrl: url,
+                  existingData: item
+               };
+            }
+            return null;
+         })
+         .filter(Boolean) as FileEntry[];
+   }, []);
+
+   // ──────────────────────────────────────────────────────────────
+   // Sincronizar desde Formik → entries (solo cuando el valor externo cambia realmente)
+   // ──────────────────────────────────────────────────────────────
+   useEffect(() => {
+      if (!formik || isInternalUpdate.current) return;
+      const currentValue = formik.values?.[name];
+      const newEntries = convertToFileEntries(currentValue);
+      const currentKey = JSON.stringify(entries.map(e => ({ id: e.id, url: e.existingUrl, name: e.file.name })));
+      const newKey = JSON.stringify(newEntries.map(e => ({ id: e.id, url: e.existingUrl, name: e.file.name })));
+      if (currentKey !== newKey) {
+         entries.forEach(e => {
+            if (e.preview && e.preview.startsWith("blob:")) URL.revokeObjectURL(e.preview);
+         });
+         setEntries(newEntries);
+      }
+   }, [formik?.values?.[name]]);
+
+   // Carga inicial
+   useEffect(() => {
+      if (!formik) return;
+      const initialValue = formik.values?.[name];
+      if (initialValue && entries.length === 0) {
+         setEntries(convertToFileEntries(initialValue));
+      }
+   }, []);
+
+   // ──────────────────────────────────────────────────────────────
+   // Sincronizar entries → Formik (evitando bucle)
+   // ──────────────────────────────────────────────────────────────
    const syncFormik = useCallback(
       (newEntries: FileEntry[]) => {
-         const validFiles = newEntries.filter((e) => e.status !== "error").map((e) => e.file);
-         formik.setFieldValue(name, effectiveMultiple ? validFiles : (validFiles[0] ?? null));
+         if (!formik) return;
+         let newFormikValue: any;
+         if (effectiveMultiple) {
+            newFormikValue = newEntries.map(entry => {
+               if (entry.file.size > 0) return entry.file;
+               return entry.existingUrl || entry.existingData || entry.file.name;
+            });
+         } else {
+            if (newEntries.length === 0) {
+               newFormikValue = null;
+            } else {
+               const entry = newEntries[0];
+               newFormikValue = entry.file.size > 0 ? entry.file : (entry.existingUrl || entry.existingData || entry.file.name);
+            }
+         }
+         const currentFormikValue = formik.values[name];
+         if (JSON.stringify(currentFormikValue) !== JSON.stringify(newFormikValue)) {
+            isInternalUpdate.current = true;
+            formik.setFieldValue(name, newFormikValue);
+            setTimeout(() => { isInternalUpdate.current = false; }, 0);
+         }
+         const validFiles = newEntries.map(e => e.file).filter(f => f.size > 0);
          onFilesChange?.(validFiles);
       },
       [name, effectiveMultiple, onFilesChange, formik]
    );
 
-   // Validar un archivo (tamaño y extensión)
+   // Cuando entries cambie, sincronizar con Formik
+   useEffect(() => {
+      if (formik && !isInternalUpdate.current) {
+         syncFormik(entries);
+      }
+   }, [entries, syncFormik, formik]);
+
+   // ──────────────────────────────────────────────────────────────
+   // Validar archivo nuevo
+   // ──────────────────────────────────────────────────────────────
    const validateFile = useCallback(
       (file: File): string | null => {
          const ext = getFileExtension(file.name);
@@ -510,7 +548,7 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
             effectiveAccept !== "*/*" &&
             !allExtensions.includes("*") &&
             !allExtensions.includes(ext) &&
-            !file.type.split("/").some((t) => effectiveAccept.includes(t))
+            !file.type.split("/").some(t => effectiveAccept.includes(t))
          ) {
             return `Extensión .${ext} no permitida`;
          }
@@ -523,27 +561,30 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
       [effectiveAccept, allExtensions, effectiveMaxMB]
    );
 
-   // 🆕 Procesar archivos con compresión asíncrona
+   // ──────────────────────────────────────────────────────────────
+   // Procesar archivos nuevos (con compresión)
+   // ──────────────────────────────────────────────────────────────
    const processFiles = useCallback(
       async (files: File[]) => {
-         const slots = effectiveMultiple ? maxFiles - entries.filter((e) => e.status !== "error").length : 1;
-         const incoming = files.slice(0, Math.max(slots, 0));
+         const existingNames = entries.map(e => e.file.name);
+         const newFiles = files.filter(f => !existingNames.includes(f.name));
+         if (newFiles.length === 0) return;
+
+         const slots = effectiveMultiple ? maxFiles - entries.filter(e => e.status !== "error").length : 1;
+         const incoming = newFiles.slice(0, Math.max(slots, 0));
          if (incoming.length === 0) return;
 
-         // Comprimir imágenes si está habilitado
          const processedFiles = await Promise.all(
             incoming.map(async (file) => {
                if (compressImages && isImageFile(file)) {
                   try {
-                     const compressed = await compressImage(file, {
+                     return await compressImage(file, {
                         maxWidth: imageMaxWidth,
                         maxHeight: imageMaxHeight,
                         quality: imageQuality,
                         maxSizeMB: imageMaxSizeMB
                      });
-                     return compressed;
-                  } catch (err) {
-                     console.warn("Error comprimiendo imagen, se usará original", err);
+                  } catch {
                      return file;
                   }
                }
@@ -551,7 +592,6 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
             })
          );
 
-         // Crear entradas después de la compresión
          const newEntries: FileEntry[] = processedFiles.map((file) => {
             const valError = validateFile(file);
             const isImg = isImageFile(file);
@@ -566,13 +606,11 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
             };
          });
 
-         setEntries((prev) => {
+         setEntries(prev => {
             const updated = effectiveMultiple ? [...prev, ...newEntries] : newEntries;
-            syncFormik(updated);
             return updated;
          });
 
-         // Simular progreso si corresponde
          if (simulateLoadMs > 0) {
             newEntries.forEach((entry) => {
                if (entry.status === "error") return;
@@ -580,47 +618,55 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
                let prog = 0;
                const interval = setInterval(() => {
                   prog = Math.min(prog + step, 100);
-                  setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, progress: Math.round(prog), status: prog >= 100 ? "success" : "loading" } : e)));
+                  setEntries(prev =>
+                     prev.map(e =>
+                        e.id === entry.id ? { ...e, progress: Math.round(prog), status: prog >= 100 ? "success" : "loading" } : e
+                     )
+                  );
                   if (prog >= 100) clearInterval(interval);
                }, 50);
             });
          }
       },
-      [entries, effectiveMultiple, maxFiles, simulateLoadMs, validateFile, syncFormik, compressImages, imageMaxWidth, imageMaxHeight, imageQuality, imageMaxSizeMB]
+      [entries, effectiveMultiple, maxFiles, simulateLoadMs, validateFile, compressImages, imageMaxWidth, imageMaxHeight, imageQuality, imageMaxSizeMB]
    );
 
+   // ──────────────────────────────────────────────────────────────
    // Eliminar entrada
+   // ──────────────────────────────────────────────────────────────
    const removeEntry = (id: string) => {
-      setEntries((prev) => {
-         const entry = prev.find((e) => e.id === id);
-         if (entry?.preview) URL.revokeObjectURL(entry.preview);
-         const updated = prev.filter((e) => e.id !== id);
-         syncFormik(updated);
-         return updated;
+      setEntries(prev => {
+         const entry = prev.find(e => e.id === id);
+         if (entry?.preview && entry.preview.startsWith("blob:")) URL.revokeObjectURL(entry.preview);
+         return prev.filter(e => e.id !== id);
       });
-      formik.setFieldTouched(name, true, false);
+      if (formik) formik.setFieldTouched(name, true, false);
    };
 
+   // ──────────────────────────────────────────────────────────────
    // Limpiar todo
+   // ──────────────────────────────────────────────────────────────
    const clearAll = () => {
-      entries.forEach((e) => {
-         if (e.preview) URL.revokeObjectURL(e.preview);
+      entries.forEach(e => {
+         if (e.preview && e.preview.startsWith("blob:")) URL.revokeObjectURL(e.preview);
       });
       setEntries([]);
-      formik.setFieldValue(name, effectiveMultiple ? [] : null);
+      if (formik) formik.setFieldValue(name, effectiveMultiple ? [] : null);
       onFilesChange?.([]);
       if (inputRef.current) inputRef.current.value = "";
    };
 
-   // Drag & Drop
+   // ──────────────────────────────────────────────────────────────
+   // Drag & Drop handlers
+   // ──────────────────────────────────────────────────────────────
    const handleDragEnter = (e: React.DragEvent) => {
       e.preventDefault();
-      setDragCount((c) => c + 1);
+      setDragCount(c => c + 1);
       setIsDragging(true);
    };
    const handleDragLeave = (e: React.DragEvent) => {
       e.preventDefault();
-      setDragCount((c) => {
+      setDragCount(c => {
          const next = c - 1;
          if (next <= 0) setIsDragging(false);
          return next;
@@ -635,105 +681,56 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
       setDragCount(0);
       const files = Array.from(e.dataTransfer.files);
       await processFiles(files);
-      formik.setFieldTouched(name, true, false);
+      if (formik) formik.setFieldTouched(name, true, false);
    };
 
-   // Input change
    const handleInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files ?? []);
       await processFiles(files);
-      formik.setFieldTouched(name, true, false);
+      if (formik) formik.setFieldTouched(name, true, false);
       if (inputRef.current) inputRef.current.value = "";
    };
 
-   const canAddMore = effectiveMultiple ? entries.filter((e) => e.status !== "error").length < maxFiles : entries.length === 0;
-   const successCount = entries.filter((e) => e.status === "success").length;
-   const hasErrors = entries.some((e) => e.status === "error");
+   const canAddMore = effectiveMultiple ? entries.filter(e => e.status !== "error").length < maxFiles : entries.length === 0;
+   const successCount = entries.filter(e => e.status === "success").length;
 
+   // ──────────────────────────────────────────────────────────────
+   // RENDER
+   // ──────────────────────────────────────────────────────────────
    return (
-      <div
-         style={{
-            width: "100%",
-            marginBottom: 28,
-            boxSizing: "border-box"
-         }}
-      >
-         {/* Header (sin cambios) */}
-         <div
-            style={{
-               display: "flex",
-               alignItems: "center",
-               justifyContent: "space-between",
-               marginBottom: 10,
-               flexWrap: "wrap",
-               gap: 8
-            }}
-         >
+      <div style={{ width: "100%", marginBottom: 28, boxSizing: "border-box" }}>
+         {/* Header */}
+         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                <span style={{ fontSize: 16 }}>{resolvedConfig.icon}</span>
-               <span
-                  style={{
-                     fontSize: 11,
-                     fontWeight: 700,
-                     letterSpacing: "0.06em",
-                     textTransform: "uppercase" as const,
-                     color: DS.text2
-                  }}
-               >
+               <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" as const, color: DS.text2 }}>
                   {label}
                </span>
                {effectiveMultiple && (
-                  <span
-                     style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: DS.accent,
-                        background: DS.accentLight,
-                        borderRadius: DS.r3,
-                        padding: "1px 7px"
-                     }}
-                  >
+                  <span style={{ fontSize: 11, fontWeight: 600, color: DS.accent, background: DS.accentLight, borderRadius: DS.r3, padding: "1px 7px" }}>
                      {successCount}/{maxFiles}
                   </span>
                )}
             </div>
-
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                {entries.length > 0 && (
                   <button
                      type="button"
                      onClick={clearAll}
-                     style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: DS.errorText,
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: "2px 8px",
-                        borderRadius: DS.r3,
-                        transition: DS.transition
-                     }}
-                     onMouseEnter={(e) => (e.currentTarget.style.background = DS.errorBg)}
-                     onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                     style={{ fontSize: 11, fontWeight: 600, color: DS.errorText, background: "none", border: "none", cursor: "pointer", padding: "2px 8px", borderRadius: DS.r3, transition: DS.transition }}
+                     onMouseEnter={e => e.currentTarget.style.background = DS.errorBg}
+                     onMouseLeave={e => e.currentTarget.style.background = "none"}
                   >
                      Limpiar todo
                   </button>
                )}
                <button
                   type="button"
-                  onClick={() => setShowAllowed((s) => !s)}
+                  onClick={() => setShowAllowed(s => !s)}
                   style={{
-                     fontSize: 11,
-                     fontWeight: 600,
-                     color: showAllowed ? DS.accent : DS.text3,
-                     background: showAllowed ? DS.accentLight : "none",
-                     border: `1px solid ${showAllowed ? DS.accent + "40" : DS.border}`,
-                     cursor: "pointer",
-                     padding: "2px 8px",
-                     borderRadius: DS.r3,
-                     transition: DS.transition,
-                     whiteSpace: "nowrap" as const
+                     fontSize: 11, fontWeight: 600, color: showAllowed ? DS.accent : DS.text3,
+                     background: showAllowed ? DS.accentLight : "none", border: `1px solid ${showAllowed ? DS.accent + "40" : DS.border}`,
+                     cursor: "pointer", padding: "2px 8px", borderRadius: DS.r3, transition: DS.transition, whiteSpace: "nowrap" as const
                   }}
                >
                   {showAllowed ? "Ocultar tipos" : "Ver tipos permitidos"}
@@ -741,7 +738,7 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
             </div>
          </div>
 
-         {/* Tipos permitidos expandible (sin cambios) */}
+         {/* Tipos permitidos expandible */}
          <AnimatePresence>
             {showAllowed && (
                <motion.div
@@ -751,60 +748,24 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
                   transition={{ duration: 0.2 }}
                   style={{ overflow: "hidden", width: "100%" }}
                >
-                  <div
-                     style={{
-                        width: "100%",
-                        padding: "12px 14px",
-                        background: DS.surface,
-                        border: `1.5px solid ${DS.border}`,
-                        borderRadius: DS.r8,
-                        boxSizing: "border-box"
-                     }}
-                  >
-                     <div
-                        style={{
-                           display: "flex",
-                           flexWrap: "wrap",
-                           gap: 6,
-                           marginBottom: 8,
-                           alignItems: "center"
-                        }}
-                     >
-                        {allExtensions.map((ext) => (
+                  <div style={{ width: "100%", padding: "12px 14px", background: DS.surface, border: `1.5px solid ${DS.border}`, borderRadius: DS.r8, boxSizing: "border-box" }}>
+                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8, alignItems: "center" }}>
+                        {allExtensions.map(ext => (
                            <ExtBadge key={ext} ext={ext === "*" ? "todo" : ext} color={resolvedConfig.color} colorLight={resolvedConfig.colorLight} />
                         ))}
                      </div>
-                     <div
-                        style={{
-                           display: "flex",
-                           flexWrap: "wrap",
-                           gap: 12,
-                           alignItems: "center"
-                        }}
-                     >
-                        <span style={{ fontSize: 12, color: DS.text3 }}>
-                           Tamaño máx. <strong style={{ color: DS.text2 }}>{effectiveMaxMB} MB</strong>
-                        </span>
-                        <span style={{ fontSize: 12, color: DS.text3 }}>
-                           Máx. archivos <strong style={{ color: DS.text2 }}>{maxFiles}</strong>
-                        </span>
-                        {effectiveMultiple && (
-                           <span style={{ fontSize: 12, color: DS.text3 }}>
-                              Selección <strong style={{ color: DS.text2 }}>múltiple habilitada</strong>
-                           </span>
-                        )}
-                        {compressImages && (
-                           <span style={{ fontSize: 12, color: DS.text3 }}>
-                              🖼️ Compresión activa (máx. {imageMaxWidth}x{imageMaxHeight})
-                           </span>
-                        )}
+                     <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+                        <span style={{ fontSize: 12, color: DS.text3 }}>Tamaño máx. <strong style={{ color: DS.text2 }}>{effectiveMaxMB} MB</strong></span>
+                        <span style={{ fontSize: 12, color: DS.text3 }}>Máx. archivos <strong style={{ color: DS.text2 }}>{maxFiles}</strong></span>
+                        {effectiveMultiple && <span style={{ fontSize: 12, color: DS.text3 }}>Selección <strong style={{ color: DS.text2 }}>múltiple habilitada</strong></span>}
+                        {compressImages && <span style={{ fontSize: 12, color: DS.text3 }}>🖼️ Compresión activa (máx. {imageMaxWidth}x{imageMaxHeight})</span>}
                      </div>
                   </div>
                </motion.div>
             )}
          </AnimatePresence>
 
-         {/* Zona de drop (sin cambios visuales, pero ahora con compresión) */}
+         {/* Zona de drop */}
          {!disabled && canAddMore && (
             <div
                ref={dropRef}
@@ -814,75 +775,28 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
                onDrop={handleDrop}
                onClick={() => !disabled && inputRef.current?.click()}
                style={{
-                  width: "100%",
-                  position: "relative",
-                  border: `2px dashed ${isDragging ? resolvedConfig.color : errorMsg ? DS.borderError : DS.border}`,
-                  borderRadius: DS.r10,
-                  background: isDragging ? resolvedConfig.colorLight : errorMsg ? DS.errorBg : DS.white,
-                  padding: compact ? "20px 16px" : "32px 24px",
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  transition: DS.transition,
-                  textAlign: "center" as const,
-                  boxShadow: isDragging ? `0 0 0 3px ${resolvedConfig.color}25` : "none",
-                  boxSizing: "border-box"
+                  width: "100%", position: "relative", border: `2px dashed ${isDragging ? resolvedConfig.color : errorMsg ? DS.borderError : DS.border}`,
+                  borderRadius: DS.r10, background: isDragging ? resolvedConfig.colorLight : errorMsg ? DS.errorBg : DS.white,
+                  padding: compact ? "20px 16px" : "32px 24px", cursor: disabled ? "not-allowed" : "pointer",
+                  transition: DS.transition, textAlign: "center" as const, boxShadow: isDragging ? `0 0 0 3px ${resolvedConfig.color}25` : "none", boxSizing: "border-box"
                }}
-               onMouseEnter={(e) => {
-                  if (!isDragging && !disabled) {
-                     e.currentTarget.style.borderColor = DS.borderHover;
-                     e.currentTarget.style.background = DS.surface;
-                  }
-               }}
-               onMouseLeave={(e) => {
-                  if (!isDragging) {
-                     e.currentTarget.style.borderColor = errorMsg ? DS.borderError : DS.border;
-                     e.currentTarget.style.background = errorMsg ? DS.errorBg : DS.white;
-                  }
-               }}
+               onMouseEnter={e => { if (!isDragging && !disabled) { e.currentTarget.style.borderColor = DS.borderHover; e.currentTarget.style.background = DS.surface; } }}
+               onMouseLeave={e => { if (!isDragging) { e.currentTarget.style.borderColor = errorMsg ? DS.borderError : DS.border; e.currentTarget.style.background = errorMsg ? DS.errorBg : DS.white; } }}
             >
-               <motion.div
-                  animate={isDragging ? { scale: 1.15, y: -4 } : { scale: 1, y: 0 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                  style={{ fontSize: compact ? 28 : 40, marginBottom: compact ? 8 : 12, lineHeight: 1 }}
-               >
+               <motion.div animate={isDragging ? { scale: 1.15, y: -4 } : { scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 20 }} style={{ fontSize: compact ? 28 : 40, marginBottom: compact ? 8 : 12, lineHeight: 1 }}>
                   {isDragging ? "📂" : resolvedConfig.icon}
                </motion.div>
-
-               <p
-                  style={{
-                     margin: 0,
-                     fontSize: compact ? 13 : 14,
-                     fontWeight: 600,
-                     color: isDragging ? resolvedConfig.color : DS.text1
-                  }}
-               >
-                  {isDragging
-                     ? "Suelta los archivos aquí"
-                     : entries.length > 0
-                       ? `Agregar más ${resolvedConfig.label.toLowerCase()}`
-                       : `Arrastra ${resolvedConfig.label.toLowerCase()} aquí`}
+               <p style={{ margin: 0, fontSize: compact ? 13 : 14, fontWeight: 600, color: isDragging ? resolvedConfig.color : DS.text1 }}>
+                  {isDragging ? "Suelta los archivos aquí" : entries.length > 0 ? `Agregar más ${resolvedConfig.label.toLowerCase()}` : `Arrastra ${resolvedConfig.label.toLowerCase()} aquí`}
                </p>
-
                {!compact && (
                   <p style={{ margin: "6px 0 0", fontSize: 13, color: DS.text3 }}>
-                     o{" "}
-                     <span
-                        style={{
-                           color: resolvedConfig.color,
-                           fontWeight: 600,
-                           textDecoration: "underline",
-                           textDecorationStyle: "dotted" as const
-                        }}
-                     >
-                        haz clic para seleccionar
-                     </span>
+                     o <span style={{ color: resolvedConfig.color, fontWeight: 600, textDecoration: "underline", textDecorationStyle: "dotted" as const }}>haz clic para seleccionar</span>
                   </p>
                )}
-
                {!compact && (
                   <p style={{ margin: "10px 0 0", fontSize: 12, color: DS.text3 }}>
-                     {allExtensions.includes("*")
-                        ? `Cualquier formato · máx. ${effectiveMaxMB} MB`
-                        : `.${allExtensions.slice(0, 5).join(" · .")}${allExtensions.length > 5 ? ` · +${allExtensions.length - 5} más` : ""} · máx. ${effectiveMaxMB} MB`}
+                     {allExtensions.includes("*") ? `Cualquier formato · máx. ${effectiveMaxMB} MB` : `.${allExtensions.slice(0, 5).join(" · .")}${allExtensions.length > 5 ? ` · +${allExtensions.length - 5} más` : ""} · máx. ${effectiveMaxMB} MB`}
                      {compressImages && " · Las imágenes se comprimirán automáticamente"}
                   </p>
                )}
@@ -891,43 +805,17 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
 
          {/* Disabled state */}
          {disabled && entries.length === 0 && (
-            <div
-               style={{
-                  width: "100%",
-                  padding: compact ? "14px" : "24px",
-                  border: `1.5px solid ${DS.border}`,
-                  borderRadius: DS.r10,
-                  background: DS.surface,
-                  textAlign: "center" as const,
-                  color: DS.text3,
-                  fontSize: 13,
-                  boxSizing: "border-box"
-               }}
-            >
+            <div style={{ width: "100%", padding: compact ? "14px" : "24px", border: `1.5px solid ${DS.border}`, borderRadius: DS.r10, background: DS.surface, textAlign: "center" as const, color: DS.text3, fontSize: 13, boxSizing: "border-box" }}>
                Campo deshabilitado
             </div>
          )}
 
-         {/* Lista de archivos (sin cambios visuales) */}
+         {/* Lista de archivos */}
          <AnimatePresence mode="popLayout">
             {entries.length > 0 && (
-               <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  style={{
-                     marginTop: canAddMore && !disabled ? 12 : 0,
-                     width: "100%"
-                  }}
-               >
-                  <div
-                     style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                        width: "100%"
-                     }}
-                  >
-                     {entries.map((entry) => (
+               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ marginTop: canAddMore && !disabled ? 12 : 0, width: "100%" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+                     {entries.map(entry => (
                         <motion.div
                            key={entry.id}
                            layout
@@ -936,78 +824,31 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
                            exit={{ opacity: 0, x: 10, scale: 0.97 }}
                            transition={{ duration: 0.18 }}
                            style={{
-                              width: "100%",
-                              display: "flex",
-                              alignItems: "flex-start",
-                              gap: 12,
-                              padding: "10px 12px",
+                              width: "100%", display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 12px",
                               border: `1.5px solid ${entry.status === "error" ? DS.borderError : entry.status === "success" ? DS.border : DS.border}`,
-                              borderRadius: DS.r8,
-                              background: entry.status === "error" ? DS.errorBg : DS.white,
-                              boxShadow: DS.shadowSm,
-                              transition: DS.transition,
-                              boxSizing: "border-box"
+                              borderRadius: DS.r8, background: entry.status === "error" ? DS.errorBg : DS.white,
+                              boxShadow: DS.shadowSm, transition: DS.transition, boxSizing: "border-box"
                            }}
                         >
                            {/* Preview / ícono */}
                            {showPreviews && entry.isImage && entry.preview ? (
                               <div
-                                 style={{
-                                    width: 48,
-                                    height: 48,
-                                    borderRadius: DS.r6,
-                                    overflow: "hidden",
-                                    flexShrink: 0,
-                                    background: DS.surface,
-                                    border: `1px solid ${DS.border}`,
-                                    cursor: "pointer"
-                                 }}
+                                 style={{ width: 48, height: 48, borderRadius: DS.r6, overflow: "hidden", flexShrink: 0, background: DS.surface, border: `1px solid ${DS.border}`, cursor: "pointer" }}
                                  onClick={() => setPreviewModal(entry.preview!)}
                               >
                                  <img src={entry.preview} alt={entry.file.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                               </div>
                            ) : (
-                              <div
-                                 style={{
-                                    width: 48,
-                                    height: 48,
-                                    borderRadius: DS.r6,
-                                    background: resolvedConfig.colorLight,
-                                    border: `1px solid ${resolvedConfig.color}25`,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    fontSize: 22,
-                                    flexShrink: 0
-                                 }}
-                              >
-                                 {getFileTypeIcon(entry.file)}
+                              <div style={{ width: 48, height: 48, borderRadius: DS.r6, background: resolvedConfig.colorLight, border: `1px solid ${resolvedConfig.color}25`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>
+                                 {entry.isImage ? "🖼" : getFileTypeIcon(entry.file)}
                               </div>
                            )}
 
                            {/* Info */}
                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div
-                                 style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 8,
-                                    marginBottom: 2,
-                                    flexWrap: "wrap"
-                                 }}
-                              >
-                                 <span
-                                    style={{
-                                       fontSize: 13,
-                                       fontWeight: 600,
-                                       color: DS.text1,
-                                       overflow: "hidden",
-                                       textOverflow: "ellipsis",
-                                       whiteSpace: "nowrap" as const,
-                                       maxWidth: "calc(100% - 80px)"
-                                    }}
-                                 >
-                                    {entry.file.name}
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2, flexWrap: "wrap" }}>
+                                 <span style={{ fontSize: 13, fontWeight: 600, color: DS.text1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const, maxWidth: "calc(100% - 80px)" }}>
+                                    {entry.existingUrl ? (entry.file.name || "Archivo") : entry.file.name}
                                  </span>
                                  <ExtBadge
                                     ext={getFileExtension(entry.file.name)}
@@ -1015,7 +856,6 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
                                     colorLight={entry.status === "error" ? DS.errorBg : entry.status === "success" ? DS.successBg : resolvedConfig.colorLight}
                                  />
                               </div>
-
                               {entry.status === "error" && entry.errorMsg ? (
                                  <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: DS.errorText }}>✕ {entry.errorMsg}</p>
                               ) : (
@@ -1025,7 +865,6 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
                                     {entry.status === "loading" && <span style={{ fontSize: 11, color: DS.accent, fontWeight: 600 }}>{entry.progress}%</span>}
                                  </div>
                               )}
-
                               {entry.status !== "error" && <ProgressBar progress={entry.progress} status={entry.status} />}
                            </div>
 
@@ -1036,26 +875,9 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
                                  <button
                                     type="button"
                                     onClick={() => removeEntry(entry.id)}
-                                    style={{
-                                       width: 28,
-                                       height: 28,
-                                       borderRadius: DS.r3,
-                                       background: DS.surface,
-                                       border: `1px solid ${DS.border}`,
-                                       cursor: "pointer",
-                                       display: "flex",
-                                       alignItems: "center",
-                                       justifyContent: "center",
-                                       transition: DS.transition
-                                    }}
-                                    onMouseEnter={(e) => {
-                                       e.currentTarget.style.background = DS.errorBg;
-                                       e.currentTarget.style.borderColor = DS.errorBorder;
-                                    }}
-                                    onMouseLeave={(e) => {
-                                       e.currentTarget.style.background = DS.surface;
-                                       e.currentTarget.style.borderColor = DS.border;
-                                    }}
+                                    style={{ width: 28, height: 28, borderRadius: DS.r3, background: DS.surface, border: `1px solid ${DS.border}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: DS.transition }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = DS.errorBg; e.currentTarget.style.borderColor = DS.errorBorder; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = DS.surface; e.currentTarget.style.borderColor = DS.border; }}
                                  >
                                     <svg style={{ width: 12, height: 12, color: DS.text3 }} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1078,18 +900,7 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
                   animate={{ opacity: 1, y: 0, height: "auto" }}
                   exit={{ opacity: 0, y: -4, height: 0 }}
                   transition={{ duration: 0.15 }}
-                  style={{
-                     width: "100%",
-                     display: "flex",
-                     alignItems: "center",
-                     gap: 6,
-                     marginTop: 8,
-                     padding: "6px 10px",
-                     background: DS.errorBg,
-                     border: `1px solid ${DS.errorBorder}`,
-                     borderRadius: DS.r6,
-                     boxSizing: "border-box"
-                  }}
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 6, marginTop: 8, padding: "6px 10px", background: DS.errorBg, border: `1px solid ${DS.errorBorder}`, borderRadius: DS.r6, boxSizing: "border-box" }}
                >
                   <div style={{ width: 5, height: 5, borderRadius: "50%", background: DS.errorText, flexShrink: 0 }} />
                   <span style={{ fontSize: 12, fontWeight: 500, color: DS.errorText }}>{errorMsg}</span>
@@ -1098,19 +909,7 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
          </AnimatePresence>
 
          {/* Hint */}
-         {hint && (
-            <p
-               style={{
-                  margin: "8px 0 0",
-                  fontSize: 12,
-                  color: DS.text3,
-                  lineHeight: 1.5,
-                  width: "100%"
-               }}
-            >
-               {hint}
-            </p>
-         )}
+         {hint && <p style={{ margin: "8px 0 0", fontSize: 12, color: DS.text3, lineHeight: 1.5, width: "100%" }}>{hint}</p>}
 
          {/* Input oculto */}
          <input
@@ -1133,54 +932,20 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => setPreviewModal(null)}
-                  style={{
-                     position: "fixed",
-                     inset: 0,
-                     zIndex: 9999,
-                     background: "rgba(0,0,0,0.85)",
-                     backdropFilter: "blur(4px)",
-                     display: "flex",
-                     alignItems: "center",
-                     justifyContent: "center",
-                     padding: 16
-                  }}
+                  style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
                >
                   <motion.div
                      initial={{ scale: 0.9, opacity: 0 }}
                      animate={{ scale: 1, opacity: 1 }}
                      exit={{ scale: 0.9, opacity: 0 }}
                      transition={{ type: "spring", damping: 24 }}
-                     onClick={(e) => e.stopPropagation()}
+                     onClick={e => e.stopPropagation()}
                      style={{ position: "relative", maxWidth: "90vw", maxHeight: "90vh" }}
                   >
-                     <img
-                        src={previewModal}
-                        alt="Vista previa"
-                        style={{
-                           maxWidth: "100%",
-                           maxHeight: "90vh",
-                           borderRadius: DS.r10,
-                           objectFit: "contain",
-                           boxShadow: "0 24px 80px rgba(0,0,0,0.4)"
-                        }}
-                     />
+                     <img src={previewModal} alt="Vista previa" style={{ maxWidth: "100%", maxHeight: "90vh", borderRadius: DS.r10, objectFit: "contain", boxShadow: "0 24px 80px rgba(0,0,0,0.4)" }} />
                      <button
                         onClick={() => setPreviewModal(null)}
-                        style={{
-                           position: "absolute",
-                           top: -12,
-                           right: -12,
-                           width: 32,
-                           height: 32,
-                           borderRadius: "50%",
-                           background: DS.errorText,
-                           border: "none",
-                           cursor: "pointer",
-                           display: "flex",
-                           alignItems: "center",
-                           justifyContent: "center",
-                           boxShadow: DS.shadowMd
-                        }}
+                        style={{ position: "absolute", top: -12, right: -12, width: 32, height: 32, borderRadius: "50%", background: DS.errorText, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: DS.shadowMd }}
                      >
                         <svg style={{ width: 16, height: 16, color: "white" }} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1191,9 +956,7 @@ export const FormikFileInput: React.FC<FormikFileInputProps> = ({
             )}
          </AnimatePresence>
 
-         <style>{`
-            @keyframes spin { to { transform: rotate(360deg); } }
-         `}</style>
+         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
    );
 };

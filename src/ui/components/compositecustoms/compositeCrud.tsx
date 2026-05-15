@@ -1,8 +1,16 @@
-import React, { useMemo, useState, useEffect, useCallback, memo } from "react";
+import React, {
+   useMemo,
+   useState,
+   useEffect,
+   useCallback,
+   memo,
+   useRef,
+} from "react";
 import type { GenericDataReturn } from "react-zustore";
 import { useFormikContext } from "formik";
 import { IoMdAdd } from "react-icons/io";
 import { FiActivity, FiBarChart2 } from "react-icons/fi";
+import { HiDotsVertical } from "react-icons/hi";
 
 import CompositePage from "./compositePage";
 import CustomButton from "../button/custombuttom";
@@ -31,6 +39,9 @@ import type {
    OverrideFieldProps,
    OverrideSelectProps,
    OverrideTableProps,
+   TableActionsConfig,
+   TableActionButton,
+   TableHeaderConfig,
 } from "../../../models/genericmodels.model";
 import { icons } from "../../../constant";
 
@@ -59,9 +70,8 @@ export interface FieldItem {
       | "Number"
       | "Radio";
    required?: boolean;
-   type?: string; // ← agrega esto
-   getFilterValue?: (value: any) => string; // ← nuevo
-
+   type?: string;
+   getFilterValue?: (value: any) => string;
    headerName?: string;
    renderField?: (value: any, row: any) => React.ReactNode;
    responsive?: ResponsiveSizes;
@@ -83,11 +93,204 @@ export interface FieldItem {
 
 interface PropsCrud<TForm extends object, TTable extends object = TForm> {
    hook: GenericDataReturn<TForm>;
-   titles: { modalTitleAdd: string; modalTitleUpdate: string };
+   formTitles: { modalTitleAdd: string; modalTitleUpdate: string };
    fields?: FieldItem[];
    crudConfig?: BuildResult<TForm, TTable>;
    advancedConfig?: AdvancedCrudConfig<TForm, TTable>;
 }
+
+// ─── ActionButtons Component con menú desplegable ─────────────────────────────
+
+interface ActionButtonsProps<TRecord> {
+   row: TRecord;
+   actionsConfig?: TableActionsConfig<any>;
+   onEdit?: (row: any) => void;
+   onDelete?: (row: any) => void;
+   maxVisibleButtons?: number;
+}
+
+const ActionButtons = <TRecord,>({
+   row,
+   actionsConfig,
+   onEdit,
+   onDelete,
+   maxVisibleButtons = 2,
+}: ActionButtonsProps<TRecord>) => {
+   const [menuOpen, setMenuOpen] = useState(false);
+   const menuRef = useRef<HTMLDivElement>(null);
+
+   // Cerrar menú al hacer clic fuera
+   useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+         if (
+            menuRef.current &&
+            !menuRef.current.contains(event.target as Node)
+         ) {
+            setMenuOpen(false);
+         }
+      };
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+         document.removeEventListener("mousedown", handleClickOutside);
+   }, []);
+
+   if (!actionsConfig && !onEdit && !onDelete) return null;
+
+   // Construir lista de botones
+   const buttons: Array<{
+      id: string;
+      label: string;
+      icon?: React.ReactNode;
+      onClick: () => void;
+      color?: string;
+      tooltip?: string;
+      danger?: boolean;
+   }> = [];
+
+   // Botón Editar
+   if (actionsConfig?.isEditing !== false && onEdit) {
+      buttons.push({
+         id: "edit",
+         label: "Editar",
+         icon: <icons.Lu.LuPencil className="w-4 h-4" />,
+         onClick: () => onEdit(row),
+         color: "yellow",
+         tooltip: "Editar",
+      });
+   }
+
+   // Botón Eliminar
+   if (actionsConfig?.isDelete !== false && onDelete) {
+      buttons.push({
+         id: "delete",
+         label: "Eliminar",
+         icon: <icons.Lu.LuTrash className="w-4 h-4" />,
+         onClick: () => onDelete(row),
+         color: "ruby",
+         tooltip: "Eliminar",
+         danger: true,
+      });
+   }
+
+   // Botones personalizados
+   actionsConfig?.moreButtons?.forEach((btn, idx) => {
+      if (btn.permission === false) return;
+      if (btn.multiple === true) return;
+
+      // Obtener el ícono (priorizar 'icon' sobre 'iconName')
+      const getIcon = () => {
+         // Si tiene 'icon' (puede ser string o ReactNode)
+         if (btn.icon) {
+            if (typeof btn.icon === "string") {
+               return <i className={`${btn.icon} w-4 h-4`} />;
+            }
+            return btn.icon;
+         }
+         // Fallback a 'iconName' (deprecated)
+         if (btn.iconName) {
+            return <i className={`${btn.iconName} w-4 h-4`} />;
+         }
+         return undefined;
+      };
+
+      const icon = getIcon();
+
+      buttons.push({
+         id: `custom-${idx}`,
+         label: btn.label,
+         icon: icon,
+         onClick: () => btn.handleOnClick(row),
+         color: btn.color,
+         tooltip: btn.tooltip || btn.label,
+      });
+   });
+
+   const visibleButtons = buttons.slice(0, maxVisibleButtons);
+   const hiddenButtons = buttons.slice(maxVisibleButtons);
+
+   return (
+      <div className="flex items-center gap-2">
+         {/* Botones visibles */}
+         {visibleButtons.map((btn) => (
+            <Tooltip key={btn.id} content={btn.tooltip || btn.label}>
+               <CustomButton
+                  color={(btn.color as any) || "gray"}
+                  onClick={btn.onClick}
+                  icon={btn.icon}
+                  size="sm">
+                  {!btn.icon && btn.label}
+               </CustomButton>
+            </Tooltip>
+         ))}
+
+         {/* Menú desplegable para botones adicionales */}
+         {hiddenButtons.length > 0 && (
+            <div className="relative" ref={menuRef}>
+               <Tooltip content="Más acciones">
+                  <CustomButton
+                     color="gray"
+                     onClick={() => setMenuOpen(!menuOpen)}
+                     icon={<HiDotsVertical className="w-4 h-4" />}
+                     size="sm"
+                  />
+               </Tooltip>
+
+               {menuOpen && (
+                  <div className="absolute right-0 z-50 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[160px] overflow-hidden">
+                     <div className="py-1">
+                        {hiddenButtons.map((btn) => {
+                           const getIcon = () => {
+                              if (btn.icon) {
+                                 if (typeof btn.icon === "string") {
+                                    return (
+                                       <span className="w-4 h-4">
+                                          <i
+                                             className={`${btn.icon} w-4 h-4`}
+                                          />
+                                       </span>
+                                    );
+                                 }
+                                 return (
+                                    <span className="w-4 h-4">{btn.icon}</span>
+                                 );
+                              }
+                              if (btn.icon) {
+                                 return (
+                                    <span className="w-4 h-4">
+                                       <i className={`${btn.icon} w-4 h-4`} />
+                                    </span>
+                                 );
+                              }
+                              return null;
+                           };
+                           return (
+                              <button
+                                 key={btn.id}
+                                 onClick={() => {
+                                    btn.onClick();
+                                    setMenuOpen(false);
+                                 }}
+                                 className={`
+                                 flex items-center gap-2 w-full px-4 py-2 text-sm text-left
+                                 hover:bg-gray-100 transition-colors hover:cursor-pointer
+                                 ${btn.danger ? "text-red-600 hover:bg-red-50" : "text-gray-700"}
+                              `}>
+                                 <div
+                                    className={`flex items-center justify-center gap-1.5 align-middle hover:translate-x-1 transition-all hover:font-bold hover:text-${btn.color}-500`}>
+                                    {getIcon()}
+                                    <span>{btn.label}</span>
+                                 </div>
+                              </button>
+                           );
+                        })}
+                     </div>
+                  </div>
+               )}
+            </div>
+         )}
+      </div>
+   );
+};
 
 // ─── Design System ────────────────────────────────────────────────────────────
 
@@ -122,159 +325,90 @@ const DEFAULT_RESPONSIVE: ResponsiveSizes = {
 };
 
 // ─── Fallback UI Components ───────────────────────────────────────────────────
-// utils/dateUtils.ts
 
-/**
- * Detecta si un valor es una fecha en formato ISO 8601 (con o sin timezone)
- * Ejemplos: "2024-01-15", "2024-01-15T00:00:00Z", "2024-01-15T06:00:00.000000Z"
- */
 const isISODateString = (value: any): boolean => {
    if (typeof value !== "string") return false;
-   // Regex que detecta formatos de fecha ISO
    const isoDateRegex =
       /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[\+\-]\d{2}:\d{2})?)?$/;
    if (!isoDateRegex.test(value)) return false;
-
-   // Verificar que sea una fecha válida
    const date = new Date(value);
    return !isNaN(date.getTime());
 };
 
-/**
- * Detecta si un valor es un objeto Date de JavaScript
- */
 const isDateObject = (value: any): value is Date => {
    return value instanceof Date && !isNaN(value.getTime());
 };
 
-/**
- * Detecta si un valor es un timestamp numérico (milisegundos)
- */
 const isTimestamp = (value: any): boolean => {
    if (typeof value !== "number") return false;
-   // Timestamp válido: entre año 2000 y 2100 aprox
    return value > 946684800000 && value < 4102444800000;
 };
 
-/**
- * Transforma cualquier formato de fecha a YYYY-MM-DD (para inputs type="date")
- */
 const toDateInputFormat = (value: any): string | null => {
    let date: Date | null = null;
-
-   if (isDateObject(value)) {
-      date = value;
-   } else if (isISODateString(value)) {
-      date = new Date(value);
-   } else if (isTimestamp(value)) {
-      date = new Date(value);
-   }
-
-   if (date && !isNaN(date.getTime())) {
-      return date.toISOString().split("T")[0];
-   }
-
+   if (isDateObject(value)) date = value;
+   else if (isISODateString(value)) date = new Date(value);
+   else if (isTimestamp(value)) date = new Date(value);
+   if (date && !isNaN(date.getTime())) return date.toISOString().split("T")[0];
    return null;
 };
 
-/**
- * Transforma cualquier formato de fecha al formato ISO completo con timezone UTC
- * Ejemplo: "2024-01-15" → "2024-01-15T00:00:00.000000Z"
- */
 const toISOFullFormat = (value: any): string | null => {
    let date: Date | null = null;
-
-   if (isDateObject(value)) {
-      date = value;
-   } else if (isISODateString(value)) {
-      date = new Date(value);
-   } else if (isTimestamp(value)) {
-      date = new Date(value);
-   } else if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      // Ya es YYYY-MM-DD
+   if (isDateObject(value)) date = value;
+   else if (isISODateString(value)) date = new Date(value);
+   else if (isTimestamp(value)) date = new Date(value);
+   else if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
       date = new Date(`${value}T00:00:00Z`);
    }
-
    if (date && !isNaN(date.getTime())) {
-      // Formato: 2024-01-15T00:00:00.000000Z
       const iso = date.toISOString();
-      // Reemplazar milisegundos (3 dígitos) por 6 dígitos
       return iso.replace(/\.\d{3}Z$/, ".000000Z");
    }
-
    return null;
 };
 
-/**
- * Recorre recursivamente un objeto y transforma TODAS las fechas encontradas
- *
- * @param obj - Objeto a transformar
- * @param transformFn - Función de transformación (toDateInputFormat o toISOFullFormat)
- * @returns Nuevo objeto con todas las fechas transformadas
- */
 export const transformDatesInObject = <T = any,>(
    obj: T,
    transformFn: (value: any) => string | null = toDateInputFormat,
 ): T => {
    if (obj === null || obj === undefined) return obj;
-
-   // Si es un array, procesar cada elemento
    if (Array.isArray(obj)) {
       return obj.map((item) => transformDatesInObject(item, transformFn)) as T;
    }
-
-   // Si es un objeto, procesar sus propiedades
    if (typeof obj === "object") {
       const result: any = {};
-
       for (const key in obj) {
          if (Object.prototype.hasOwnProperty.call(obj, key)) {
             const value = obj[key];
-
-            // Si el valor es una fecha (string ISO, Date object, timestamp)
             if (
                isISODateString(value) ||
                isDateObject(value) ||
                isTimestamp(value)
             ) {
                const transformed = transformFn(value);
-               if (transformed !== null) {
-                  result[key] = transformed;
-               } else {
-                  result[key] = value;
-               }
-            }
-            // Si es un objeto o array, recursión
-            else if (typeof value === "object" && value !== null) {
+               result[key] = transformed !== null ? transformed : value;
+            } else if (typeof value === "object" && value !== null) {
                result[key] = transformDatesInObject(value, transformFn);
-            }
-            // Valor normal
-            else {
+            } else {
                result[key] = value;
             }
          }
       }
-
       return result;
    }
-
-   // Valores primitivos
    return obj;
 };
 
-// Exportar funciones de transformación por separado
 export const toFormDateFormat = toDateInputFormat;
 export const toBackendDateFormat = toISOFullFormat;
-
-// Función para transformar a formato de formulario (edición)
 export const prepareForForm = <T = any,>(obj: T): T => {
    return transformDatesInObject(obj, toDateInputFormat);
 };
-
-// Función para transformar a formato de backend (guardar)
 export const prepareForBackend = <T = any,>(obj: T): T => {
    return transformDatesInObject(obj, toISOFullFormat);
 };
+
 const SearchBar = ({ value, onChange, placeholder, debounceMs = 300 }: any) => {
    const [localValue, setLocalValue] = useState(value);
    useEffect(() => {
@@ -475,7 +609,7 @@ const FormikRadioAdapter = (props: OverrideFieldProps) => (
       name={props.name}
       label={props.label || ""}
       options={props.options || []}
-      idKey={props.config?.optionIdKey || "id"}
+      idKey={(props.config?.optionIdKey as string) || "id"}
       labelKey={props.config?.optionLabelKey || "label"}
    />
 );
@@ -487,8 +621,6 @@ const FormikCheckboxAdapter = (props: OverrideFieldProps) => (
 );
 
 // ─── DynamicSelectField ───────────────────────────────────────────────────────
-// ✅ OUTSIDE SuperCrud — stable component type, never remounts on parent re-render.
-// ✅ selectOptionsHook() called at TOP LEVEL of component body — Rules of Hooks satisfied.
 
 interface DynamicSelectFieldProps {
    field: FieldItem;
@@ -497,11 +629,7 @@ interface DynamicSelectFieldProps {
 
 const DynamicSelectField = memo(
    ({ field, responsive }: DynamicSelectFieldProps) => {
-      // Call the hook unconditionally at the top level.
-      // This component is only rendered when selectOptionsHook exists (guarded in renderField).
       const hookResult = field.selectOptionsHook!();
-
-      // Determine once on mount whether this is an async (Promise-based) hook.
       const [isAsync] = useState<boolean>(
          () =>
             hookResult != null &&
@@ -518,11 +646,8 @@ const DynamicSelectField = memo(
          return () => {
             active = false;
          };
-         // eslint-disable-next-line react-hooks/exhaustive-deps
-      }, []); // Promise resolved once on mount only
+      }, []);
 
-      // Sync hook (Zustand/React Query returning array) → reactive, updates with store.
-      // Async hook (Promise) → resolved state.
       const options: any[] = isAsync
          ? asyncOptions
          : Array.isArray(hookResult)
@@ -544,7 +669,6 @@ const DynamicSelectField = memo(
 DynamicSelectField.displayName = "DynamicSelectField";
 
 // ─── StepperFormLocal ─────────────────────────────────────────────────────────
-// ✅ OUTSIDE SuperCrud — stable type, receives renderField as prop.
 
 interface StepperFormLocalProps {
    sections: { title: string; fields: FieldItem[] }[];
@@ -605,7 +729,6 @@ const StepperFormLocal = ({
 };
 
 // ─── BoxFormLocal ─────────────────────────────────────────────────────────────
-// ✅ OUTSIDE SuperCrud — stable type, receives renderField as prop.
 
 interface BoxFormLocalProps {
    sections: { title: string; fields: FieldItem[] }[];
@@ -680,7 +803,6 @@ const BoxFormLocal = ({ sections, onSave, renderField }: BoxFormLocalProps) => {
 };
 
 // ─── RenderFormContent ────────────────────────────────────────────────────────
-// ✅ OUTSIDE SuperCrud — stable type, all needed values received as props.
 
 interface RenderFormContentProps {
    computedFields: FieldItem[];
@@ -730,7 +852,7 @@ const RenderFormContent = ({
 
 const SuperCrud = <TForm extends object, TTable extends object = TForm>({
    hook,
-   titles,
+   formTitles,
    fields: manualFields,
    crudConfig,
    advancedConfig,
@@ -806,7 +928,7 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
             };
             switch (typeField) {
                case "Text":
-                  baseField.type = config.type; // ← agrega este case
+                  baseField.type = config.type;
                   break;
                case "Select":
                   baseField.selectOptions = config.options;
@@ -890,27 +1012,29 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
       return manualFields || [];
    }, [crudConfig, manualFields]);
 
+   // En SuperCrud.tsx
    const tableColumns = useMemo(() => {
-      if (crudConfig?.tableConfig) {
-         return Object.entries(crudConfig.tableConfig).map(
+      // Usar tableColumns (nuevo nombre)
+      if (crudConfig?.tableColumns) {
+         return Object.entries(crudConfig.tableColumns).map(
             ([field, config]) => ({
                field,
                headerName: config.label || field,
                renderField: (value: any, row: TTable) =>
                   config.render ? config.render(value, row) : value,
-               getFilterValue: config.getFilterValue, // ✅ agregado
+               getFilterValue: config.getFilterValue,
             }),
          );
       }
+      // Fallback a computedFields si no hay tableColumns
       return computedFields.map((it) => ({
          field: it.name,
          headerName: it.headerName || it.label,
          renderField: (value: any, row: TForm) =>
             it.renderField ? it.renderField(value, row) : value,
-         getFilterValue: it.getFilterValue, // ✅ agregado (si lo necesitas en campos simples)
+         getFilterValue: it.getFilterValue,
       }));
    }, [crudConfig, computedFields]);
-
    const sectioned = useMemo(() => {
       if (crudConfig?.uiLayout) {
          const { fieldsPerSection, sections, mode } = crudConfig.uiLayout;
@@ -955,7 +1079,6 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
       }
    };
 
-   // ✅ renderField is stable — DynamicSelectField is now a module-level stable type
    const renderField = useCallback((field: FieldItem): React.ReactNode => {
       const responsive = field.responsive || DEFAULT_RESPONSIVE;
       switch (field.typeField) {
@@ -1079,12 +1202,12 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
                         | "date"
                         | "datetime-local"
                         | "time") || "text"
-                  } // ← agrega esto
+                  }
                   responsive={responsive}
                />
             );
       }
-   }, []); // FieldItem values are passed in — no closure deps needed
+   }, []);
 
    // ─── Custom render mode ────────────────────────────────────────────────────
    if (crudConfig?.render) {
@@ -1094,7 +1217,6 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
          children: (formikBag: any) => React.ReactNode;
       }) => {
          const hasFile = computedFields.some((f) => f.typeField === "File");
-         console.log("form", hook.formData);
          return (
             <FormikForm
                initialValues={(hook.formData || {}) as TForm}
@@ -1111,6 +1233,17 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
       };
 
       const TableComponent = () => {
+         const handleEdit = (row: TTable) => {
+            const formattedRow = prepareForForm(row as unknown as TForm);
+            hook.setFormData(formattedRow);
+            hook.setOpen(true);
+         };
+
+         const handleDelete = (row: TTable) => {
+            setItemToDelete(row as unknown as TForm);
+            setDeleteConfirmOpen(true);
+         };
+
          const overrideTable = crudConfig.overrides?.table;
          if (overrideTable) {
             const columns = tableColumns.map((col) => ({
@@ -1123,52 +1256,93 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
             >;
             const tableData = (hook.items || []) as unknown as TTable[];
             return (
-               <TableOverride
-                  columns={columns}
-                  data={tableData}
-                  onEdit={(row: TTable) => {
-                     hook.setFormData(row as unknown as TForm);
-                     hook.setOpen(true);
-                  }}
-                  onDelete={(row: TTable) => {
-                     setItemToDelete(row as unknown as TForm);
-                     setDeleteConfirmOpen(true);
-                  }}
-               />
+               <>
+                  {crudConfig.tableHeader && (
+                     <div className="pb-4 mb-6 border-b border-gray-200">
+                        <div className="flex items-center gap-3">
+                           {crudConfig.tableHeader.icon && (
+                              <div className="text-gray-600">
+                                 {typeof crudConfig.tableHeader.icon ===
+                                 "string" ? (
+                                    <i
+                                       className={`${crudConfig.tableHeader.icon} text-2xl`}
+                                    />
+                                 ) : (
+                                    crudConfig.tableHeader.icon
+                                 )}
+                              </div>
+                           )}
+                           <div>
+                              <h1 className="text-2xl font-semibold text-gray-900">
+                                 {crudConfig.tableHeader.title}
+                              </h1>
+                              {crudConfig.tableHeader.subtitle && (
+                                 <p className="text-sm text-gray-500 mt-0.5">
+                                    {crudConfig.tableHeader.subtitle}
+                                 </p>
+                              )}
+                           </div>
+                        </div>
+                     </div>
+                  )}
+                  <TableOverride
+                     columns={columns}
+                     data={tableData}
+                     onEdit={handleEdit}
+                     onDelete={handleDelete}
+                     actionsConfig={crudConfig.tableActions}
+                     headerConfig={crudConfig.tableHeader}
+                  />
+               </>
             );
          }
-         return (
-            <CustomTable
-               loading={hook.loading}
-               data={hook.items || []}
-               paginate={[5, 10, 25, 50, 100, 500, 1000]}
-               columns={tableColumns as any}
-               actions={(row) => (
-                    <>
-                        <Tooltip content="Editar">
-                           <CustomButton
-                              color="yellow"
-                              onClick={() => {
-                                 const formattedRow = prepareForForm(row);
-                                 hook.setOpen(true);
-                                 hook.setFormData(formattedRow);
-                              }}
-                              icon={<icons.Lu.LuPencil />}
-                           />
-                        </Tooltip>
 
-                        <Tooltip content="Eliminar">
-                           <CustomButton
-                              color="ruby"
-                              onClick={() => {
-                                 hook.deleteItem(row);
-                              }}
-                              icon={<icons.Lu.LuTrash />}
-                           />
-                        </Tooltip>
-                     </>
+         return (
+            <>
+               {crudConfig?.tableHeader && (
+                  <div className="pb-4 mb-6 border-b border-gray-200">
+                     <div className="flex items-center gap-3">
+                        {crudConfig.tableHeader.icon && (
+                           <div className="text-gray-600">
+                              {typeof crudConfig.tableHeader.icon ===
+                              "string" ? (
+                                 <i
+                                    className={`${crudConfig.tableHeader.icon} text-2xl`}
+                                 />
+                              ) : (
+                                 crudConfig.tableHeader.icon
+                              )}
+                           </div>
+                        )}
+                        <div>
+                           <h1 className="text-2xl font-semibold text-gray-900">
+                              {crudConfig.tableHeader.title}
+                           </h1>
+                           {crudConfig.tableHeader.subtitle && (
+                              <p className="text-sm text-gray-500 mt-0.5">
+                                 {crudConfig.tableHeader.subtitle}
+                              </p>
+                           )}
+                        </div>
+                     </div>
+                  </div>
                )}
-            />
+               <CustomTable
+                  loading={hook.loading}
+                  data={hook.items || []}
+                  paginate={[5, 10, 25, 50, 100, 500, 1000]}
+                  columns={tableColumns as any}
+                  actions={(row) => (
+                     <ActionButtons
+                        row={row}
+                        actionsConfig={crudConfig.tableActions}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        maxVisibleButtons={2}
+                     />
+                  )}
+               />
+            </>
          );
       };
 
@@ -1291,14 +1465,12 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
       if (React.isValidElement(rendered)) return rendered;
 
       console.error(
-         "SuperCrud: crudConfig.render() debe retornar un elemento React válido. Se recibió:",
-         rendered,
+         "SuperCrud: crudConfig.render() debe retornar un elemento React válido.",
       );
       return (
          <div className="p-4 text-red-600 border border-red-300 rounded bg-red-50">
             <strong>Error de configuración:</strong> la función{" "}
-            <code>render</code> en crudConfig no retornó un componente React
-            válido.
+            <code>render</code> no retornó un componente React válido.
          </div>
       );
    }
@@ -1330,15 +1502,12 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
                )}
                {advancedConfig?.filters &&
                   advancedConfig.filters.length > 0 && (
-                     <FilterPanel
-                        filters={advancedConfig.filters}
-                        values={advancedHook?.filters || {}}
-                        onChange={(field: string, val: any) =>
-                           advancedHook?.setFilter(field, val)
-                        }
-                        onClear={() => advancedHook?.clearFilters()}
-                        isOpen={showFilters}
-                     />
+                     <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${showFilters ? "bg-blue-600 text-white" : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"}`}>
+                        Filtros{" "}
+                        {activeFilterCount > 0 && `(${activeFilterCount})`}
+                     </button>
                   )}
             </div>
 
@@ -1367,11 +1536,26 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
                         hook.setFormData({} as TForm);
                         hook.setOpen(true);
                      }}>
-                     <IoMdAdd /> Nuevo
+                     <IoMdAdd />
                   </CustomButton>
                </Tooltip>
             </div>
          </div>
+
+         {/* Filters expanded */}
+         {showFilters && advancedConfig?.filters && (
+            <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+               <FilterPanel
+                  filters={advancedConfig.filters}
+                  values={advancedHook?.filters || {}}
+                  onChange={(field: string, val: any) =>
+                     advancedHook?.setFilter(field, val)
+                  }
+                  onClear={() => advancedHook?.clearFilters()}
+                  isOpen={true}
+               />
+            </div>
+         )}
 
          {/* Dashboard */}
          {showDashboard && advancedConfig?.dashboard?.enabled && isAdvanced && (
@@ -1410,21 +1594,6 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
             </div>
          )}
 
-         {/* Filters expanded */}
-         {showFilters && advancedConfig?.filters && (
-            <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
-               <FilterPanel
-                  filters={advancedConfig.filters}
-                  values={advancedHook?.filters || {}}
-                  onChange={(field: string, val: any) =>
-                     advancedHook?.setFilter(field, val)
-                  }
-                  onClear={() => advancedHook?.clearFilters()}
-                  isOpen={true}
-               />
-            </div>
-         )}
-
          {/* Bulk actions */}
          {isAdvanced && advancedHook.selectedIds?.length > 0 && (
             <BulkActionsBar
@@ -1446,6 +1615,36 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
                   Tiempo real conectado
                </div>
             )}
+
+            {/* Table Header */}
+            {crudConfig?.tableHeader && (
+               <div className="pb-4 mb-6 border-b border-gray-200">
+                  <div className="flex items-center gap-3">
+                     {crudConfig.tableHeader.icon && (
+                        <div className="text-gray-600">
+                           {typeof crudConfig.tableHeader.icon === "string" ? (
+                              <i
+                                 className={`${crudConfig.tableHeader.icon} text-2xl`}
+                              />
+                           ) : (
+                              crudConfig.tableHeader.icon
+                           )}
+                        </div>
+                     )}
+                     <div>
+                        <h1 className="text-2xl font-semibold text-gray-900">
+                           {crudConfig.tableHeader.title}
+                        </h1>
+                        {crudConfig.tableHeader.subtitle && (
+                           <p className="text-sm text-gray-500 mt-0.5">
+                              {crudConfig.tableHeader.subtitle}
+                           </p>
+                        )}
+                     </div>
+                  </div>
+               </div>
+            )}
+
             {(!(isAdvanced && advancedHook.viewMode) ||
                advancedHook.viewMode === "table") && (
                <CustomTable
@@ -1454,29 +1653,19 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
                   paginate={[5, 10, 25, 50, 100, 500, 1000]}
                   columns={tableColumns as any}
                   actions={(row) => (
-                     <>
-                        <Tooltip content="Editar">
-                           <CustomButton
-                              color="yellow"
-                              onClick={() => {
-                                 const formattedRow = prepareForForm(row);
-                                 hook.setOpen(true);
-                                 hook.setFormData(formattedRow);
-                              }}
-                              icon={<icons.Lu.LuPencil />}
-                           />
-                        </Tooltip>
-
-                        <Tooltip content="Eliminar">
-                           <CustomButton
-                              color="ruby"
-                              onClick={() => {
-                                 hook.deleteItem(row);
-                              }}
-                              icon={<icons.Lu.LuTrash />}
-                           />
-                        </Tooltip>
-                     </>
+                     <ActionButtons
+                        row={row}
+                        actionsConfig={crudConfig?.tableActions}
+                        onEdit={(row) => {
+                           const formattedRow = prepareForForm(row);
+                           hook.setFormData(formattedRow);
+                           hook.setOpen(true);
+                        }}
+                        onDelete={(row) => {
+                           hook.deleteItem(row);
+                        }}
+                        maxVisibleButtons={2}
+                     />
                   )}
                />
             )}
@@ -1512,8 +1701,8 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
             fullModal={false}
             modalTitle={
                hook.formData && (hook.formData as any).id
-                  ? titles.modalTitleUpdate
-                  : titles.modalTitleAdd
+                  ? formTitles.modalTitleUpdate
+                  : formTitles.modalTitleAdd
             }
             form={() => {
                const hasFileFields = computedFields.some(
@@ -1534,7 +1723,6 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
                      }
                      buttonLoading={hook.loading}>
                      {(formikBag: any) => (
-                        // ✅ RenderFormContent is now a stable module-level component — no remount
                         <RenderFormContent
                            computedFields={computedFields}
                            sectioned={sectioned}
