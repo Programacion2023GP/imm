@@ -1,886 +1,636 @@
-import React, { useState, useCallback, useMemo, useEffect } from "react";
-import { useField, useFormikContext } from "formik";
+// DataTransfer.tsx
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  FiChevronRight,
+  FiChevronLeft,
+  FiChevronsRight,
+  FiChevronsLeft,
+  FiSearch,
+  FiX,
+  FiGrid,
+  FiList,
+  FiCheck,
+  FiFolder,
+} from "react-icons/fi";
+import { MdDragIndicator } from "react-icons/md";
 
-/* ─── ICONS (inline SVG to avoid import deps) ─── */
-const IconCheck = ({ size = 16, className = "" }) => (
-   <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-   >
-      <polyline points="20 6 9 17 4 12" />
-   </svg>
-);
-const IconMinus = ({ size = 16 }) => (
-   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
-      <line x1="5" y1="12" x2="19" y2="12" />
-   </svg>
-);
-const IconChevronRight = ({ size = 14 }) => (
-   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 18 15 12 9 6" />
-   </svg>
-);
-const IconChevronDown = ({ size = 14 }) => (
-   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="6 9 12 15 18 9" />
-   </svg>
-);
-const IconArrowRight = ({ size = 18 }) => (
-   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-      <line x1="5" y1="12" x2="19" y2="12" />
-      <polyline points="12 5 19 12 12 19" />
-   </svg>
-);
-const IconArrowLeft = ({ size = 18 }) => (
-   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-      <line x1="19" y1="12" x2="5" y2="12" />
-      <polyline points="12 19 5 12 12 5" />
-   </svg>
-);
-const IconArrowRightAll = ({ size = 18 }) => (
-   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-      <line x1="2" y1="12" x2="13" y2="12" />
-      <polyline points="9 5 16 12 9 19" />
-      <polyline points="14 5 21 12 14 19" />
-   </svg>
-);
-const IconArrowLeftAll = ({ size = 18 }) => (
-   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-      <line x1="22" y1="12" x2="11" y2="12" />
-      <polyline points="15 19 8 12 15 5" />
-      <polyline points="10 19 3 12 10 5" />
-   </svg>
-);
-const IconSearch = ({ size = 14 }) => (
-   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-   </svg>
-);
-const IconX = ({ size = 12 }) => (
-   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-   </svg>
-);
-const IconLeaf = ({ size = 12 }) => (
-   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z" />
-      <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
-   </svg>
-);
-
-/* ─── TYPES ─── */
-export interface TransferListProps<T extends Record<string, any>> {
-   name: string;
-   label?: string;
-   error?: string;
-   departamentos: T[];
-   idKey: keyof T;
-   labelKey: keyof T;
-   disabled?: boolean;
-   maxHeight?: number;
-   groupByPrefix?: boolean;
+// ============================================================
+// Tipos principales (genéricos)
+// ============================================================
+export interface DataTransferProps<T> {
+  /** Lista completa de elementos (cualquier tipo de objeto) */
+  items: T[];
+  /** IDs de los elementos actualmente seleccionados */
+  selectedIds?: (string | number)[];
+  /** Función para obtener el ID único de un elemento */
+  getId: (item: T) => string | number;
+  /** Función para obtener el nombre mostrado de un elemento */
+  getName: (item: T) => string;
+  /** Función para obtener el grupo al que pertenece (opcional). Si no se provee, no hay agrupación. */
+  getGroup?: (item: T) => string;
+  /** Función para obtener la descripción (opcional) */
+  getDescription?: (item: T) => string;
+  /** Función para determinar si un elemento está deshabilitado (opcional) */
+  isDisabled?: (item: T) => boolean;
+  /** Función para renderizar un icono personalizado (opcional) */
+  renderIcon?: (item: T) => React.ReactNode;
+  // Textos y configuración UI
+  leftTitle?: string;
+  rightTitle?: string;
+  searchPlaceholder?: string;
+  onSave?: (selectedIds: (string | number)[]) => void;
+  maxHeight?: string;
+  enableDragDrop?: boolean;
+  showSaveButton?: boolean;
+  saveButtonText?: string;
+  loading?: boolean;
+  emptyMessage?: string;
+  searchable?: boolean;
+  selectableGroups?: boolean;
+  onGroupSelect?: (group: string, selected: boolean) => void;
 }
 
-/** Nodo del árbol recursivo */
-interface TreeNode<T> {
-   id: string; // path completo: "catalogos", "catalogos.dep", etc.
-   segment: string; // solo este nivel: "catalogos", "dep", "ver"
-   children: Map<string, TreeNode<T>>;
-   leaves: T[]; // items que terminan exactamente en este nodo
-   allLeafIds: number[]; // todos los ids de hojas bajo este nodo (recursivo)
-}
+// ============================================================
+// Componente principal
+// ============================================================
+export function DataTransfer<T>({
+  items,
+  selectedIds = [],
+  getId,
+  getName,
+  getGroup,
+  getDescription,
+  isDisabled = () => false,
+  renderIcon,
+  leftTitle = "Disponibles",
+  rightTitle = "Seleccionados",
+  searchPlaceholder = "Buscar...",
+  onSave,
+  maxHeight = "480px",
+  enableDragDrop = true,
+  showSaveButton = true,
+  saveButtonText = "Guardar cambios",
+  loading = false,
+  emptyMessage = "No hay elementos",
+  searchable = true,
+  selectableGroups = false,
+}: DataTransferProps<T>) {
+  // Estados internos
+  const [available, setAvailable] = useState<T[]>([]);
+  const [selected, setSelected] = useState<T[]>([]);
+  const [searchLeft, setSearchLeft] = useState("");
+  const [searchRight, setSearchRight] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [selectedGroupLeft, setSelectedGroupLeft] = useState<Set<string>>(
+    new Set(),
+  );
+  const [selectedGroupRight, setSelectedGroupRight] = useState<Set<string>>(
+    new Set(),
+  );
 
-/* ─── BUILD RECURSIVE TREE ─── */
-function buildTree<T extends Record<string, any>>(items: T[], idKey: keyof T, labelKey: keyof T): TreeNode<T> {
-   const root: TreeNode<T> = {
-      id: "__root__",
-      segment: "__root__",
-      children: new Map(),
-      leaves: [],
-      allLeafIds: []
-   };
+  const leftRef = useRef<HTMLDivElement>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
 
-   for (const item of items) {
-      const label = String(item[labelKey]);
-      const parts = label.split("_");
-      let node = root;
+  // Inicializar basado en selectedIds
+  useEffect(() => {
+    const selectedIdSet = new Set(selectedIds.map((id) => String(id)));
+    const availableItems = items.filter(
+      (item) => !selectedIdSet.has(String(getId(item))),
+    );
+    const selectedItems = items.filter((item) =>
+      selectedIdSet.has(String(getId(item))),
+    );
+    setAvailable(availableItems);
+    setSelected(selectedItems);
+  }, [items, selectedIds, getId]);
 
-      for (let i = 0; i < parts.length; i++) {
-         const seg = parts[i];
-         const pathId = parts.slice(0, i + 1).join(".");
-         const isLast = i === parts.length - 1;
-
-         if (!node.children.has(seg)) {
-            node.children.set(seg, {
-               id: pathId,
-               segment: seg,
-               children: new Map(),
-               leaves: [],
-               allLeafIds: []
-            });
-         }
-         node = node.children.get(seg)!;
-
-         if (isLast) {
-            node.leaves.push(item);
-         }
-      }
-   }
-
-   // Fill allLeafIds recursively
-   const fillLeafIds = (node: TreeNode<T>): number[] => {
-      const ids: number[] = [...node.leaves.map((l) => Number(l[idKey])), ...[...node.children.values()].flatMap((c) => fillLeafIds(c))];
-      node.allLeafIds = ids;
-      return ids;
-   };
-   fillLeafIds(root);
-
-   return root;
-}
-
-/* ─── DESIGN TOKENS ─── */
-const T = {
-   bg: "#ffffff",
-   surface: "#f8f8fc",
-   border: "#e6e6ee",
-   borderFocus: "#6366f1",
-   text1: "#1e1b4b",
-   text2: "#6b7280",
-   text3: "#9ca3af",
-   accent: "#6366f1",
-   accentLight: "rgba(99,102,241,0.10)",
-   accentMid: "rgba(99,102,241,0.20)",
-   checked: "#6366f1",
-   checkedBg: "rgba(99,102,241,0.08)",
-   partial: "#a78bfa",
-   partialBg: "rgba(167,139,250,0.10)",
-   hover: "#f5f5ff",
-   shadow: "0 1px 3px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.05)",
-   shadowMd: "0 4px 24px rgba(0,0,0,0.10)",
-   r4: "5px",
-   r6: "9px",
-   r8: "13px",
-   r12: "18px",
-   leafColor: ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6"]
-};
-
-/* ─── DEPTH COLOR ─── */
-const depthColor = (depth: number) => T.leafColor[depth % T.leafColor.length];
-
-/* ─── CHECKBOX COMPONENT ─── */
-const TreeCheckbox = ({
-   state,
-   onClick,
-   disabled,
-   color = T.accent
-}: {
-   state: "none" | "partial" | "all";
-   onClick: (e: React.MouseEvent) => void;
-   disabled?: boolean;
-   color?: string;
-}) => {
-   const bg = state === "all" ? color : state === "partial" ? "white" : "white";
-   const border = state === "all" ? color : state === "partial" ? color : "#d1d5db";
-
-   return (
-      <button
-         type="button"
-         onClick={onClick}
-         disabled={disabled}
-         style={{
-            width: 18,
-            height: 18,
-            borderRadius: 5,
-            background: bg,
-            border: `2px solid ${border}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: disabled ? "not-allowed" : "pointer",
-            flexShrink: 0,
-            transition: "all 0.15s",
-            opacity: disabled ? 0.4 : 1
-         }}
-      >
-         {state === "all" && <IconCheck size={11} className="" />}
-         {state === "partial" && <div style={{ width: 8, height: 2, background: color, borderRadius: 1 }} />}
-      </button>
-   );
-};
-
-/* ─── RECURSIVE TREE NODE RENDER ─── */
-const TreeNodeRow = <T extends Record<string, any>>({
-   node,
-   depth,
-   checkedItems,
-   onToggleIds,
-   disabled,
-   idKey,
-   labelKey,
-   expandedNodes,
-   onToggleExpand,
-   isSearch = false
-}: {
-   node: TreeNode<T>;
-   depth: number;
-   checkedItems: number[];
-   onToggleIds: (ids: number[], forceValue?: boolean) => void;
-   disabled?: boolean;
-   idKey: keyof T;
-   labelKey: keyof T;
-   expandedNodes: Set<string>;
-   onToggleExpand: (id: string) => void;
-   isSearch?: boolean;
-}) => {
-   const isExpanded = expandedNodes.has(node.id);
-   const hasChildren = node.children.size > 0;
-   const hasLeaves = node.leaves.length > 0;
-   const color = depthColor(depth);
-
-   // Check state
-   const allIds = node.allLeafIds;
-   const checkedCount = allIds.filter((id) => checkedItems.includes(id)).length;
-   const checkState: "none" | "partial" | "all" = checkedCount === 0 ? "none" : checkedCount === allIds.length ? "all" : "partial";
-
-   const handleCheckbox = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      const shouldSelect = checkState !== "all";
-      onToggleIds(allIds, shouldSelect);
-   };
-
-   const indent = depth * 16;
-
-   return (
-      <div>
-         {/* NODE HEADER */}
-         <div
-            onClick={() => (hasChildren || hasLeaves) && onToggleExpand(node.id)}
-            style={{
-               display: "flex",
-               alignItems: "center",
-               gap: 6,
-               padding: `6px 10px 6px ${10 + indent}px`,
-               cursor: hasChildren ? "pointer" : "default",
-               borderRadius: T.r6,
-               background: checkState !== "none" ? T.checkedBg : "transparent",
-               transition: "background 0.12s",
-               userSelect: "none"
-            }}
-            onMouseEnter={(e) => {
-               if (checkState === "none") (e.currentTarget as HTMLDivElement).style.background = T.hover;
-            }}
-            onMouseLeave={(e) => {
-               if (checkState === "none") (e.currentTarget as HTMLDivElement).style.background = "transparent";
-            }}
-         >
-            {/* EXPAND ICON */}
-            <div style={{ width: 16, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: T.text3 }}>
-               {hasChildren ? (
-                  isExpanded ? (
-                     <IconChevronDown size={13} />
-                  ) : (
-                     <IconChevronRight size={13} />
-                  )
-               ) : (
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, display: "block", margin: "auto" }} />
-               )}
-            </div>
-
-            {/* CHECKBOX */}
-            <TreeCheckbox state={checkState} onClick={handleCheckbox} disabled={disabled} color={color} />
-
-            {/* LABEL */}
-            <span
-               style={{
-                  fontSize: 12.5,
-                  fontWeight: hasChildren ? 700 : 500,
-                  color: hasChildren ? T.text1 : T.text2,
-                  flex: 1,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap"
-               }}
-            >
-               {node.segment}
-            </span>
-
-            {/* COUNT BADGE */}
-            {allIds.length > 0 && (
-               <span
-                  style={{
-                     fontSize: 10,
-                     fontWeight: 700,
-                     color: checkState !== "none" ? color : T.text3,
-                     background: checkState !== "none" ? `${color}18` : T.surface,
-                     borderRadius: 100,
-                     padding: "1px 6px",
-                     flexShrink: 0,
-                     border: `1px solid ${checkState !== "none" ? `${color}30` : T.border}`
-                  }}
-               >
-                  {checkedCount > 0 ? `${checkedCount}/` : ""}
-                  {allIds.length}
-               </span>
-            )}
-         </div>
-
-         {/* CHILDREN */}
-         {isExpanded && (
-            <div
-               style={{
-                  borderLeft: `2px solid ${color}25`,
-                  marginLeft: 18 + indent,
-                  marginBottom: 2
-               }}
-            >
-               {/* Sub-groups */}
-               {[...node.children.values()].map((child) => (
-                  <TreeNodeRow
-                     key={child.id}
-                     node={child}
-                     depth={depth + 1}
-                     checkedItems={checkedItems}
-                     onToggleIds={onToggleIds}
-                     disabled={disabled}
-                     idKey={idKey}
-                     labelKey={labelKey}
-                     expandedNodes={expandedNodes}
-                     onToggleExpand={onToggleExpand}
-                  />
-               ))}
-
-               {/* Leaves at this level */}
-               {node.leaves.map((item) => {
-                  const id = Number(item[idKey]);
-                  const labelText = String(item[labelKey]);
-                  const isChecked = checkedItems.includes(id);
-                  const leafColor = depthColor(depth + 1);
-
-                  return (
-                     <div
-                        key={id}
-                        onClick={() => onToggleIds([id])}
-                        style={{
-                           display: "flex",
-                           alignItems: "center",
-                           gap: 8,
-                           padding: "5px 10px",
-                           borderRadius: T.r4,
-                           background: isChecked ? T.checkedBg : "transparent",
-                           cursor: disabled ? "not-allowed" : "pointer",
-                           opacity: disabled ? 0.5 : 1,
-                           transition: "background 0.12s"
-                        }}
-                        onMouseEnter={(e) => {
-                           if (!isChecked) (e.currentTarget as HTMLDivElement).style.background = T.hover;
-                        }}
-                        onMouseLeave={(e) => {
-                           if (!isChecked) (e.currentTarget as HTMLDivElement).style.background = "transparent";
-                        }}
-                     >
-                        <IconLeaf size={12} />
-                        <TreeCheckbox
-                           state={isChecked ? "all" : "none"}
-                           onClick={(e) => {
-                              e.stopPropagation();
-                              onToggleIds([id]);
-                           }}
-                           disabled={disabled}
-                           color={leafColor}
-                        />
-                        <span
-                           style={{
-                              fontSize: 12,
-                              color: isChecked ? leafColor : T.text2,
-                              flex: 1,
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap"
-                           }}
-                        >
-                           {labelText}
-                        </span>
-                     </div>
-                  );
-               })}
-            </div>
-         )}
-      </div>
-   );
-};
-
-/* ─── FLAT SEARCH RESULTS ─── */
-const FlatSearchRow = <T extends Record<string, any>>({
-   item,
-   idKey,
-   labelKey,
-   checkedItems,
-   onToggle,
-   disabled
-}: {
-   item: T;
-   idKey: keyof T;
-   labelKey: keyof T;
-   checkedItems: number[];
-   onToggle: (id: number) => void;
-   disabled?: boolean;
-}) => {
-   const id = Number(item[idKey]);
-   const label = String(item[labelKey]);
-   const isChecked = checkedItems.includes(id);
-
-   return (
-      <div
-         onClick={() => !disabled && onToggle(id)}
-         style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "6px 10px",
-            borderRadius: T.r6,
-            cursor: disabled ? "not-allowed" : "pointer",
-            background: isChecked ? T.checkedBg : "transparent",
-            transition: "background 0.12s",
-            opacity: disabled ? 0.5 : 1
-         }}
-         onMouseEnter={(e) => {
-            if (!isChecked) (e.currentTarget as HTMLDivElement).style.background = T.hover;
-         }}
-         onMouseLeave={(e) => {
-            if (!isChecked) (e.currentTarget as HTMLDivElement).style.background = "transparent";
-         }}
-      >
-         <TreeCheckbox
-            state={isChecked ? "all" : "none"}
-            onClick={(e) => {
-               e.stopPropagation();
-               onToggle(id);
-            }}
-            disabled={disabled}
-         />
-         <span style={{ fontSize: 12.5, color: isChecked ? T.accent : T.text2, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {label.split("_").join(" › ")}
-         </span>
-      </div>
-   );
-};
-
-/* ─── TRANSFER PANEL ─── */
-const TransferPanel = <T extends Record<string, any>>({
-   title,
-   count,
-   items,
-   treeRoot,
-   checkedItems,
-   onToggleIds,
-   searchValue,
-   onSearchChange,
-   emptyMessage,
-   disabled,
-   idKey,
-   labelKey,
-   maxHeight
-}: {
-   title: string;
-   count: number;
-   items: T[];
-   treeRoot: TreeNode<T>;
-   checkedItems: number[];
-   onToggleIds: (ids: number[], forceValue?: boolean) => void;
-   searchValue: string;
-   onSearchChange: (v: string) => void;
-   emptyMessage: string;
-   disabled?: boolean;
-   idKey: keyof T;
-   labelKey: keyof T;
-   maxHeight: number;
-}) => {
-   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
-
-   const toggleExpand = useCallback((id: string) => {
-      setExpandedNodes((prev) => {
-         const n = new Set(prev);
-         n.has(id) ? n.delete(id) : n.add(id);
-         return n;
+  // Filtrado (búsqueda)
+  const filterItems = useCallback(
+    (list: T[], search: string): T[] => {
+      if (!search) return list;
+      const lower = search.toLowerCase();
+      return list.filter((item) => {
+        const nameMatch = getName(item).toLowerCase().includes(lower);
+        const descMatch = getDescription
+          ? getDescription(item).toLowerCase().includes(lower)
+          : false;
+        const groupMatch = getGroup
+          ? getGroup(item).toLowerCase().includes(lower)
+          : false;
+        return nameMatch || descMatch || groupMatch;
       });
-   }, []);
+    },
+    [getName, getDescription, getGroup],
+  );
 
-   const handleToggleSingle = useCallback(
-      (id: number) => {
-         onToggleIds([id]);
-      },
-      [onToggleIds]
-   );
+  // Agrupación (si getGroup está definida)
+  const groupItems = useCallback(
+    (list: T[]): Record<string, T[]> => {
+      if (!getGroup) return { Todos: list };
+      const groups: Record<string, T[]> = {};
+      list.forEach((item) => {
+        const group = getGroup(item) || "Sin grupo";
+        if (!groups[group]) groups[group] = [];
+        groups[group].push(item);
+      });
+      return groups;
+    },
+    [getGroup],
+  );
 
-   // Check state for "select all visible"
-   const allVisibleIds = items.map((i) => Number(i[idKey]));
-   const checkedVisible = allVisibleIds.filter((id) => checkedItems.includes(id));
-   const allState: "none" | "partial" | "all" = checkedVisible.length === 0 ? "none" : checkedVisible.length === allVisibleIds.length ? "all" : "partial";
+  // Movimiento (evita duplicados mediante ID)
+  const moveToRight = useCallback(
+    (itemsToMove: T[]) => {
+      const idsToMove = new Set(itemsToMove.map((item) => String(getId(item))));
+      setAvailable((prev) =>
+        prev.filter((item) => !idsToMove.has(String(getId(item)))),
+      );
+      setSelected((prev) => {
+        const newItems = itemsToMove.filter(
+          (item) => !prev.some((p) => String(getId(p)) === String(getId(item))),
+        );
+        return [...prev, ...newItems];
+      });
+    },
+    [getId],
+  );
 
-   return (
-      <div
-         style={{
-            display: "flex",
-            flexDirection: "column",
-            flex: 1,
-            background: T.bg,
-            border: `1.5px solid ${T.border}`,
-            borderRadius: T.r12,
-            overflow: "hidden",
-            boxShadow: T.shadow,
-            minWidth: 0
-         }}
+  const moveToLeft = useCallback(
+    (itemsToMove: T[]) => {
+      const idsToMove = new Set(itemsToMove.map((item) => String(getId(item))));
+      setSelected((prev) =>
+        prev.filter((item) => !idsToMove.has(String(getId(item)))),
+      );
+      setAvailable((prev) => {
+        const newItems = itemsToMove.filter(
+          (item) => !prev.some((p) => String(getId(p)) === String(getId(item))),
+        );
+        return [...prev, ...newItems];
+      });
+    },
+    [getId],
+  );
+
+  const moveAllToRight = useCallback(() => {
+    setSelected((prev) => [...prev, ...available]);
+    setAvailable([]);
+  }, [available]);
+
+  const moveAllToLeft = useCallback(() => {
+    setAvailable((prev) => [...prev, ...selected]);
+    setSelected([]);
+  }, [selected]);
+
+  // Manejo de grupos
+  const toggleGroup = (group: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      return next;
+    });
+  };
+
+  const selectGroup = (
+    group: string,
+    groupItems: T[],
+    isRightSide: boolean,
+  ) => {
+    if (isRightSide) {
+      if (selectedGroupRight.has(group)) {
+        setSelectedGroupRight((prev) => {
+          const s = new Set(prev);
+          s.delete(group);
+          return s;
+        });
+        moveToLeft(groupItems);
+      } else {
+        setSelectedGroupRight((prev) => new Set(prev).add(group));
+        moveToRight(groupItems);
+      }
+    } else {
+      if (selectedGroupLeft.has(group)) {
+        setSelectedGroupLeft((prev) => {
+          const s = new Set(prev);
+          s.delete(group);
+          return s;
+        });
+        moveToLeft(groupItems);
+      } else {
+        setSelectedGroupLeft((prev) => new Set(prev).add(group));
+        moveToRight(groupItems);
+      }
+    }
+  };
+
+  const handleSave = () => {
+    const ids = selected.map((item) => getId(item));
+    onSave?.(ids);
+  };
+
+  // Drag & drop
+  const handleDragStart = (e: React.DragEvent, item: T, fromRight: boolean) => {
+    e.dataTransfer.setData(
+      "application/json",
+      JSON.stringify({ item, fromRight }),
+    );
+    e.dataTransfer.effectAllowed = "move";
+    e.currentTarget.classList.add("opacity-50");
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    e.currentTarget.classList.remove("opacity-50");
+  };
+
+  const handleDrop = (e: React.DragEvent, targetSide: "left" | "right") => {
+    e.preventDefault();
+    try {
+      const data = JSON.parse(e.dataTransfer.getData("application/json"));
+      const { item, fromRight } = data;
+      if (fromRight && targetSide === "left") moveToLeft([item]);
+      else if (!fromRight && targetSide === "right") moveToRight([item]);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Render de un item individual
+  const renderItem = (
+    item: T,
+    isRightSide: boolean,
+    onMove: () => void,
+    index: number,
+  ) => {
+    const isGrid = viewMode === "grid";
+    const disabled = isDisabled(item);
+    const draggable = enableDragDrop && !disabled;
+
+    return (
+      <motion.div
+        key={String(getId(item))}
+        layout
+        initial={{ opacity: 0, x: isRightSide ? 20 : -20, scale: 0.95 }}
+        animate={{ opacity: 1, x: 0, scale: 1 }}
+        exit={{ opacity: 0, x: isRightSide ? -20 : 20, scale: 0.95 }}
+        transition={{
+          type: "spring",
+          stiffness: 500,
+          damping: 30,
+          delay: index * 0.02,
+        }}
+        whileHover={{ scale: isGrid ? 1.02 : 1.01 }}
+        className={`group relative ${isGrid ? "col-span-1" : ""}`}
       >
-         {/* HEADER */}
-         <div
-            style={{
-               padding: "12px 14px 10px",
-               background: T.surface,
-               borderBottom: `1px solid ${T.border}`,
-               display: "flex",
-               alignItems: "center",
-               gap: 8
-            }}
-         >
-            <TreeCheckbox
-               state={allState}
-               onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleIds(allVisibleIds, allState !== "all");
-               }}
-               disabled={disabled || items.length === 0}
-            />
-            <span style={{ fontSize: 13, fontWeight: 800, color: T.text1, flex: 1 }}>{title}</span>
-            <span
-               style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: T.accent,
-                  background: T.accentLight,
-                  borderRadius: 100,
-                  padding: "2px 8px"
-               }}
-            >
-               {checkedVisible.length > 0 ? `${checkedVisible.length}/` : ""}
-               {count}
-            </span>
-         </div>
-
-         {/* SEARCH */}
-         <div
-            style={{
-               padding: "10px 12px 8px",
-               borderBottom: `1px solid ${T.border}`,
-               background: T.bg
-            }}
-         >
-            <div
-               style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 7,
-                  background: T.surface,
-                  border: `1.5px solid ${T.border}`,
-                  borderRadius: T.r6,
-                  padding: "6px 10px",
-                  transition: "border-color 0.15s"
-               }}
-               onFocus={() => {}}
-            >
-               <IconSearch size={13} />
-               <input
-                  type="text"
-                  placeholder="Buscar permiso…"
-                  value={searchValue}
-                  onChange={(e) => onSearchChange(e.target.value)}
-                  disabled={disabled}
-                  style={{
-                     background: "none",
-                     border: "none",
-                     outline: "none",
-                     fontSize: 12.5,
-                     color: T.text1,
-                     flex: 1,
-                     fontFamily: "inherit"
-                  }}
-               />
-               {searchValue && (
-                  <button
-                     onClick={() => onSearchChange("")}
-                     style={{ background: "none", border: "none", cursor: "pointer", color: T.text3, display: "flex", padding: 0 }}
-                  >
-                     <IconX size={12} />
-                  </button>
-               )}
-            </div>
-         </div>
-
-         {/* TREE / FLAT LIST */}
-         <div style={{ overflowY: "auto", maxHeight, padding: "6px 6px" }}>
-            {items.length === 0 ? (
-               <div style={{ padding: "32px 16px", textAlign: "center", color: T.text3, fontSize: 12 }}>{emptyMessage}</div>
-            ) : searchValue ? (
-               // Flat search results
-               items.map((item) => (
-                  <FlatSearchRow
-                     key={Number(item[idKey])}
-                     item={item}
-                     idKey={idKey}
-                     labelKey={labelKey}
-                     checkedItems={checkedItems}
-                     onToggle={handleToggleSingle}
-                     disabled={disabled}
-                  />
-               ))
+        <div
+          draggable={draggable}
+          onDragStart={(e) => handleDragStart(e, item, isRightSide)}
+          onDragEnd={handleDragEnd}
+          className={`
+            relative flex items-center justify-between p-3 rounded-xl transition-all duration-200
+            ${draggable ? "cursor-move" : "cursor-default"}
+            ${disabled ? "opacity-50 cursor-not-allowed bg-gray-50" : "bg-white hover:shadow-md hover:border-[#9B2242]/30"}
+            ${isGrid ? "flex-col text-center border border-gray-200" : "border-b border-gray-100 last:border-0"}
+          `}
+        >
+          <div
+            className={`flex items-center gap-3 ${isGrid ? "flex-col" : "flex-1 min-w-0"}`}
+          >
+            {renderIcon ? (
+              <div className="text-[#9B2242] text-xl">{renderIcon(item)}</div>
             ) : (
-               // Recursive tree
-               [...treeRoot.children.values()].map((child) => (
-                  <TreeNodeRow
-                     key={child.id}
-                     node={child}
-                     depth={0}
-                     checkedItems={checkedItems}
-                     onToggleIds={onToggleIds}
-                     disabled={disabled}
-                     idKey={idKey}
-                     labelKey={labelKey}
-                     expandedNodes={expandedNodes}
-                     onToggleExpand={toggleExpand}
-                  />
-               ))
+              <div
+                className={`w-8 h-8 rounded-full bg-gradient-to-br from-[#9B2242]/10 to-[#9B2242]/20 flex items-center justify-center text-[#9B2242] font-semibold text-sm ${isGrid ? "mb-1" : ""}`}
+              >
+                {getName(item).charAt(0).toUpperCase()}
+              </div>
             )}
-         </div>
-      </div>
-   );
-};
-
-/* ─── CONTROL BUTTON ─── */
-const CtrlBtn = ({ onClick, disabled, children, title }: { onClick: () => void; disabled?: boolean; children: React.ReactNode; title?: string }) => (
-   <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      style={{
-         width: 36,
-         height: 36,
-         borderRadius: "50%",
-         background: disabled ? T.surface : T.accent,
-         border: `1.5px solid ${disabled ? T.border : T.accent}`,
-         color: disabled ? T.text3 : "#fff",
-         display: "flex",
-         alignItems: "center",
-         justifyContent: "center",
-         cursor: disabled ? "not-allowed" : "pointer",
-         transition: "all 0.15s",
-         boxShadow: disabled ? "none" : "0 2px 8px rgba(99,102,241,0.35)",
-         opacity: disabled ? 0.5 : 1
-      }}
-      onMouseEnter={(e) => {
-         if (!disabled) (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.08)";
-      }}
-      onMouseLeave={(e) => {
-         (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
-      }}
-   >
-      {children}
-   </button>
-);
-
-/* ════════════════════════════════════════════
-   MAIN COMPONENT
-════════════════════════════════════════════ */
-export const FTransferList = <T extends Record<string, any>>({
-   name,
-   label,
-   error,
-   departamentos,
-   idKey,
-   labelKey,
-   disabled = false,
-   maxHeight = 340,
-   groupByPrefix = true
-}: TransferListProps<T>) => {
-   const formik = useFormikContext<any>();
-   const [field, meta] = useField<number[]>({ name });
-
-   const [selected, setSelected] = useState<number[]>(field.value || []);
-   const [leftChecked, setLeftChecked] = useState<number[]>([]);
-   const [rightChecked, setRightChecked] = useState<number[]>([]);
-   const [searchLeft, setSearchLeft] = useState("");
-   const [searchRight, setSearchRight] = useState("");
-
-   // Sync with Formik
-   useEffect(() => {
-      if (Array.isArray(field.value) && JSON.stringify(field.value) !== JSON.stringify(selected)) {
-         setSelected(field.value);
-      }
-   }, [field.value]);
-
-   const updateSelected = useCallback(
-      (newSelected: number[]) => {
-         setSelected(newSelected);
-         formik.setFieldValue(name, newSelected);
-         formik.setFieldTouched(name, true);
-      },
-      [formik, name]
-   );
-
-   /* ── DERIVED DATA ── */
-   const { disponibles, elegidos, treeDisponibles, treeElegidos } = useMemo(() => {
-      const allDisponibles = departamentos.filter((d) => !selected.includes(Number(d[idKey])));
-      const allElegidos = departamentos.filter((d) => selected.includes(Number(d[idKey])));
-
-      const filterItems = (items: T[], search: string) =>
-         search ? items.filter((item) => String(item[labelKey]).toLowerCase().includes(search.toLowerCase())) : items;
-
-      const filteredDisp = filterItems(allDisponibles, searchLeft);
-      const filteredEleg = filterItems(allElegidos, searchRight);
-
-      return {
-         disponibles: filteredDisp,
-         elegidos: filteredEleg,
-         treeDisponibles: buildTree(filteredDisp, idKey, labelKey),
-         treeElegidos: buildTree(filteredEleg, idKey, labelKey)
-      };
-   }, [departamentos, selected, idKey, labelKey, searchLeft, searchRight]);
-
-   /* ── TOGGLE IDS (left/right) ── */
-   const toggleLeftIds = useCallback((ids: number[], forceValue?: boolean) => {
-      setLeftChecked((prev) => {
-         if (forceValue === true) return [...new Set([...prev, ...ids])];
-         if (forceValue === false) return prev.filter((id) => !ids.includes(id));
-         // Toggle individual
-         const allIn = ids.every((id) => prev.includes(id));
-         return allIn ? prev.filter((id) => !ids.includes(id)) : [...new Set([...prev, ...ids])];
-      });
-   }, []);
-
-   const toggleRightIds = useCallback((ids: number[], forceValue?: boolean) => {
-      setRightChecked((prev) => {
-         if (forceValue === true) return [...new Set([...prev, ...ids])];
-         if (forceValue === false) return prev.filter((id) => !ids.includes(id));
-         const allIn = ids.every((id) => prev.includes(id));
-         return allIn ? prev.filter((id) => !ids.includes(id)) : [...new Set([...prev, ...ids])];
-      });
-   }, []);
-
-   /* ── MOVE OPERATIONS ── */
-   const moveRight = useCallback(() => {
-      if (!leftChecked.length) return;
-      updateSelected([...selected, ...leftChecked]);
-      setLeftChecked([]);
-   }, [leftChecked, selected, updateSelected]);
-
-   const moveAllRight = useCallback(() => {
-      const allDispIds = departamentos.filter((d) => !selected.includes(Number(d[idKey]))).map((d) => Number(d[idKey]));
-      if (!allDispIds.length) return;
-      updateSelected([...selected, ...allDispIds]);
-      setLeftChecked([]);
-   }, [departamentos, selected, idKey, updateSelected]);
-
-   const moveLeft = useCallback(() => {
-      if (!rightChecked.length) return;
-      updateSelected(selected.filter((id) => !rightChecked.includes(id)));
-      setRightChecked([]);
-   }, [rightChecked, selected, updateSelected]);
-
-   const moveAllLeft = useCallback(() => {
-      const elegIds = departamentos.filter((d) => selected.includes(Number(d[idKey]))).map((d) => Number(d[idKey]));
-      if (!elegIds.length) return;
-      updateSelected(selected.filter((id) => !elegIds.includes(id)));
-      setRightChecked([]);
-   }, [departamentos, selected, idKey, updateSelected]);
-
-   const hasError = meta.error && (meta.touched || formik.submitCount > 0);
-
-   return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif" }}>
-         {label && <label style={{ fontSize: 13, fontWeight: 700, color: T.text1 }}>{label}</label>}
-
-         <div style={{ display: "flex", gap: 12, alignItems: "stretch", width: "100%" }}>
-            {/* LEFT PANEL */}
-            <TransferPanel
-               title="Disponibles"
-               count={disponibles.length}
-               items={disponibles}
-               treeRoot={treeDisponibles}
-               checkedItems={leftChecked}
-               onToggleIds={toggleLeftIds}
-               searchValue={searchLeft}
-               onSearchChange={setSearchLeft}
-               emptyMessage="No hay permisos disponibles"
-               disabled={disabled}
-               idKey={idKey}
-               labelKey={labelKey}
-               maxHeight={maxHeight}
-            />
-
-            {/* CONTROLS */}
-            <div
-               style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  flexShrink: 0,
-                  padding: "0 4px"
-               }}
-            >
-               <CtrlBtn onClick={moveRight} disabled={leftChecked.length === 0 || disabled} title="Mover seleccionados →">
-                  <IconArrowRight size={16} />
-               </CtrlBtn>
-               <CtrlBtn onClick={moveAllRight} disabled={disponibles.length === 0 || disabled} title="Mover todos →">
-                  <IconArrowRightAll size={16} />
-               </CtrlBtn>
-
-               <div style={{ width: 1, height: 20, background: T.border }} />
-
-               <CtrlBtn onClick={moveLeft} disabled={rightChecked.length === 0 || disabled} title="← Remover seleccionados">
-                  <IconArrowLeft size={16} />
-               </CtrlBtn>
-               <CtrlBtn onClick={moveAllLeft} disabled={elegidos.length === 0 || disabled} title="← Remover todos">
-                  <IconArrowLeftAll size={16} />
-               </CtrlBtn>
+            <div className={`${isGrid ? "w-full" : "flex-1 min-w-0"}`}>
+              <div className="text-sm font-semibold text-gray-800 truncate">
+                {getName(item)}
+              </div>
+              {getDescription && (
+                <div className="text-xs text-gray-500 truncate mt-0.5">
+                  {getDescription(item)}
+                </div>
+              )}
             </div>
+          </div>
+          <div className="flex items-center gap-1">
+            {draggable && (
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 cursor-grab active:cursor-grabbing">
+                <MdDragIndicator size={18} />
+              </div>
+            )}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={onMove}
+              className="p-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-[#9B2242] hover:text-white transition-colors"
+            >
+              <FiChevronRight size={14} />
+            </motion.button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
 
-            {/* RIGHT PANEL */}
-            <TransferPanel
-               title="Asignados"
-               count={elegidos.length}
-               items={elegidos}
-               treeRoot={treeElegidos}
-               checkedItems={rightChecked}
-               onToggleIds={toggleRightIds}
-               searchValue={searchRight}
-               onSearchChange={setSearchRight}
-               emptyMessage="No hay permisos asignados"
-               disabled={disabled}
-               idKey={idKey}
-               labelKey={labelKey}
-               maxHeight={maxHeight}
-            />
-         </div>
+  // Render de una lista (con o sin grupos)
+  const renderList = (
+    itemsList: T[],
+    isRightSide: boolean,
+    onMove: (items: T[]) => void,
+    search: string,
+    setSearch: (s: string) => void,
+  ) => {
+    const filtered = filterItems(itemsList, search);
+    const groups = groupItems(filtered);
+    const groupNames = Object.keys(groups).sort();
 
-         {/* FOOTER INFO */}
-         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: T.text3 }}>
-            <span>{leftChecked.length > 0 && `${leftChecked.length} marcado${leftChecked.length > 1 ? "s" : ""} en disponibles`}</span>
-            <span>{rightChecked.length > 0 && `${rightChecked.length} marcado${rightChecked.length > 1 ? "s" : ""} en asignados`}</span>
-         </div>
+    return (
+      <div className="flex flex-col h-full">
+        <div className="sticky top-0 z-10 p-3 bg-white/95 backdrop-blur-sm border-b border-gray-200 rounded-t-xl">
+          {searchable && (
+            <div className="relative mb-3">
+              <FiSearch
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={16}
+              />
+              <input
+                type="text"
+                placeholder={searchPlaceholder}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#9B2242]/30 focus:border-[#9B2242] transition-all bg-gray-50/50"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <FiX size={16} />
+                </button>
+              )}
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-medium text-gray-500">
+              {filtered.length} / {itemsList.length} elementos
+            </div>
+            <button
+              onClick={() =>
+                setViewMode((prev) => (prev === "list" ? "grid" : "list"))
+              }
+              className="p-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+            >
+              {viewMode === "list" ? (
+                <FiGrid size={16} />
+              ) : (
+                <FiList size={16} />
+              )}
+            </button>
+          </div>
+        </div>
 
-         {hasError && <span style={{ fontSize: 12, fontWeight: 600, color: "#ef4444" }}>{meta.error as string}</span>}
+        <div
+          ref={isRightSide ? rightRef : leftRef}
+          className="flex-1 overflow-y-auto p-2 space-y-3"
+          style={{ maxHeight }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => handleDrop(e, isRightSide ? "right" : "left")}
+        >
+          {groupNames.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">
+              <FiSearch size={48} className="mb-3 opacity-50" />
+              <p className="text-sm">{emptyMessage}</p>
+            </div>
+          ) : (
+            groupNames.map((group) => {
+              const groupItemsList = groups[group];
+              const isExpanded = expandedGroups.has(group);
+              const isSelected = isRightSide
+                ? selectedGroupRight.has(group)
+                : selectedGroupLeft.has(group);
+
+              return (
+                <div
+                  key={group}
+                  className="rounded-xl border border-gray-100 overflow-hidden shadow-sm"
+                >
+                  <div
+                    className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-white cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => toggleGroup(group)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FiFolder
+                        className="text-[#9B2242] opacity-70"
+                        size={16}
+                      />
+                      <span className="font-semibold text-gray-800 text-sm">
+                        {group}
+                      </span>
+                      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                        {groupItemsList.length}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {selectableGroups && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            selectGroup(group, groupItemsList, isRightSide);
+                          }}
+                          className={`px-2 py-1 text-xs rounded-md transition-all ${isSelected ? "bg-[#9B2242] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                        >
+                          {isSelected
+                            ? "Deseleccionar grupo"
+                            : "Seleccionar grupo"}
+                        </button>
+                      )}
+                      <motion.div
+                        animate={{ rotate: isExpanded ? 180 : 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="text-gray-400"
+                      >
+                        <FiChevronRight size={16} />
+                      </motion.div>
+                    </div>
+                  </div>
+
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div
+                          className={`p-2 ${viewMode === "grid" ? "grid grid-cols-2 gap-2" : "space-y-1"}`}
+                        >
+                          {groupItemsList.map((item, idx) =>
+                            renderItem(
+                              item,
+                              isRightSide,
+                              () => onMove([item]),
+                              idx,
+                            ),
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
-   );
-};
+    );
+  };
 
-export default FTransferList;
+  // ============================================================
+  // Render principal
+  // ============================================================
+  return (
+    <div className="w-full bg-white rounded-2xl border-gray-200 overflow-hidden">
+      <div className="p-5">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Columna izquierda */}
+          <div className="flex-1 min-w-0 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all hover:shadow-md">
+            <div className="bg-gray-50/80 px-4 py-3 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-[#9B2242] animate-pulse" />
+                  <span className="font-semibold text-gray-700">
+                    {leftTitle}
+                  </span>
+                  <span className="text-xs bg-gray-200 px-2 py-0.5 rounded-full">
+                    {available.length}
+                  </span>
+                </div>
+                {available.length > 0 && (
+                  <button
+                    onClick={moveAllToRight}
+                    className="text-xs text-[#9B2242] hover:text-[#7A1B35] font-medium transition-colors"
+                  >
+                    Mover todos
+                  </button>
+                )}
+              </div>
+            </div>
+            {renderList(
+              available,
+              false,
+              moveToRight,
+              searchLeft,
+              setSearchLeft,
+            )}
+          </div>
+
+          {/* Botones centrales */}
+          <div className="flex flex-row lg:flex-col justify-center items-center gap-3 py-4">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={moveAllToRight}
+              disabled={available.length === 0}
+              className="p-3 rounded-xl bg-[#9B2242] text-white shadow-md hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              title="Mover todos a la derecha"
+            >
+              <FiChevronsRight size={22} />
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => moveToRight(filterItems(available, searchLeft))}
+              disabled={filterItems(available, searchLeft).length === 0}
+              className="p-3 rounded-xl bg-[#9B2242] text-white shadow-md hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              title="Mover seleccionados a la derecha"
+            >
+              <FiChevronRight size={22} />
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => moveToLeft(filterItems(selected, searchRight))}
+              disabled={filterItems(selected, searchRight).length === 0}
+              className="p-3 rounded-xl bg-gray-500 text-white shadow-md hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              title="Mover seleccionados a la izquierda"
+            >
+              <FiChevronLeft size={22} />
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={moveAllToLeft}
+              disabled={selected.length === 0}
+              className="p-3 rounded-xl bg-gray-500 text-white shadow-md hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              title="Mover todos a la izquierda"
+            >
+              <FiChevronsLeft size={22} />
+            </motion.button>
+          </div>
+
+          {/* Columna derecha */}
+          <div className="flex-1 min-w-0 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-all hover:shadow-md">
+            <div className="bg-gray-50/80 px-4 py-3 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                  <span className="font-semibold text-gray-700">
+                    {rightTitle}
+                  </span>
+                  <span className="text-xs bg-gray-200 px-2 py-0.5 rounded-full">
+                    {selected.length}
+                  </span>
+                </div>
+                {selected.length > 0 && (
+                  <button
+                    onClick={moveAllToLeft}
+                    className="text-xs text-gray-500 hover:text-gray-700 font-medium transition-colors"
+                  >
+                    Mover todos
+                  </button>
+                )}
+              </div>
+            </div>
+            {renderList(
+              selected,
+              true,
+              moveToLeft,
+              searchRight,
+              setSearchRight,
+            )}
+          </div>
+        </div>
+
+        {showSaveButton && (
+          <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleSave}
+              disabled={loading}
+              className="px-8 py-2.5 bg-[#9B2242] text-white rounded-xl font-semibold shadow-md hover:shadow-lg disabled:opacity-50 transition-all flex items-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <FiCheck size={18} />
+                  {saveButtonText}
+                </>
+              )}
+            </motion.button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

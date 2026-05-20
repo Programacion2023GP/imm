@@ -29,24 +29,32 @@ import Spinner from "./ui/components/loading/loading";
 import { RiFileList3Line } from "react-icons/ri";
 import { configureGeneric } from "react-zustore";
 import { env } from "./constant";
-import type { UserTableRow } from "./ui/hooks/users/users.model";
 
 // Lazy imports para todas las páginas
 const PageDepartaments = lazy(
    () => import("./ui/pages/catalogues/departaments/PageDepartments"),
 );
-
+const PageUsers = lazy(
+  () => import("./ui/pages/catalogues/users/pageusers.page"),
+);
+const PagePermissions = lazy(
+  () => import("./ui/pages/catalogues/permissions/pagePermissions.page"),
+);
+const PageRoles = lazy(
+  () => import("./ui/pages/catalogues/roles/pageroles.page"),
+);
 configureGeneric({
-   baseUrl: "http://127.0.0.1:8000/api",
-   responseMap: {
-      ok: (res) => res?.status == true,
-      data: (res) => res?.result ?? [],
-      total: (res) => res?.result?.length ?? 0,
-   },
-   endpoints: {
-      getAll: (prefix) => `${prefix}`,
-      create: (prefix) => `${prefix}/createOrUpdate`,
-   },
+  baseUrl: "http://127.0.0.1:8000/api",
+  responseMap: {
+    ok: (res) => res?.ok === true || res?.status === "success",
+    data: (res) => res?.data ?? res?.result ?? res?.items ?? [],
+    message: (res) => res?.message ?? res?.msg ?? "",
+    total: (res) => res?.total ?? res?.count ?? 0,
+  },
+  endpoints: {
+    getAll: (prefix) => `${prefix}`,
+    create: (prefix) => `${prefix}/createorUpdate`,
+  },
 });
 
 // Definición de tipos
@@ -143,40 +151,49 @@ const MainLayout = () => {
    };
 
    const sidebarItems: SidebarItem[] = useMemo(
-      () => [
+     () => [
+       // createRouteItem(
+       //    1,
+       //    "usuarios_",
+       //    "/usuarios",
+       //    <FaUserTie />,
+       //    "Usuarios",
+       // ),
+       // createRouteItem(
+       //    2,
+       //    "tramite_",
+       //    "/tramite",
+       //    <RiFileList3Line />,
+       //    "Tramites",
+       // ),
+       // createRouteItem(6, "usuarios_crear", "/logs", <FaCode />, "Logs"),
+       createChildrenItem(7, "catalogo_", "Catálogos", <FaBuildingColumns />, [
          createRouteItem(
-            1,
-            "usuarios_",
-            "/usuarios",
-            <FaUserTie />,
-            "Usuarios",
+           71,
+           "catalogo_usuarios_",
+           "/catalogos/usuarios",
+           <FaUserDoctor />,
+           "Usuarios",
          ),
          createRouteItem(
-            2,
-            "tramite_",
-            "/tramite",
-            <RiFileList3Line />,
-            "Tramites",
+           72,
+           null,
+           "/catalogos/permisos",
+           <FaUserDoctor />,
+           "Permisos",
          ),
-         createRouteItem(6, "usuarios_crear", "/logs", <FaCode />, "Logs"),
-         createChildrenItem(
-            7,
-            "catalogo_",
-            "Catálogos",
-            <FaBuildingColumns />,
-            [
-               createRouteItem(
-                  71,
-                  "catalogo_departamentos_",
-                  "/catalogos/departamentos",
-                  <FaUserDoctor />,
-                  "Departamentos",
-               ),
-            ],
+         createRouteItem(
+           73,
+           null,
+           "/catalogos/roles",
+           <FaUserDoctor />,
+           "Roles",
          ),
-         createChildrenItem(8, "reports_", "Reportes", <FaChartLine />, []),
-      ],
-      [],
+       ]),
+
+       // createChildrenItem(8, "reports_", "Reportes", <FaChartLine />, []),
+     ],
+     [],
    );
 
    const mainRef = useRef<HTMLElement>(null);
@@ -321,26 +338,51 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
    return (
-      <Routes>
-         <Route
-            path="/"
-            element={
-               // <ProtectedRoute>
-               <MainLayout />
-               // </ProtectedRoute>
-            }>
-            <Route path="catalogos">
-               <Route
-                  path="departamentos"
-                  element={
-                     <Suspense fallback={<Spinner />}>
-                        <PageDepartaments />
-                     </Suspense>
-                  }
-               />
-            </Route>
+     <Routes>
+       <Route
+         path="/"
+         element={
+           // <ProtectedRoute>
+           <MainLayout />
+           // </ProtectedRoute>
+         }
+       >
+         <Route path="catalogos">
+           <Route
+             path="departamentos"
+             element={
+               <Suspense fallback={<Spinner />}>
+                 <PageDepartaments />
+               </Suspense>
+             }
+           />
+           <Route
+             path="usuarios"
+             element={
+               <Suspense fallback={<Spinner />}>
+                 <PageUsers />
+               </Suspense>
+             }
+           />
+           <Route
+             path="permisos"
+             element={
+               <Suspense fallback={<Spinner />}>
+                 <PagePermissions />
+               </Suspense>
+             }
+           />
+           <Route
+             path="roles"
+             element={
+               <Suspense fallback={<Spinner />}>
+                 <PageRoles />
+               </Suspense>
+             }
+           />
          </Route>
-      </Routes>
+       </Route>
+     </Routes>
    );
 }
 

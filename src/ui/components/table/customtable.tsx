@@ -1,4 +1,3 @@
-// ==================== IMPORTS ====================
 import React, {
   useState,
   useEffect,
@@ -40,6 +39,8 @@ import {
   FiList,
   FiFilter,
   FiSettings,
+  FiEdit2,
+  FiTrash2,
 } from "react-icons/fi";
 import { RiFileExcelFill, RiFileTextLine } from "react-icons/ri";
 import {
@@ -279,6 +280,10 @@ const makeTokens = (theme: Theme) => ({
   greenLight: theme === "dark" ? "rgba(22,163,74,0.15)" : "#f0fdf4",
   blue: "#2563eb",
   blueLight: theme === "dark" ? "rgba(37,99,235,0.15)" : "#eff6ff",
+  orange: "#ea580c",
+  orangeLight: theme === "dark" ? "rgba(234,88,12,0.15)" : "#fff7ed",
+  red: "#dc2626",
+  redLight: theme === "dark" ? "rgba(220,38,38,0.15)" : "#fef2f2",
   text1: theme === "dark" ? "#e8e8f0" : "#1a1a24",
   text2: theme === "dark" ? "#9898b8" : "#5a5a72",
   text3: theme === "dark" ? "#55556a" : "#9898b0",
@@ -333,6 +338,82 @@ const DateFilterInput = ({
         width: "100%",
         fontFamily: "inherit",
       }}
+    />
+  );
+};
+
+// ==================== DEBOUNCED INPUTS (FUERA DEL COMPONENTE para evitar pérdida de focus) ====================
+const DebouncedSearchInput = ({
+  value,
+  onChange,
+  placeholder,
+  C,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder: string;
+  C: ReturnType<typeof makeTokens>;
+}) => {
+  const [local, setLocal] = useState(value);
+  const timer = useRef<any>(null);
+  useEffect(() => {
+    setLocal(value);
+  }, [value]);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVal = e.target.value;
+    setLocal(newVal);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => onChange(newVal), 300);
+  };
+  return (
+    <input
+      type="text"
+      placeholder={placeholder}
+      value={local}
+      onChange={handleChange}
+      style={{
+        background: "none",
+        border: "none",
+        outline: "none",
+        color: C.text1,
+        fontSize: 13,
+        flex: 1,
+        minWidth: 0,
+        fontFamily: "inherit",
+      }}
+    />
+  );
+};
+
+// ⚠️ CRÍTICO: DebouncedTextInput DEBE estar FUERA del componente principal
+// Si se define adentro, React lo destruye y recrea en cada render → pierde el focus
+const DebouncedTextInput = ({
+  value,
+  onChange,
+  placeholder,
+  style,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  style?: React.CSSProperties;
+}) => {
+  const [local, setLocal] = useState(value);
+  const timer = useRef<any>(null);
+  useEffect(() => {
+    setLocal(value);
+  }, [value]);
+  return (
+    <input
+      type="text"
+      placeholder={placeholder}
+      value={local}
+      onChange={(e) => {
+        setLocal(e.target.value);
+        if (timer.current) clearTimeout(timer.current);
+        timer.current = setTimeout(() => onChange(e.target.value), 300);
+      }}
+      style={style}
     />
   );
 };
@@ -409,6 +490,7 @@ const IconBtn = ({
 }) => (
   <motion.button
     whileTap={{ scale: 0.9 }}
+    whileHover={{ scale: 1.1 }}
     onClick={onClick}
     title={title}
     style={{
@@ -1476,18 +1558,6 @@ const CustomTableInner = <T extends object>(
     }
   };
 
-  const formatDateRangeForDisplay = (dateStr: string) => {
-    if (!dateStr) return "";
-    const [y, m, d] = dateStr.split("-").map(Number);
-    const date = new Date(Date.UTC(y, m - 1, d));
-    return date.toLocaleDateString("es-ES", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      timeZone: "UTC",
-    });
-  };
-
   const getDensityPadding = () =>
     ({
       xs: { compact: "p-2", comfortable: "p-3", spacious: "p-4" },
@@ -1516,8 +1586,16 @@ const CustomTableInner = <T extends object>(
   const renderColumnFilterInput = (col: Column<T>) => {
     const field = col.field;
     const value = columnFilters[field] || "";
-    const baseInput =
-      "border-0 p-0 text-xs focus:outline-none focus:ring-0 bg-transparent w-full";
+    const baseStyle: React.CSSProperties = {
+      border: "none",
+      padding: 0,
+      fontSize: 12,
+      outline: "none",
+      background: "transparent",
+      width: "100%",
+      color: C.text1,
+      fontFamily: "inherit",
+    };
     switch (col.filterType) {
       case "date":
         return (
@@ -1525,7 +1603,7 @@ const CustomTableInner = <T extends object>(
             type="date"
             value={value}
             onChange={(e) => setColFilter(field, e.target.value)}
-            className={baseInput}
+            style={baseStyle}
           />
         );
       case "time":
@@ -1534,20 +1612,27 @@ const CustomTableInner = <T extends object>(
             type="time"
             value={value}
             onChange={(e) => setColFilter(field, e.target.value)}
-            className={baseInput}
+            style={baseStyle}
           />
         );
       case "date-range": {
         const [startVal = "", endVal = ""] = value.split("|");
         return (
-          <div className="flex flex-col gap-1 w-full">
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+              width: "100%",
+            }}
+          >
             <input
               type="date"
               value={startVal}
               onChange={(e) =>
                 setColFilter(field, `${e.target.value}|${endVal}`)
               }
-              className={baseInput}
+              style={baseStyle}
             />
             <input
               type="date"
@@ -1555,7 +1640,7 @@ const CustomTableInner = <T extends object>(
               onChange={(e) =>
                 setColFilter(field, `${startVal}|${e.target.value}`)
               }
-              className={baseInput}
+              style={baseStyle}
             />
           </div>
         );
@@ -1565,7 +1650,7 @@ const CustomTableInner = <T extends object>(
           <select
             value={value}
             onChange={(e) => setColFilter(field, e.target.value)}
-            className={baseInput}
+            style={{ ...baseStyle, cursor: "pointer" }}
           >
             <option value="">Todos</option>
             {col.filterOptions?.map((opt) => (
@@ -1580,7 +1665,7 @@ const CustomTableInner = <T extends object>(
           <select
             value={value}
             onChange={(e) => setColFilter(field, e.target.value)}
-            className={baseInput}
+            style={{ ...baseStyle, cursor: "pointer" }}
           >
             <option value="">Todos</option>
             <option value="true">Sí</option>
@@ -1590,7 +1675,14 @@ const CustomTableInner = <T extends object>(
       case "number-range": {
         const [minVal = "", maxVal = ""] = value.split("|");
         return (
-          <div className="flex items-center gap-1 w-full">
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              width: "100%",
+            }}
+          >
             <input
               type="number"
               placeholder="Min"
@@ -1598,9 +1690,9 @@ const CustomTableInner = <T extends object>(
               onChange={(e) =>
                 setColFilter(field, `${e.target.value}|${maxVal}`)
               }
-              className={`${baseInput} w-14`}
+              style={{ ...baseStyle, width: 56 }}
             />
-            <span className="text-gray-400 text-xs">–</span>
+            <span style={{ color: C.text3, fontSize: 10 }}>–</span>
             <input
               type="number"
               placeholder="Max"
@@ -1608,7 +1700,7 @@ const CustomTableInner = <T extends object>(
               onChange={(e) =>
                 setColFilter(field, `${minVal}|${e.target.value}`)
               }
-              className={`${baseInput} w-14`}
+              style={{ ...baseStyle, width: 56 }}
             />
           </div>
         );
@@ -1616,7 +1708,7 @@ const CustomTableInner = <T extends object>(
       case "multi-select": {
         const selected = value ? value.split(",").filter(Boolean) : [];
         return (
-          <div className="flex flex-wrap gap-1">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
             {col.filterOptions?.map((opt) => {
               const active = selected.includes(opt.value);
               return (
@@ -1629,7 +1721,17 @@ const CustomTableInner = <T extends object>(
                       : [...selected, opt.value];
                     setColFilter(field, next.join(","));
                   }}
-                  className={`text-[10px] px-2 py-0.5 rounded-full border transition-all ${active ? "bg-[#9B2242] text-white border-[#9B2242]" : "bg-white text-gray-600 border-gray-300 hover:border-[#9B2242]"}`}
+                  style={{
+                    fontSize: 10,
+                    padding: "2px 7px",
+                    borderRadius: 100,
+                    border: `1px solid ${active ? C.ruby : C.border}`,
+                    background: active ? C.ruby : C.white,
+                    color: active ? "#fff" : C.text2,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    fontFamily: "inherit",
+                  }}
                 >
                   {opt.label}
                 </button>
@@ -1639,46 +1741,19 @@ const CustomTableInner = <T extends object>(
         );
       }
       default:
+        // ✅ Usa el DebouncedTextInput definido FUERA del componente
         return (
           <DebouncedTextInput
             value={value}
             onChange={(val) => setColFilter(field, val)}
             placeholder="Filtrar..."
-            className={`${baseInput} min-w-[100px]`}
+            style={{
+              ...baseStyle,
+              minWidth: 80,
+            }}
           />
         );
     }
-  };
-
-  const DebouncedTextInput = ({
-    value,
-    onChange,
-    placeholder,
-    className,
-  }: {
-    value: string;
-    onChange: (val: string) => void;
-    placeholder?: string;
-    className?: string;
-  }) => {
-    const [local, setLocal] = useState(value);
-    const timer = useRef<any>(null);
-    useEffect(() => {
-      setLocal(value);
-    }, [value]);
-    return (
-      <input
-        type="text"
-        placeholder={placeholder}
-        value={local}
-        onChange={(e) => {
-          setLocal(e.target.value);
-          if (timer.current) clearTimeout(timer.current);
-          timer.current = setTimeout(() => onChange(e.target.value), 300);
-        }}
-        className={className}
-      />
-    );
   };
 
   // ---------- Render table rows (desktop) ----------
@@ -1732,7 +1807,7 @@ const CustomTableInner = <T extends object>(
                   borderBottom: `2px solid ${C.theadBorder}`,
                   position: "sticky",
                   top: 0,
-                  left: 0, // ← nuevo
+                  left: 0,
                   zIndex: 30,
                 }}
               >
@@ -1874,9 +1949,9 @@ const CustomTableInner = <T extends object>(
                   padding: "8px 14px",
                   borderBottom: `1px solid ${C.border}`,
                   textAlign: "right",
-                  position: "sticky", // ← sticky funciona en td
+                  position: "sticky",
                   right: 0,
-                  background: "inherit", // ← hereda el color de la fila (striped, selected, etc.)
+                  background: "inherit",
                   zIndex: 1,
                   boxShadow: `-2px 0 8px rgba(0,0,0,0.05)`,
                 }}
@@ -1999,438 +2074,434 @@ const CustomTableInner = <T extends object>(
     const totalColumns =
       (showExpandCol ? 1 : 0) + normalColumns.length + (showActionsCol ? 1 : 0);
     return (
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "separate",
-            borderSpacing: 0,
-          }}
-        >
-          <thead>
-            <tr>
-              {showExpandCol && (
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "separate",
+          borderSpacing: 0,
+        }}
+      >
+        <thead>
+          <tr>
+            {showExpandCol && (
+              <th
+                style={{
+                  padding: "0 4px 0 12px",
+                  borderBottom: `1px solid ${C.border}`,
+                  width: 52,
+                  position: "sticky",
+                  left: 0,
+                  background: "inherit",
+                  zIndex: 1,
+                }}
+              >
+                {enableRowSelection && (
+                  <input
+                    type="checkbox"
+                    checked={selectAll}
+                    ref={(el) => {
+                      if (el)
+                        el.indeterminate =
+                          selectedRows.size > 0 &&
+                          !selectAll &&
+                          !allDataSelected;
+                    }}
+                    onChange={handleSelectAll}
+                    style={{
+                      accentColor: C.ruby,
+                      cursor: "pointer",
+                      width: 14,
+                      height: 14,
+                    }}
+                  />
+                )}
+              </th>
+            )}
+            {normalColumns.map((col) => {
+              const isSorted = sortConfig.field === col.field;
+              const hasFilter = !!columnFilters[col.field];
+              const hasFixedWidth = columnWidths[col.field] || col.width;
+              const isDragTarget = dragOverCol === col.field;
+              const isDragging = dragCol === col.field;
+              return (
                 <th
+                  key={col.field}
+                  draggable={enableColumnReorder}
+                  onDragStart={() => handleDragStart(col.field)}
+                  onDragOver={(e) => handleDragOver(e, col.field)}
+                  onDrop={() => handleDrop(col.field)}
+                  onDragEnd={handleDragEnd}
                   style={{
-                    padding: "0 4px 0 12px",
-                    borderBottom: `1px solid ${C.border}`,
-                    width: 52,
-                    paddingLeft: 12 + level * indentSize,
-                    position: "sticky", // ← nuevo
-                    left: 0, // ← nuevo
-                    background: "inherit",
-                    zIndex: 1,
+                    padding: 0,
+                    textAlign: col.align || "left",
+                    background: isDragTarget ? C.rubyLight : C.thead,
+                    borderBottom: `2px solid ${isSorted ? C.ruby : C.theadBorder}`,
+                    borderLeft: isDragTarget ? `2px solid ${C.ruby}` : "none",
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 20,
+                    ...(hasFixedWidth ? { width: hasFixedWidth } : {}),
+                    minWidth: col.minWidth || 80,
+                    transition: "all 0.2s",
+                    opacity: isDragging ? 0.5 : 1,
+                    cursor: enableColumnReorder ? "grab" : "default",
                   }}
                 >
-                  {enableRowSelection && (
-                    <input
-                      type="checkbox"
-                      checked={selectAll}
-                      ref={(el) => {
-                        if (el)
-                          el.indeterminate =
-                            selectedRows.size > 0 &&
-                            !selectAll &&
-                            !allDataSelected;
-                      }}
-                      onChange={handleSelectAll}
+                  <div
+                    style={{
+                      padding: dp.header,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      paddingRight: 28,
+                      gap: 4,
+                    }}
+                  >
+                    <button
+                      onClick={() =>
+                        col.sortable !== false && handleSort(col.field)
+                      }
                       style={{
-                        accentColor: C.ruby,
-                        cursor: "pointer",
-                        width: 14,
-                        height: 14,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 5,
+                        background: "none",
+                        border: "none",
+                        cursor: col.sortable !== false ? "pointer" : "default",
+                        padding: 0,
+                        color: isSorted ? C.ruby : C.text2,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.07em",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {col.headerName}
+                      {col.sortable !== false && (
+                        <span
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            opacity: isSorted ? 1 : 0.35,
+                          }}
+                        >
+                          <FiChevronUp
+                            size={9}
+                            style={{
+                              color:
+                                isSorted && sortConfig.direction === "asc"
+                                  ? C.ruby
+                                  : C.text3,
+                            }}
+                          />
+                          <FiChevronDown
+                            size={9}
+                            style={{
+                              color:
+                                isSorted && sortConfig.direction === "desc"
+                                  ? C.ruby
+                                  : C.text3,
+                            }}
+                          />
+                        </span>
+                      )}
+                    </button>
+                    {enableGroupBy && col.groupable && (
+                      <button
+                        onClick={() =>
+                          setGroupBy(
+                            groupBy?.field === col.field
+                              ? null
+                              : { field: col.field, direction: "asc" },
+                          )
+                        }
+                        title="Agrupar por esta columna"
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color:
+                            groupBy?.field === col.field ? C.ruby : C.text3,
+                          padding: 0,
+                          display: "flex",
+                        }}
+                      >
+                        <FiLayout size={11} />
+                      </button>
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      margin: dp.filterMargin,
+                      background: hasFilter ? C.rubyLight : C.white,
+                      border: `1px solid ${hasFilter ? "rgba(155,34,66,0.25)" : C.border}`,
+                      borderRadius: C.r4,
+                      padding: "5px 10px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    {col.filterType !== "date-range" &&
+                      col.filterType !== "multi-select" && (
+                        <FiSearch
+                          size={10}
+                          style={{
+                            color: hasFilter ? C.ruby : C.text3,
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {renderColumnFilterInput(col)}
+                    </div>
+                    {hasFilter && (
+                      <button
+                        onClick={() => clearColFilter(col.field)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: 0,
+                          display: "flex",
+                          color: C.text3,
+                        }}
+                      >
+                        <FiX size={10} />
+                      </button>
+                    )}
+                  </div>
+                  {enableColumnResize && col.resizable !== false && (
+                    <div
+                      onMouseDown={(e) => startResize(col.field, e)}
+                      style={{
+                        position: "absolute",
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: 6,
+                        cursor: "col-resize",
+                        background:
+                          resizingCol === col.field ? C.ruby : "transparent",
+                        transition: "background 0.15s",
+                        zIndex: 1,
                       }}
                     />
                   )}
                 </th>
-              )}
-              {normalColumns.map((col) => {
-                const isSorted = sortConfig.field === col.field;
-                const hasFilter = !!columnFilters[col.field];
-                const hasFixedWidth = columnWidths[col.field] || col.width;
-                const isDragTarget = dragOverCol === col.field;
-                const isDragging = dragCol === col.field;
+              );
+            })}
+            {showActionsCol && (
+              <th
+                style={{
+                  padding: `${dp.header} 14px`,
+                  textAlign: "right",
+                  background: C.thead,
+                  borderBottom: `2px solid ${C.theadBorder}`,
+                  position: "sticky",
+                  top: 0,
+                  right: 0,
+                  zIndex: 30,
+                  boxShadow: `-2px 0 8px rgba(0,0,0,0.06)`,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.07em",
+                  color: C.text2,
+                  width: "auto",
+                }}
+              >
+                Acciones
+                <div style={{ height: 32 }} />
+              </th>
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {enableRowPinning && pinnedRowsData.length > 0 && (
+            <>
+              {renderRows(pinnedRowsData, 0, 0)}
+              <tr>
+                <td
+                  colSpan={totalColumns}
+                  style={{
+                    padding: "2px 16px",
+                    background: C.goldLight,
+                    borderBottom: `2px dashed ${C.gold}`,
+                    fontSize: 10,
+                    color: C.gold,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  ↑ Filas ancladas — filas normales ↓
+                </td>
+              </tr>
+            </>
+          )}
+          {groupedData
+            ? groupedData.map(([groupKey, groupRows]) => {
+                const gPaged = groupRows.slice(0, rowsPerPage);
+                const groupRowIds = groupRows.map((r, i) =>
+                  getRowId(r as any, i),
+                );
+                const allGroupSelected = groupRowIds.every((id) =>
+                  selectedRows.has(id),
+                );
+                const someGroupSelected = groupRowIds.some((id) =>
+                  selectedRows.has(id),
+                );
+                const toggleGroupSel = () =>
+                  setSelectedRows((prev) => {
+                    const next = new Set(prev);
+                    if (allGroupSelected)
+                      groupRowIds.forEach((id) => next.delete(id));
+                    else groupRowIds.forEach((id) => next.add(id));
+                    return next;
+                  });
                 return (
-                  <th
-                    key={col.field}
-                    draggable={enableColumnReorder}
-                    onDragStart={() => handleDragStart(col.field)}
-                    onDragOver={(e) => handleDragOver(e, col.field)}
-                    onDrop={() => handleDrop(col.field)}
-                    onDragEnd={handleDragEnd}
-                    style={{
-                      padding: 0,
-                      textAlign: col.align || "left",
-                      background: isDragTarget ? C.rubyLight : C.thead,
-                      borderBottom: `2px solid ${isSorted ? C.ruby : C.theadBorder}`,
-                      borderLeft: isDragTarget ? `2px solid ${C.ruby}` : "none",
-                      position: "sticky",
-                      top: 0,
-                      zIndex: 20,
-                      ...(hasFixedWidth ? { width: hasFixedWidth } : {}),
-                      minWidth: col.minWidth || 80,
-                      transition: "all 0.2s",
-                      opacity: isDragging ? 0.5 : 1,
-                      cursor: enableColumnReorder ? "grab" : "default",
-                    }}
-                  >
-                    <div
-                      style={{
-                        padding: dp.header,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        paddingRight: 28,
-                        gap: 4,
-                      }}
-                    >
-                      <button
-                        onClick={() =>
-                          col.sortable !== false && handleSort(col.field)
-                        }
+                  <React.Fragment key={groupKey}>
+                    <tr>
+                      <td
+                        colSpan={totalColumns}
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 5,
-                          background: "none",
-                          border: "none",
-                          cursor:
-                            col.sortable !== false ? "pointer" : "default",
-                          padding: 0,
-                          color: isSorted ? C.ruby : C.text2,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.07em",
-                          fontFamily: "inherit",
+                          padding: "8px 16px",
+                          background: C.rubyLight,
+                          borderBottom: `1px solid ${C.border}`,
+                          borderTop: `2px solid rgba(155,34,66,0.15)`,
                         }}
                       >
-                        {col.headerName}
-                        {col.sortable !== false && (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
+                          {enableGroupSelection && (
+                            <input
+                              type="checkbox"
+                              checked={allGroupSelected}
+                              ref={(el) => {
+                                if (el)
+                                  el.indeterminate =
+                                    someGroupSelected && !allGroupSelected;
+                              }}
+                              onChange={toggleGroupSel}
+                              style={{
+                                accentColor: C.ruby,
+                                cursor: "pointer",
+                                width: 14,
+                                height: 14,
+                                flexShrink: 0,
+                              }}
+                            />
+                          )}
                           <span
                             style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              opacity: isSorted ? 1 : 0.35,
+                              fontWeight: 800,
+                              fontSize: 12,
+                              color: C.ruby,
                             }}
                           >
-                            <FiChevronUp
-                              size={9}
-                              style={{
-                                color:
-                                  isSorted && sortConfig.direction === "asc"
-                                    ? C.ruby
-                                    : C.text3,
-                              }}
-                            />
-                            <FiChevronDown
-                              size={9}
-                              style={{
-                                color:
-                                  isSorted && sortConfig.direction === "desc"
-                                    ? C.ruby
-                                    : C.text3,
-                              }}
-                            />
+                            {columns.find((c) => c.field === groupBy?.field)
+                              ?.headerName || groupBy?.field}
+                            :
                           </span>
-                        )}
-                      </button>
-                      {enableGroupBy && col.groupable && (
-                        <button
-                          onClick={() =>
-                            setGroupBy(
-                              groupBy?.field === col.field
-                                ? null
-                                : { field: col.field, direction: "asc" },
-                            )
-                          }
-                          title="Agrupar por esta columna"
-                          style={{
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            color:
-                              groupBy?.field === col.field ? C.ruby : C.text3,
-                            padding: 0,
-                            display: "flex",
-                          }}
-                        >
-                          <FiLayout size={11} />
-                        </button>
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        margin: dp.filterMargin,
-                        background: hasFilter ? C.rubyLight : C.white,
-                        border: `1px solid ${hasFilter ? "rgba(155,34,66,0.25)" : C.border}`,
-                        borderRadius: C.r4,
-                        padding: "5px 10px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        transition: "all 0.2s",
-                      }}
-                    >
-                      {col.filterType !== "date-range" &&
-                        col.filterType !== "multi-select" && (
-                          <FiSearch
-                            size={10}
+                          <span
                             style={{
-                              color: hasFilter ? C.ruby : C.text3,
-                              flexShrink: 0,
+                              fontWeight: 600,
+                              fontSize: 13,
+                              color: C.text1,
                             }}
-                          />
-                        )}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        {renderColumnFilterInput(col)}
-                      </div>
-                      {hasFilter && (
-                        <button
-                          onClick={() => clearColFilter(col.field)}
+                          >
+                            {groupKey}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              color: C.text3,
+                              marginLeft: 4,
+                            }}
+                          >
+                            ({groupRows.length} registros
+                            {someGroupSelected && (
+                              <span style={{ color: C.ruby, fontWeight: 700 }}>
+                                {" "}
+                                ·{" "}
+                                {
+                                  groupRowIds.filter((id) =>
+                                    selectedRows.has(id),
+                                  ).length
+                                }{" "}
+                                sel.
+                              </span>
+                            )}
+                            )
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                    {renderRows(gPaged, 0, 0)}
+                  </React.Fragment>
+                );
+              })
+            : renderRows(currentRows, 0, startIndex)}
+        </tbody>
+        {hasAgg && enableAggregations && (
+          <tfoot>
+            <tr style={{ background: C.thead }}>
+              {showExpandCol && (
+                <td style={{ borderTop: `2px solid ${C.theadBorder}` }} />
+              )}
+              {normalColumns.map((col) => {
+                const agg = aggregations[col.field];
+                return (
+                  <td
+                    key={col.field}
+                    style={{
+                      padding: "10px 16px",
+                      borderTop: `2px solid ${C.theadBorder}`,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: agg ? C.ruby : C.text3,
+                      textAlign: col.align || "left",
+                      ...(columnWidths[col.field] || col.width
+                        ? { width: columnWidths[col.field] || col.width }
+                        : {}),
+                      minWidth: col.minWidth || 80,
+                    }}
+                  >
+                    {agg ? (
+                      <div>
+                        <div
                           style={{
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            padding: 0,
-                            display: "flex",
+                            fontSize: 9,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.07em",
                             color: C.text3,
+                            marginBottom: 2,
                           }}
                         >
-                          <FiX size={10} />
-                        </button>
-                      )}
-                    </div>
-                    {enableColumnResize && col.resizable !== false && (
-                      <div
-                        onMouseDown={(e) => startResize(col.field, e)}
-                        style={{
-                          position: "absolute",
-                          right: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: 6,
-                          cursor: "col-resize",
-                          background:
-                            resizingCol === col.field ? C.ruby : "transparent",
-                          transition: "background 0.15s",
-                          zIndex: 1,
-                        }}
-                      />
+                          {col.aggregation}
+                        </div>
+                        {agg}
+                      </div>
+                    ) : (
+                      ""
                     )}
-                  </th>
+                  </td>
                 );
               })}
               {showActionsCol && (
-                <th
-                  style={{
-                    padding: `${dp.header} 14px`,
-                    textAlign: "right",
-                    background: C.thead,
-                    borderBottom: `2px solid ${C.theadBorder}`,
-                    position: "sticky",
-                    top: 0,
-                    right: 0, // ← nuevo
-                    zIndex: 30, // ← más alto que el resto (eran 20)
-                    boxShadow: `-2px 0 8px rgba(0,0,0,0.06)`, // ← sombra separadora
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.07em",
-                    color: C.text2,
-                    width: "auto",
-                  }}
-                >
-                  Acciones
-                  <div style={{ height: 32 }} />
-                </th>
+                <td style={{ borderTop: `2px solid ${C.theadBorder}` }} />
               )}
             </tr>
-          </thead>
-          <tbody>
-            {enableRowPinning && pinnedRowsData.length > 0 && (
-              <>
-                {renderRows(pinnedRowsData, 0, 0)}
-                <tr>
-                  <td
-                    colSpan={totalColumns}
-                    style={{
-                      padding: "2px 16px",
-                      background: C.goldLight,
-                      borderBottom: `2px dashed ${C.gold}`,
-                      fontSize: 10,
-                      color: C.gold,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    ↑ Filas ancladas — filas normales ↓
-                  </td>
-                </tr>
-              </>
-            )}
-            {groupedData
-              ? groupedData.map(([groupKey, groupRows]) => {
-                  const gPaged = groupRows.slice(0, rowsPerPage);
-                  const groupRowIds = groupRows.map((r, i) =>
-                    getRowId(r as any, i),
-                  );
-                  const allGroupSelected = groupRowIds.every((id) =>
-                    selectedRows.has(id),
-                  );
-                  const someGroupSelected = groupRowIds.some((id) =>
-                    selectedRows.has(id),
-                  );
-                  const toggleGroupSel = () =>
-                    setSelectedRows((prev) => {
-                      const next = new Set(prev);
-                      if (allGroupSelected)
-                        groupRowIds.forEach((id) => next.delete(id));
-                      else groupRowIds.forEach((id) => next.add(id));
-                      return next;
-                    });
-                  return (
-                    <React.Fragment key={groupKey}>
-                      <tr>
-                        <td
-                          colSpan={totalColumns}
-                          style={{
-                            padding: "8px 16px",
-                            background: C.rubyLight,
-                            borderBottom: `1px solid ${C.border}`,
-                            borderTop: `2px solid rgba(155,34,66,0.15)`,
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8,
-                            }}
-                          >
-                            {enableGroupSelection && (
-                              <input
-                                type="checkbox"
-                                checked={allGroupSelected}
-                                ref={(el) => {
-                                  if (el)
-                                    el.indeterminate =
-                                      someGroupSelected && !allGroupSelected;
-                                }}
-                                onChange={toggleGroupSel}
-                                style={{
-                                  accentColor: C.ruby,
-                                  cursor: "pointer",
-                                  width: 14,
-                                  height: 14,
-                                  flexShrink: 0,
-                                }}
-                              />
-                            )}
-                            <span
-                              style={{
-                                fontWeight: 800,
-                                fontSize: 12,
-                                color: C.ruby,
-                              }}
-                            >
-                              {columns.find((c) => c.field === groupBy?.field)
-                                ?.headerName || groupBy?.field}
-                              :
-                            </span>
-                            <span
-                              style={{
-                                fontWeight: 600,
-                                fontSize: 13,
-                                color: C.text1,
-                              }}
-                            >
-                              {groupKey}
-                            </span>
-                            <span
-                              style={{
-                                fontSize: 11,
-                                color: C.text3,
-                                marginLeft: 4,
-                              }}
-                            >
-                              ({groupRows.length} registros
-                              {someGroupSelected && (
-                                <span
-                                  style={{ color: C.ruby, fontWeight: 700 }}
-                                >
-                                  {" "}
-                                  ·{" "}
-                                  {
-                                    groupRowIds.filter((id) =>
-                                      selectedRows.has(id),
-                                    ).length
-                                  }{" "}
-                                  sel.
-                                </span>
-                              )}
-                              )
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                      {renderRows(gPaged, 0, 0)}
-                    </React.Fragment>
-                  );
-                })
-              : renderRows(currentRows, 0, startIndex)}
-          </tbody>
-          {hasAgg && enableAggregations && (
-            <tfoot>
-              <tr style={{ background: C.thead }}>
-                {showExpandCol && (
-                  <td style={{ borderTop: `2px solid ${C.theadBorder}` }} />
-                )}
-                {normalColumns.map((col) => {
-                  const agg = aggregations[col.field];
-                  return (
-                    <td
-                      key={col.field}
-                      style={{
-                        padding: "10px 16px",
-                        borderTop: `2px solid ${C.theadBorder}`,
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: agg ? C.ruby : C.text3,
-                        textAlign: col.align || "left",
-                        ...(columnWidths[col.field] || col.width
-                          ? { width: columnWidths[col.field] || col.width }
-                          : {}),
-                        minWidth: col.minWidth || 80,
-                      }}
-                    >
-                      {agg ? (
-                        <div>
-                          <div
-                            style={{
-                              fontSize: 9,
-                              textTransform: "uppercase",
-                              letterSpacing: "0.07em",
-                              color: C.text3,
-                              marginBottom: 2,
-                            }}
-                          >
-                            {col.aggregation}
-                          </div>
-                          {agg}
-                        </div>
-                      ) : (
-                        ""
-                      )}
-                    </td>
-                  );
-                })}
-                {showActionsCol && (
-                  <td style={{ borderTop: `2px solid ${C.theadBorder}` }} />
-                )}
-              </tr>
-            </tfoot>
-          )}
-        </table>
+          </tfoot>
+        )}
+      </table>
     );
   };
 
@@ -2716,12 +2787,38 @@ const CustomTableInner = <T extends object>(
 
   // ---------- Mobile views ----------
   const renderMobileListView = () => {
-    const hasPerm = (p: string | string[]) => true;
+    // Acciones por defecto si no se pasan: editar (izq, naranja) y eliminar (der, rojo)
+    const defaultLeftAction = {
+      icon: <FiEdit2 size={20} color="#fff" />,
+      color: "#ea580c",
+      label: "Editar",
+      action: (_row: T) => {},
+    };
+    const defaultRightAction = {
+      icon: <FiTrash2 size={20} color="#fff" />,
+      color: "#dc2626",
+      label: "Eliminar",
+      action: (_row: T) => {},
+    };
+
+    const leftAction =
+      mobileConfig?.swipeActions?.left?.[0] ?? defaultLeftAction;
+    const rightAction =
+      mobileConfig?.swipeActions?.right?.[0] ?? defaultRightAction;
+    const hasSwipeActions =
+      mobileConfig?.swipeActions?.left?.length ||
+      mobileConfig?.swipeActions?.right?.length ||
+      true; // always show hints
+
     const padding = getDensityPadding();
     const textSize = getDensityTextSize();
     return (
       <motion.div
-        className={`space-y-3 ${screenSize === "xs" ? "p-2" : "p-3"} bg-gray-50 min-h-fit`}
+        style={{
+          padding: screenSize === "xs" ? 8 : 12,
+          background: "#f5f5f8",
+          minHeight: "fit-content",
+        }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.4 }}
@@ -2729,10 +2826,14 @@ const CustomTableInner = <T extends object>(
         <AnimatePresence mode="popLayout">
           {currentRows.map((row, idx) => {
             const isBeingSwiped = swipeData.index === idx;
+            const swipeOffset = isBeingSwiped ? swipeData.offset : 0;
+            const showLeft = swipeOffset > 20;
+            const showRight = swipeOffset < -20;
+
             return (
               <motion.div
                 key={idx}
-                className="relative"
+                style={{ position: "relative", marginBottom: 10 }}
                 layout
                 initial={{ opacity: 0, y: 20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -2741,29 +2842,118 @@ const CustomTableInner = <T extends object>(
                   type: "spring",
                   damping: 25,
                   stiffness: 300,
-                  delay: idx * 0.05,
+                  delay: idx * 0.04,
                 }}
               >
+                {/* === FONDO IZQUIERDO (editar) === */}
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: 14,
+                    background: leftAction.color,
+                    display: "flex",
+                    alignItems: "center",
+                    paddingLeft: 20,
+                    opacity: showLeft ? Math.min(swipeOffset / 80, 1) : 0,
+                    transition: "opacity 0.1s",
+                    zIndex: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 3,
+                    }}
+                  >
+                    {leftAction.icon}
+                    {leftAction.label && (
+                      <span
+                        style={{ color: "#fff", fontSize: 10, fontWeight: 700 }}
+                      >
+                        {leftAction.label}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* === FONDO DERECHO (eliminar) === */}
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: 14,
+                    background: rightAction.color,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "flex-end",
+                    paddingRight: 20,
+                    opacity: showRight ? Math.min(-swipeOffset / 80, 1) : 0,
+                    transition: "opacity 0.1s",
+                    zIndex: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 3,
+                    }}
+                  >
+                    {rightAction.icon}
+                    {rightAction.label && (
+                      <span
+                        style={{ color: "#fff", fontSize: 10, fontWeight: 700 }}
+                      >
+                        {rightAction.label}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* === TARJETA PRINCIPAL (deslizable) === */}
                 <motion.div
-                  className="relative bg-white rounded-xl overflow-hidden border border-gray-200"
+                  style={{
+                    position: "relative",
+                    zIndex: 1,
+                    background: "#ffffff",
+                    borderRadius: 14,
+                    overflow: "hidden",
+                    border: "1px solid #e8e8ed",
+                    boxShadow: isBeingSwiped
+                      ? "0 10px 30px rgba(0,0,0,0.15)"
+                      : "0 1px 4px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.04)",
+                    x: swipeOffset,
+                    cursor: "grab",
+                  }}
                   drag="x"
                   dragConstraints={{ left: 0, right: 0 }}
                   dragElastic={0.15}
                   onDragStart={() => handleSwipeStart(idx)}
                   onDrag={(_, info) => handleSwipeMove(info.offset.x)}
-                  onDragEnd={() => handleSwipeEnd(row, idx, (p) => true)}
-                  style={{
-                    x: isBeingSwiped ? swipeData.offset : 0,
-                    boxShadow: isBeingSwiped
-                      ? "0 10px 15px -3px rgba(0,0,0,0.1)"
-                      : "0 1px 3px 0 rgba(0,0,0,0.1)",
-                  }}
-                  whileHover={{ y: -2 }}
-                  whileTap={{ scale: 0.98 }}
+                  onDragEnd={() => handleSwipeEnd(row, idx, () => true)}
+                  whileTap={{ cursor: "grabbing" }}
                 >
-                  <div className="h-0.5 bg-[#9B2242]" />
+                  {/* Barra superior ruby */}
                   <div
-                    className={`${padding} active:bg-gray-50`}
+                    style={{
+                      height: 3,
+                      background: "linear-gradient(90deg, #9B2242, #b52a4f)",
+                    }}
+                  />
+
+                  <div
+                    style={{
+                      padding:
+                        mobileDensity === "compact"
+                          ? "10px 14px"
+                          : mobileDensity === "spacious"
+                            ? "18px 20px"
+                            : "14px 16px",
+                    }}
                     onClick={() => {
                       if (mobileConfig?.onTileTap) mobileConfig.onTileTap(row);
                       else if (mobileConfig?.bottomSheet) {
@@ -2772,30 +2962,57 @@ const CustomTableInner = <T extends object>(
                       }
                     }}
                   >
-                    <div className="flex items-center space-x-4">
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 12 }}
+                    >
                       {mobileConfig?.listTile?.leading && (
-                        <div className="flex-shrink-0">
+                        <div style={{ flexShrink: 0 }}>
                           {mobileConfig.listTile.leading(row)}
                         </div>
                       )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            marginBottom: 3,
+                          }}
+                        >
                           <div
-                            className={`${textSize.title} font-semibold text-gray-900 truncate`}
+                            style={{
+                              fontSize:
+                                mobileDensity === "compact"
+                                  ? 14
+                                  : mobileDensity === "spacious"
+                                    ? 18
+                                    : 16,
+                              fontWeight: 700,
+                              color: "#1a1a24",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
                           >
                             {mobileConfig?.listTile?.title
                               ? mobileConfig.listTile.title(row)
                               : getCardTitle(row)}
                           </div>
                           {mobileConfig?.listTile?.trailing && (
-                            <div className="flex-shrink-0 ml-3">
+                            <div style={{ flexShrink: 0, marginLeft: 10 }}>
                               {mobileConfig.listTile.trailing(row)}
                             </div>
                           )}
                         </div>
                         {mobileConfig?.listTile?.subtitle && (
                           <div
-                            className={`${textSize.subtitle} text-gray-600 truncate`}
+                            style={{
+                              fontSize: mobileDensity === "compact" ? 12 : 14,
+                              color: "#5a5a72",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
                           >
                             {mobileConfig.listTile.subtitle(row)}
                           </div>
@@ -2803,46 +3020,67 @@ const CustomTableInner = <T extends object>(
                       </div>
                     </div>
                   </div>
-                  {/* Swipe hint indicators */}
-                  {mobileConfig?.swipeActions && (
-                    <>
-                      {mobileConfig.swipeActions.left?.[0] && (
-                        <motion.div
-                          className="absolute left-0 top-0 bottom-0 flex items-center justify-center px-4 rounded-l-xl"
+
+                  {/* Swipe hint strip al fondo */}
+                  {!isBeingSwiped && (
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "4px 12px 6px",
+                        borderTop: "1px solid #f0f0f4",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <div
                           style={{
-                            background:
-                              mobileConfig.swipeActions.left[0].color ||
-                              "bg-orange-500",
-                            opacity:
-                              isBeingSwiped && swipeData.offset > 20
-                                ? Math.min(swipeData.offset / 60, 1)
-                                : 0,
-                            width: 64,
-                            zIndex: -1,
+                            width: 18,
+                            height: 18,
+                            borderRadius: 6,
+                            background: leftAction.color,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                           }}
                         >
-                          {mobileConfig.swipeActions.left[0].icon}
-                        </motion.div>
-                      )}
-                      {mobileConfig.swipeActions.right?.[0] && (
-                        <motion.div
-                          className="absolute right-0 top-0 bottom-0 flex items-center justify-center px-4 rounded-r-xl"
+                          <FiEdit2 size={10} color="#fff" />
+                        </div>
+                        <span style={{ fontSize: 10, color: "#9898b0" }}>
+                          desliza →
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <span style={{ fontSize: 10, color: "#9898b0" }}>
+                          ← desliza
+                        </span>
+                        <div
                           style={{
-                            background:
-                              mobileConfig.swipeActions.right[0].color ||
-                              "bg-red-500",
-                            opacity:
-                              isBeingSwiped && swipeData.offset < -20
-                                ? Math.min(-swipeData.offset / 60, 1)
-                                : 0,
-                            width: 64,
-                            zIndex: -1,
+                            width: 18,
+                            height: 18,
+                            borderRadius: 6,
+                            background: rightAction.color,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                           }}
                         >
-                          {mobileConfig.swipeActions.right[0].icon}
-                        </motion.div>
-                      )}
-                    </>
+                          <FiTrash2 size={10} color="#fff" />
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </motion.div>
               </motion.div>
@@ -2855,23 +3093,43 @@ const CustomTableInner = <T extends object>(
 
   const renderMobileCompactListView = () => (
     <motion.div
-      className={`${screenSize === "xs" ? "p-2" : "p-3"} bg-gray-50`}
+      style={{ padding: screenSize === "xs" ? 8 : 12, background: "#f5f5f8" }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
-      <div className="space-y-0.5 bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+      <div
+        style={{
+          background: "#fff",
+          borderRadius: 14,
+          overflow: "hidden",
+          border: "1px solid #e8e8ed",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
+        }}
+      >
         <AnimatePresence>
           {currentRows.map((row, idx) => (
             <motion.div
               key={idx}
-              className="border-b border-gray-100 last:border-b-0"
+              style={{
+                borderBottom:
+                  idx < currentRows.length - 1 ? "1px solid #f0f0f4" : "none",
+              }}
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: idx * 0.03, type: "spring", stiffness: 400 }}
-              whileTap={{ backgroundColor: "#f3f4f6", scale: 0.99 }}
             >
               <div
-                className="px-4 py-2.5 hover:bg-gray-50"
+                style={{
+                  padding: "10px 16px",
+                  cursor: "pointer",
+                  transition: "background 0.1s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "#fdf4f6")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "transparent")
+                }
                 onClick={() => {
                   if (mobileConfig?.onTileTap) mobileConfig.onTileTap(row);
                   else if (mobileConfig?.bottomSheet) {
@@ -2880,23 +3138,45 @@ const CustomTableInner = <T extends object>(
                   }
                 }}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  >
                     {mobileConfig?.listTile?.leading && (
-                      <div className="flex-shrink-0 opacity-80">
+                      <div style={{ flexShrink: 0, opacity: 0.8 }}>
                         {mobileConfig.listTile.leading(row)}
                       </div>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-gray-900 truncate">
-                        {mobileConfig?.listTile?.title
-                          ? mobileConfig.listTile.title(row)
-                          : getCardTitle(row)}
-                      </div>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: "#1a1a24",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {mobileConfig?.listTile?.title
+                        ? mobileConfig.listTile.title(row)
+                        : getCardTitle(row)}
                     </div>
                   </div>
                   {mobileConfig?.listTile?.trailing && (
-                    <div className="flex-shrink-0 opacity-80">
+                    <div style={{ flexShrink: 0 }}>
                       {mobileConfig.listTile.trailing(row)}
                     </div>
                   )}
@@ -2911,14 +3191,26 @@ const CustomTableInner = <T extends object>(
 
   const renderMobileCardsView = () => (
     <motion.div
-      className={`grid ${screenSize === "xs" ? "grid-cols-1" : "grid-cols-2"} gap-4 ${screenSize === "xs" ? "p-2" : "p-4"} bg-gray-50`}
+      style={{
+        display: "grid",
+        gridTemplateColumns: screenSize === "xs" ? "1fr" : "1fr 1fr",
+        gap: 14,
+        padding: screenSize === "xs" ? 8 : 14,
+        background: "#f5f5f8",
+      }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
       {currentRows.map((row, idx) => (
         <motion.div
           key={idx}
-          className="bg-white rounded-2xl overflow-hidden shadow-md border border-gray-200"
+          style={{
+            background: "#fff",
+            borderRadius: 18,
+            overflow: "hidden",
+            border: "1px solid #e8e8ed",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+          }}
           initial={{ opacity: 0, scale: 0.9, y: 30 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{
@@ -2941,17 +3233,47 @@ const CustomTableInner = <T extends object>(
             }
           }}
         >
-          <div className="h-1 bg-[#9B2242]" />
-          <div className={getDensityPadding()}>
+          <div
+            style={{
+              height: 4,
+              background: "linear-gradient(90deg, #9B2242, #b52a4f)",
+            }}
+          />
+          <div
+            style={{ padding: getDensityPadding().replace("p-", "") + "px" }}
+          >
             {mobileConfig?.listTile?.leading && (
-              <div className="flex justify-center mb-4 pt-2">
-                <div className="bg-gray-100 rounded-xl p-3">
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  marginBottom: 12,
+                  paddingTop: 6,
+                }}
+              >
+                <div
+                  style={{
+                    background: "#f5f5f8",
+                    borderRadius: 14,
+                    padding: 12,
+                  }}
+                >
                   {mobileConfig.listTile.leading(row)}
                 </div>
               </div>
             )}
             <div
-              className={`${getDensityTextSize().title} font-semibold text-gray-900 text-center mb-2 line-clamp-2`}
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                color: "#1a1a24",
+                textAlign: "center",
+                marginBottom: 6,
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
             >
               {mobileConfig?.listTile?.title
                 ? mobileConfig.listTile.title(row)
@@ -2959,13 +3281,29 @@ const CustomTableInner = <T extends object>(
             </div>
             {mobileConfig?.listTile?.subtitle && (
               <div
-                className={`${getDensityTextSize().subtitle} text-gray-600 text-center line-clamp-2 mb-3`}
+                style={{
+                  fontSize: 13,
+                  color: "#5a5a72",
+                  textAlign: "center",
+                  marginBottom: 10,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}
               >
                 {mobileConfig.listTile.subtitle(row)}
               </div>
             )}
             {mobileConfig?.listTile?.trailing && (
-              <div className="flex justify-center pt-3 border-t border-gray-100">
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  paddingTop: 10,
+                  borderTop: "1px solid #f0f0f4",
+                }}
+              >
                 {mobileConfig.listTile.trailing(row)}
               </div>
             )}
@@ -2977,14 +3315,26 @@ const CustomTableInner = <T extends object>(
 
   const renderMobileMiniCardsView = () => (
     <motion.div
-      className={`grid ${screenSize === "xs" ? "grid-cols-2" : "grid-cols-3"} gap-3 ${screenSize === "xs" ? "p-2" : "p-3"} bg-gray-50`}
+      style={{
+        display: "grid",
+        gridTemplateColumns: screenSize === "xs" ? "1fr 1fr" : "1fr 1fr 1fr",
+        gap: 10,
+        padding: screenSize === "xs" ? 8 : 12,
+        background: "#f5f5f8",
+      }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
       {currentRows.map((row, idx) => (
         <motion.div
           key={idx}
-          className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-200"
+          style={{
+            background: "#fff",
+            borderRadius: 14,
+            overflow: "hidden",
+            border: "1px solid #e8e8ed",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+          }}
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{
@@ -2995,7 +3345,7 @@ const CustomTableInner = <T extends object>(
           }}
           whileHover={{
             scale: 1.05,
-            boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+            boxShadow: "0 10px 20px rgba(0,0,0,0.12)",
           }}
           whileTap={{ scale: 0.95 }}
           onClick={() => {
@@ -3006,20 +3356,49 @@ const CustomTableInner = <T extends object>(
             }
           }}
         >
-          <div className="h-0.5 bg-[#9B2242]" />
-          <div className="p-3">
+          <div style={{ height: 2, background: "#9B2242" }} />
+          <div style={{ padding: 12 }}>
             {mobileConfig?.listTile?.leading && (
-              <div className="flex justify-center mb-2 bg-gray-50 rounded-lg p-2">
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  marginBottom: 8,
+                  background: "#f5f5f8",
+                  borderRadius: 10,
+                  padding: 8,
+                }}
+              >
                 {mobileConfig.listTile.leading(row)}
               </div>
             )}
-            <div className="text-xs font-semibold text-gray-900 text-center line-clamp-2 min-h-[2rem]">
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#1a1a24",
+                textAlign: "center",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                minHeight: 32,
+              }}
+            >
               {mobileConfig?.listTile?.title
                 ? mobileConfig.listTile.title(row)
                 : getCardTitle(row)}
             </div>
             {mobileConfig?.listTile?.trailing && (
-              <div className="flex justify-center mt-2 pt-2 border-t border-gray-100">
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  marginTop: 8,
+                  paddingTop: 8,
+                  borderTop: "1px solid #f0f0f4",
+                }}
+              >
                 {mobileConfig.listTile.trailing(row)}
               </div>
             )}
@@ -3031,20 +3410,28 @@ const CustomTableInner = <T extends object>(
 
   const renderMobileTimelineView = () => (
     <motion.div
-      className={`${screenSize === "xs" ? "p-3" : "p-4"} bg-gray-50 min-h-screen`}
+      style={{ padding: screenSize === "xs" ? 12 : 16, background: "#f5f5f8" }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
-      <div className="relative">
+      <div style={{ position: "relative" }}>
         <div
-          className="absolute top-0 bottom-0 w-0.5 left-[28px]"
-          style={{ backgroundColor: "#B8B6AF" }}
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            width: 2,
+            left: 27,
+            background:
+              "linear-gradient(to bottom, #9B2242, rgba(155,34,66,0.1))",
+            borderRadius: 2,
+          }}
         />
-        <div className="space-y-4">
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {currentRows.map((row, idx) => (
             <motion.div
               key={idx}
-              className="flex gap-4"
+              style={{ display: "flex", gap: 14 }}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: idx * 0.06, type: "spring", stiffness: 300 }}
@@ -3056,47 +3443,76 @@ const CustomTableInner = <T extends object>(
                 }
               }}
             >
-              <div className="flex-shrink-0 w-7 flex justify-center pt-2">
+              <div
+                style={{
+                  flexShrink: 0,
+                  width: 28,
+                  display: "flex",
+                  justifyContent: "center",
+                  paddingTop: 8,
+                }}
+              >
                 <div
-                  className="w-3 h-3 rounded-full border-2 border-white shadow-md"
-                  style={{ backgroundColor: "#9B2242", borderColor: "#B8B6AF" }}
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: "50%",
+                    background: "#9B2242",
+                    border: "3px solid #fff",
+                    boxShadow: "0 0 0 2px rgba(155,34,66,0.3)",
+                  }}
                 />
               </div>
               <motion.div
-                className="flex-1 bg-white rounded-xl p-4 shadow-sm border border-gray-200"
-                whileHover={{
-                  x: 4,
-                  boxShadow: "0 8px 16px -4px rgba(0,0,0,0.12)",
+                style={{
+                  flex: 1,
+                  background: "#fff",
+                  borderRadius: 14,
+                  padding: 14,
+                  border: "1px solid #e8e8ed",
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
                 }}
+                whileHover={{ x: 4, boxShadow: "0 8px 20px rgba(0,0,0,0.1)" }}
                 whileTap={{ scale: 0.98 }}
               >
-                <div className="flex items-start gap-3 flex-wrap">
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10,
+                    flexWrap: "wrap",
+                  }}
+                >
                   {mobileConfig?.listTile?.leading && (
-                    <div className="flex-shrink-0 mt-0.5">
+                    <div style={{ flexShrink: 0 }}>
                       {mobileConfig.listTile.leading(row)}
                     </div>
                   )}
-                  <div className="flex-1 min-w-0">
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div
-                      className={`${getDensityTextSize().title} font-semibold break-words mb-1`}
-                      style={{ color: "#130D0E" }}
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 700,
+                        color: "#1a1a24",
+                        marginBottom: 3,
+                      }}
                     >
                       {mobileConfig?.listTile?.title
                         ? mobileConfig.listTile.title(row)
                         : getCardTitle(row)}
                     </div>
                     {mobileConfig?.listTile?.subtitle && (
-                      <div
-                        className={`${getDensityTextSize().subtitle} text-gray-600 line-clamp-2 break-words`}
-                        style={{ color: "#727372" }}
-                      >
+                      <div style={{ fontSize: 13, color: "#5a5a72" }}>
                         {mobileConfig.listTile.subtitle(row)}
                       </div>
                     )}
                     {mobileConfig?.listTile?.trailing && (
                       <div
-                        className="mt-3 pt-2 border-t"
-                        style={{ borderColor: "#B8B6AF40" }}
+                        style={{
+                          marginTop: 10,
+                          paddingTop: 8,
+                          borderTop: "1px solid #f0f0f4",
+                        }}
                       >
                         {mobileConfig.listTile.trailing(row)}
                       </div>
@@ -3113,7 +3529,7 @@ const CustomTableInner = <T extends object>(
 
   const renderMobileDetailedListView = () => (
     <motion.div
-      className={`space-y-4 ${screenSize === "xs" ? "p-3" : "p-4"} bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen`}
+      style={{ padding: screenSize === "xs" ? 12 : 16, background: "#f5f5f8" }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
@@ -3123,7 +3539,7 @@ const CustomTableInner = <T extends object>(
           return (
             <motion.div
               key={idx}
-              className="relative"
+              style={{ position: "relative", marginBottom: 14 }}
               layout
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
@@ -3136,27 +3552,61 @@ const CustomTableInner = <T extends object>(
               }}
             >
               <motion.div
-                className="bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-200"
+                style={{
+                  background: "#fff",
+                  borderRadius: 18,
+                  overflow: "hidden",
+                  border: "1px solid #e8e8ed",
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.07)",
+                }}
                 layout
                 whileHover={{
-                  scale: 1.02,
-                  boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
+                  scale: 1.01,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
                 }}
-                whileTap={{ scale: 0.98 }}
+                whileTap={{ scale: 0.99 }}
               >
                 <div
-                  className="px-4 py-3 bg-[#9B2242] text-white"
+                  style={{
+                    padding: "14px 16px",
+                    background: "#9B2242",
+                    cursor: "pointer",
+                  }}
                   onClick={() => setActiveDetails(isExpanded ? null : idx)}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 12 }}
+                    >
+                      <div
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: "50%",
+                          background: "rgba(255,255,255,0.2)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
                         {mobileConfig?.listTile?.leading ? (
-                          <div className="text-white">
+                          <div style={{ color: "#fff" }}>
                             {mobileConfig.listTile.leading(row)}
                           </div>
                         ) : (
-                          <span className="text-white font-bold text-lg">
+                          <span
+                            style={{
+                              color: "#fff",
+                              fontWeight: 800,
+                              fontSize: 17,
+                            }}
+                          >
                             {String(
                               mobileConfig?.listTile?.title
                                 ? mobileConfig.listTile.title(row)
@@ -3165,24 +3615,41 @@ const CustomTableInner = <T extends object>(
                           </span>
                         )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-bold text-white truncate">
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: 16,
+                            fontWeight: 700,
+                            color: "#fff",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
                           {mobileConfig?.listTile?.title
                             ? mobileConfig.listTile.title(row)
                             : getCardTitle(row)}
-                        </h3>
+                        </div>
                         {mobileConfig?.listTile?.subtitle && (
-                          <p className="text-blue-100 text-sm truncate">
+                          <div
+                            style={{
+                              fontSize: 13,
+                              color: "rgba(255,255,255,0.75)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
                             {mobileConfig.listTile.subtitle(row)}
-                          </p>
+                          </div>
                         )}
                       </div>
                     </div>
                     <motion.div
                       animate={{ rotate: isExpanded ? 180 : 0 }}
-                      className="text-white"
+                      style={{ color: "#fff", flexShrink: 0 }}
                     >
-                      <FiChevronDown size={24} />
+                      <FiChevronDown size={22} />
                     </motion.div>
                   </div>
                 </div>
@@ -3193,19 +3660,54 @@ const CustomTableInner = <T extends object>(
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="overflow-hidden"
+                      style={{ overflow: "hidden" }}
                     >
-                      <div className="px-4 py-6 border-b border-gray-100">
-                        <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div
+                        style={{
+                          padding: "16px",
+                          borderBottom: "1px solid #f0f0f4",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: 12,
+                            marginBottom: 12,
+                          }}
+                        >
                           {columns.slice(0, 2).map((col) => (
                             <div
                               key={String(col.field)}
-                              className="bg-gray-50 rounded-xl p-3"
+                              style={{
+                                background: "#f5f5f8",
+                                borderRadius: 12,
+                                padding: 12,
+                              }}
                             >
-                              <div className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  color: "#9898b0",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.05em",
+                                  marginBottom: 4,
+                                }}
+                              >
                                 {col.headerName}
                               </div>
-                              <div className="text-sm font-medium text-gray-900 line-clamp-2">
+                              <div
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: 600,
+                                  color: "#1a1a24",
+                                  display: "-webkit-box",
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: "vertical",
+                                  overflow: "hidden",
+                                }}
+                              >
                                 {col.renderField
                                   ? col.renderField(
                                       getNestedValue(row, col.field),
@@ -3218,18 +3720,45 @@ const CustomTableInner = <T extends object>(
                             </div>
                           ))}
                         </div>
-                      </div>
-                      <div className="px-4 py-6">
-                        <div className="grid grid-cols-1 gap-3">
-                          {columns.slice(2, 6).map((col) => (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 0,
+                          }}
+                        >
+                          {columns.slice(2, 6).map((col, i, arr) => (
                             <div
                               key={String(col.field)}
-                              className="flex items-start justify-between py-2 border-b border-gray-100 last:border-b-0"
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                padding: "10px 0",
+                                borderBottom:
+                                  i < arr.length - 1
+                                    ? "1px solid #f0f0f4"
+                                    : "none",
+                              }}
                             >
-                              <span className="text-sm text-gray-600 font-medium flex-1">
+                              <span
+                                style={{
+                                  fontSize: 13,
+                                  color: "#5a5a72",
+                                  fontWeight: 500,
+                                }}
+                              >
                                 {col.headerName}
                               </span>
-                              <span className="text-sm text-gray-900 font-medium text-right flex-1">
+                              <span
+                                style={{
+                                  fontSize: 13,
+                                  color: "#1a1a24",
+                                  fontWeight: 600,
+                                  textAlign: "right",
+                                  maxWidth: "55%",
+                                }}
+                              >
                                 {col.renderField
                                   ? col.renderField(
                                       getNestedValue(row, col.field),
@@ -3243,7 +3772,7 @@ const CustomTableInner = <T extends object>(
                           ))}
                         </div>
                       </div>
-                      <div className="px-4 pb-6">
+                      <div style={{ padding: "12px 16px" }}>
                         <button
                           onClick={() => {
                             if (mobileConfig?.onTileTap)
@@ -3253,66 +3782,99 @@ const CustomTableInner = <T extends object>(
                               setShowBottomSheet(true);
                             }
                           }}
-                          className="w-full bg-[#9B2242] text-white font-medium py-3 rounded-xl hover:opacity-90 transition flex items-center justify-center gap-2"
+                          style={{
+                            width: "100%",
+                            background: "#9B2242",
+                            color: "#fff",
+                            fontWeight: 700,
+                            padding: "12px 0",
+                            borderRadius: 12,
+                            border: "none",
+                            cursor: "pointer",
+                            fontSize: 14,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8,
+                          }}
                         >
-                          <FiEye size={18} /> Ver completo
+                          <FiEye size={16} /> Ver completo
                         </button>
                       </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
-                <AnimatePresence>
-                  {!isExpanded && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="px-4 py-3 border-t border-gray-100"
+                {!isExpanded && (
+                  <div
+                    style={{
+                      padding: "10px 16px",
+                      borderTop: "1px solid #f0f0f4",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <div style={{ display: "flex", gap: 14 }}>
+                      {columns
+                        .slice(0, 2)
+                        .filter((col) => getNestedValue(row, col.field) != null)
+                        .map((col, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              display: "flex",
+                              gap: 4,
+                              alignItems: "center",
+                            }}
+                          >
+                            <span style={{ fontSize: 12, color: "#9898b0" }}>
+                              {col.headerName}:
+                            </span>
+                            <span
+                              style={{
+                                fontSize: 12,
+                                color: "#1a1a24",
+                                fontWeight: 600,
+                                maxWidth: 80,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {col.renderField
+                                ? col.renderField(
+                                    getNestedValue(row, col.field),
+                                    row,
+                                  )
+                                : String(
+                                    getNestedValue(row, col.field),
+                                  ).substring(0, 15)}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (mobileConfig?.onTileTap)
+                          mobileConfig.onTileTap(row);
+                        else if (mobileConfig?.bottomSheet) {
+                          setSelectedRowForSheet(row);
+                          setShowBottomSheet(true);
+                        }
+                      }}
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: "#9B2242",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
                     >
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-4">
-                          {columns
-                            .slice(0, 2)
-                            .filter(
-                              (col) =>
-                                col.field &&
-                                col.headerName &&
-                                getNestedValue(row, col.field) != null,
-                            )
-                            .map((col, i) => (
-                              <div key={i} className="flex items-center gap-1">
-                                <span className="text-gray-500">
-                                  {col.headerName}:
-                                </span>
-                                <span className="text-gray-900 font-medium truncate max-w-[80px]">
-                                  {col.renderField
-                                    ? col.renderField(
-                                        getNestedValue(row, col.field),
-                                        row,
-                                      )
-                                    : String(
-                                        getNestedValue(row, col.field),
-                                      ).substring(0, 15)}
-                                </span>
-                              </div>
-                            ))}
-                        </div>
-                        <button
-                          onClick={() => {
-                            if (mobileConfig?.onTileTap)
-                              mobileConfig.onTileTap(row);
-                            else if (mobileConfig?.bottomSheet) {
-                              setSelectedRowForSheet(row);
-                              setShowBottomSheet(true);
-                            }
-                          }}
-                          className="font-bold"
-                        >
-                          Ver →
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                      Ver →
+                    </button>
+                  </div>
+                )}
               </motion.div>
             </motion.div>
           );
@@ -3754,48 +4316,111 @@ const CustomTableInner = <T extends object>(
     return (
       <AnimatePresence>
         <motion.div
-          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 50,
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+          }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black bg-opacity-50"
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(0,0,0,0.5)",
+            }}
             onClick={() => setShowFilterModal(false)}
           />
           <motion.div
-            className="relative bg-white rounded-t-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden"
+            style={{
+              position: "relative",
+              background: "#fff",
+              borderRadius: "18px 18px 0 0",
+              boxShadow: "0 -8px 40px rgba(0,0,0,0.2)",
+              width: "100%",
+              maxWidth: 520,
+              maxHeight: "85vh",
+              overflow: "hidden",
+            }}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
           >
-            {/* Handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-12 h-1 bg-gray-300 rounded-full" />
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                paddingTop: 12,
+                paddingBottom: 4,
+              }}
+            >
+              <div
+                style={{
+                  width: 48,
+                  height: 4,
+                  background: "#e8e8ed",
+                  borderRadius: 2,
+                }}
+              />
             </div>
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+            <div
+              style={{
+                padding: "12px 20px",
+                borderBottom: "1px solid #f0f0f4",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
               <div>
-                <h3 className="text-base font-bold text-gray-900">Filtros</h3>
+                <div
+                  style={{ fontSize: 16, fontWeight: 800, color: "#1a1a24" }}
+                >
+                  Filtros
+                </div>
                 {mobileActiveFilterCount > 0 && (
-                  <p className="text-xs text-[#9B2242] font-medium">
+                  <div
+                    style={{ fontSize: 12, color: "#9B2242", fontWeight: 600 }}
+                  >
                     {mobileActiveFilterCount} activo
                     {mobileActiveFilterCount !== 1 ? "s" : ""}
-                  </p>
+                  </div>
                 )}
               </div>
               <button
                 onClick={() => setShowFilterModal(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500"
+                style={{
+                  width: 32,
+                  height: 32,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "50%",
+                  background: "#f5f5f8",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#5a5a72",
+                }}
               >
                 <FiX size={16} />
               </button>
             </div>
             <div
-              className="px-5 py-4 overflow-y-auto"
-              style={{ maxHeight: "calc(85vh - 160px)" }}
+              style={{
+                padding: "16px 20px",
+                overflowY: "auto",
+                maxHeight: "calc(85vh - 160px)",
+              }}
             >
-              <div className="space-y-5">
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 20 }}
+              >
                 {mobileConfig.quickFilters.filters.map((filter) => {
                   const field = String(filter.field);
                   const col = columns.find((c) => c.field === field);
@@ -3807,12 +4432,31 @@ const CustomTableInner = <T extends object>(
                       ? tempFilters[field]
                       : defaultValue;
                   return (
-                    <div key={field} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="block text-sm font-semibold text-gray-800">
+                    <div
+                      key={field}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <label
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: "#1a1a24",
+                          }}
+                        >
                           {filter.label || col?.headerName || field}
                         </label>
-                        <div className="flex gap-1">
+                        <div style={{ display: "flex", gap: 6 }}>
                           {filter.showTodayButton && filter.type === "date" && (
                             <button
                               type="button"
@@ -3824,7 +4468,16 @@ const CustomTableInner = <T extends object>(
                                     .split("T")[0],
                                 }))
                               }
-                              className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-lg font-medium"
+                              style={{
+                                fontSize: 11,
+                                padding: "4px 8px",
+                                background: "#eff6ff",
+                                color: "#2563eb",
+                                borderRadius: 8,
+                                border: "none",
+                                cursor: "pointer",
+                                fontWeight: 600,
+                              }}
                             >
                               Hoy
                             </button>
@@ -3838,7 +4491,17 @@ const CustomTableInner = <T extends object>(
                                   [field]: "",
                                 }))
                               }
-                              className="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded-lg"
+                              style={{
+                                fontSize: 11,
+                                padding: "4px 8px",
+                                background: "#f5f5f8",
+                                color: "#5a5a72",
+                                borderRadius: 8,
+                                border: "none",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                              }}
                             >
                               <FiX size={11} />
                             </button>
@@ -3851,17 +4514,44 @@ const CustomTableInner = <T extends object>(
                 })}
               </div>
             </div>
-            <div className="px-5 py-4 border-t border-gray-100 flex gap-3 bg-white">
+            <div
+              style={{
+                padding: "12px 20px",
+                borderTop: "1px solid #f0f0f4",
+                display: "flex",
+                gap: 10,
+                background: "#fff",
+              }}
+            >
               <button
                 onClick={handleClearFilters}
-                className="flex-1 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl text-sm"
+                style={{
+                  flex: 1,
+                  padding: "12px 0",
+                  background: "#f5f5f8",
+                  color: "#5a5a72",
+                  fontWeight: 700,
+                  borderRadius: 12,
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 14,
+                }}
               >
                 Limpiar
               </button>
               <button
                 onClick={handleApplyFilters}
-                className="flex-2 px-6 py-3 bg-[#9B2242] text-white font-semibold rounded-xl text-sm"
-                style={{ flex: 2 }}
+                style={{
+                  flex: 2,
+                  padding: "12px 0",
+                  background: "#9B2242",
+                  color: "#fff",
+                  fontWeight: 700,
+                  borderRadius: 12,
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 14,
+                }}
               >
                 Aplicar filtros
               </button>
@@ -3877,6 +4567,18 @@ const CustomTableInner = <T extends object>(
     field: string,
     currentValue: any,
   ) => {
+    const inputStyle: React.CSSProperties = {
+      width: "100%",
+      border: "1.5px solid #e8e8ed",
+      borderRadius: 12,
+      padding: "12px 14px",
+      fontSize: 14,
+      outline: "none",
+      background: "#f5f5f8",
+      color: "#1a1a24",
+      fontFamily: "inherit",
+      boxSizing: "border-box",
+    };
     switch (filterConfig.type) {
       case "date":
         return (
@@ -3886,7 +4588,7 @@ const CustomTableInner = <T extends object>(
             onChange={(e) =>
               setTempFilters((prev) => ({ ...prev, [field]: e.target.value }))
             }
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#9B2242] bg-gray-50"
+            style={inputStyle}
           />
         );
       case "time":
@@ -3897,7 +4599,7 @@ const CustomTableInner = <T extends object>(
             onChange={(e) =>
               setTempFilters((prev) => ({ ...prev, [field]: e.target.value }))
             }
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#9B2242] bg-gray-50"
+            style={inputStyle}
           />
         );
       case "datetime":
@@ -3908,16 +4610,16 @@ const CustomTableInner = <T extends object>(
             onChange={(e) =>
               setTempFilters((prev) => ({ ...prev, [field]: e.target.value }))
             }
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#9B2242] bg-gray-50"
+            style={inputStyle}
           />
         );
       case "date-range": {
         const range = currentValue || { start: "", end: "" };
         const presets = filterConfig.presets || [];
         return (
-          <div className="space-y-3">
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {presets.length > 0 && (
-              <div className="flex flex-wrap gap-2">
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {presets.map((preset: any, i: number) => (
                   <button
                     key={i}
@@ -3931,16 +4633,33 @@ const CustomTableInner = <T extends object>(
                         },
                       }))
                     }
-                    className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg font-medium"
+                    style={{
+                      padding: "5px 10px",
+                      fontSize: 12,
+                      background: "#f5f5f8",
+                      color: "#5a5a72",
+                      borderRadius: 8,
+                      border: "1px solid #e8e8ed",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                    }}
                   >
                     {preset.label}
                   </button>
                 ))}
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs text-gray-500 font-medium">
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 10,
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label
+                  style={{ fontSize: 11, color: "#9898b0", fontWeight: 600 }}
+                >
                   Desde
                 </label>
                 <input
@@ -3952,11 +4671,13 @@ const CustomTableInner = <T extends object>(
                       [field]: { ...range, start: e.target.value },
                     }))
                   }
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50"
+                  style={{ ...inputStyle, padding: "10px 12px" }}
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs text-gray-500 font-medium">
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label
+                  style={{ fontSize: 11, color: "#9898b0", fontWeight: 600 }}
+                >
                   Hasta
                 </label>
                 <input
@@ -3968,7 +4689,7 @@ const CustomTableInner = <T extends object>(
                       [field]: { ...range, end: e.target.value },
                     }))
                   }
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50"
+                  style={{ ...inputStyle, padding: "10px 12px" }}
                 />
               </div>
             </div>
@@ -3982,7 +4703,7 @@ const CustomTableInner = <T extends object>(
             onChange={(e) =>
               setTempFilters((prev) => ({ ...prev, [field]: e.target.value }))
             }
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#9B2242] bg-gray-50"
+            style={{ ...inputStyle, cursor: "pointer" }}
           >
             <option value="">Todos</option>
             {filterConfig.options?.map((opt: any, i: number) => (
@@ -3994,7 +4715,14 @@ const CustomTableInner = <T extends object>(
         );
       case "checkbox":
         return (
-          <label className="flex items-center gap-3 cursor-pointer">
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              cursor: "pointer",
+            }}
+          >
             <input
               type="checkbox"
               checked={!!currentValue}
@@ -4004,9 +4732,9 @@ const CustomTableInner = <T extends object>(
                   [field]: e.target.checked,
                 }))
               }
-              className="h-5 w-5 text-[#9B2242] focus:ring-[#9B2242] border-gray-300 rounded"
+              style={{ width: 20, height: 20, accentColor: "#9B2242" }}
             />
-            <span className="text-sm text-gray-700">
+            <span style={{ fontSize: 14, color: "#1a1a24" }}>
               {filterConfig.placeholder || "Activar filtro"}
             </span>
           </label>
@@ -4019,7 +4747,7 @@ const CustomTableInner = <T extends object>(
             onChange={(e) =>
               setTempFilters((prev) => ({ ...prev, [field]: e.target.value }))
             }
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#9B2242] bg-gray-50"
+            style={inputStyle}
             placeholder={filterConfig.placeholder}
           />
         );
@@ -4031,7 +4759,7 @@ const CustomTableInner = <T extends object>(
             onChange={(e) =>
               setTempFilters((prev) => ({ ...prev, [field]: e.target.value }))
             }
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#9B2242] bg-gray-50"
+            style={inputStyle}
             placeholder={
               filterConfig.placeholder ||
               `Buscar por ${filterConfig.label || field}...`
@@ -4083,10 +4811,27 @@ const CustomTableInner = <T extends object>(
         return (
           <div
             key={field}
-            className="flex items-center gap-1.5 bg-[#9B2242] text-white px-2.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              background: "#9B2242",
+              color: "#fff",
+              padding: "5px 10px",
+              borderRadius: 100,
+              fontSize: 11,
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+            }}
           >
-            <span className="opacity-80">{chipLabel}:</span>
-            <span className="max-w-[80px] truncate">
+            <span style={{ opacity: 0.8 }}>{chipLabel}:</span>
+            <span
+              style={{
+                maxWidth: 80,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
               {String(displayValue)}
             </span>
             <button
@@ -4098,7 +4843,16 @@ const CustomTableInner = <T extends object>(
                 setActiveFilters(newActive);
                 mobileConfig?.quickFilters?.onApply?.(newActive);
               }}
-              className="ml-0.5 flex-shrink-0 opacity-80 hover:opacity-100"
+              style={{
+                marginLeft: 2,
+                display: "flex",
+                alignItems: "center",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "rgba(255,255,255,0.8)",
+                padding: 0,
+              }}
             >
               <FiX size={11} />
             </button>
@@ -4110,14 +4864,34 @@ const CustomTableInner = <T extends object>(
     if (chips.length === 0) return null;
     return (
       <div
-        className="flex gap-2 overflow-x-auto pb-1 mt-2"
-        style={{ scrollbarWidth: "none" }}
+        style={{
+          display: "flex",
+          gap: 6,
+          overflowX: "auto",
+          paddingBottom: 2,
+          marginTop: 8,
+          scrollbarWidth: "none",
+        }}
       >
         {chips}
         {chips.length > 1 && (
           <button
             onClick={handleClearFilters}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium border border-gray-300 text-gray-600 whitespace-nowrap flex-shrink-0"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
+              padding: "5px 10px",
+              borderRadius: 100,
+              fontSize: 11,
+              fontWeight: 600,
+              border: "1px solid #e8e8ed",
+              background: "#fff",
+              color: "#5a5a72",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
           >
             <FiX size={10} /> Limpiar
           </button>
@@ -4132,17 +4906,31 @@ const CustomTableInner = <T extends object>(
     return (
       <AnimatePresence>
         <motion.div
-          className="fixed inset-0 z-50"
+          style={{ position: "fixed", inset: 0, zIndex: 50 }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black bg-opacity-40"
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(0,0,0,0.4)",
+            }}
             onClick={closeBottomSheet}
           />
           <motion.div
-            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl overflow-hidden"
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              background: "#fff",
+              borderRadius: "24px 24px 0 0",
+              boxShadow: "0 -8px 40px rgba(0,0,0,0.2)",
+              overflow: "hidden",
+              maxHeight: mobileConfig.bottomSheet.height || "80vh",
+            }}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
@@ -4152,20 +4940,42 @@ const CustomTableInner = <T extends object>(
               stiffness: 300,
               mass: 0.8,
             }}
-            style={{ maxHeight: mobileConfig.bottomSheet.height || "80vh" }}
           >
-            <div className="flex justify-center pt-3 pb-2">
-              <div className="w-16 h-1.5 bg-gray-300 rounded-full"></div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                paddingTop: 12,
+                paddingBottom: 8,
+              }}
+            >
+              <div
+                style={{
+                  width: 64,
+                  height: 6,
+                  background: "#e8e8ed",
+                  borderRadius: 3,
+                }}
+              />
             </div>
             {(mobileConfig.bottomSheet.showCloseButton ?? true) && (
               <button
                 onClick={closeBottomSheet}
-                className="absolute top-2 right-3 p-2 bg-gray-100 rounded-full hover:bg-gray-200"
+                style={{
+                  position: "absolute",
+                  top: 8,
+                  right: 12,
+                  padding: 8,
+                  background: "#f5f5f8",
+                  borderRadius: "50%",
+                  border: "none",
+                  cursor: "pointer",
+                }}
               >
                 <FiX size={20} />
               </button>
             )}
-            <div className="px-4 pb-6">
+            <div style={{ padding: "0 16px 24px" }}>
               {mobileConfig.bottomSheet.builder(
                 selectedRowForSheet,
                 closeBottomSheet,
@@ -4177,102 +4987,174 @@ const CustomTableInner = <T extends object>(
     );
   };
 
+  // ==================== MOBILE SETTINGS PANEL ====================
+  const MOBILE_VIEW_OPTIONS: {
+    value: MobileViewMode;
+    label: string;
+    icon: React.ReactNode;
+  }[] = [
+    // { value: "list", label: "Lista", icon: <FiList size={18} /> },
+    // { value: "compact-list", label: "Compacta", icon: <FiMenu size={18} /> },
+    // { value: "cards", label: "Tarjetas", icon: <FiGrid size={18} /> },
+    // { value: "mini-cards", label: "Cuadrícula", icon: <FiGrid size={14} /> },
+    // { value: "timeline", label: "Timeline", icon: <FiList size={18} /> },
+    // { value: "detailed-list", label: "Detalles", icon: <FiEye size={18} /> },
+  ];
+
   const renderMobileSettings = () => {
     if (!showMobileSettings) return null;
-    const viewOptions = [
-      {
-        value: "list" as MobileViewMode,
-        label: "Lista",
-        icon: <FiList size={18} />,
-      },
-      {
-        value: "compact-list" as MobileViewMode,
-        label: "Compacta",
-        icon: <FiMenu size={18} />,
-      },
-      {
-        value: "cards" as MobileViewMode,
-        label: "Tarjetas",
-        icon: <FiGrid size={18} />,
-      },
-      {
-        value: "mini-cards" as MobileViewMode,
-        label: "Cuadrícula",
-        icon: <FiGrid size={16} />,
-      },
-      {
-        value: "timeline" as MobileViewMode,
-        label: "Timeline",
-        icon: <FiList size={18} />,
-      },
-      {
-        value: "detailed-list" as MobileViewMode,
-        label: "Detalles",
-        icon: <FiEye size={18} />,
-      },
-    ];
     return (
       <AnimatePresence>
         <motion.div
-          className="fixed inset-0 z-50"
+          style={{ position: "fixed", inset: 0, zIndex: 50 }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black bg-opacity-40"
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(0,0,0,0.4)",
+            }}
             onClick={() => setShowMobileSettings(false)}
           />
           <motion.div
-            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl"
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              background: "#fff",
+              borderRadius: "20px 20px 0 0",
+              boxShadow: "0 -8px 40px rgba(0,0,0,0.2)",
+            }}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
           >
-            <div className="px-5 py-4">
-              <div className="flex justify-center mb-4">
-                <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
+            <div style={{ padding: "0 20px 24px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  paddingTop: 12,
+                  paddingBottom: 16,
+                }}
+              >
+                <div
+                  style={{
+                    width: 48,
+                    height: 4,
+                    background: "#e8e8ed",
+                    borderRadius: 2,
+                  }}
+                />
               </div>
-              <div className="flex items-center justify-between mb-5">
-                <h3 className="text-lg font-bold text-gray-900">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 20,
+                }}
+              >
+                <div
+                  style={{ fontSize: 17, fontWeight: 800, color: "#1a1a24" }}
+                >
                   Vista de tabla
-                </h3>
+                </div>
                 <button
                   onClick={() => setShowMobileSettings(false)}
-                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500"
+                  style={{
+                    width: 32,
+                    height: 32,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: "50%",
+                    background: "#f5f5f8",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "#5a5a72",
+                  }}
                 >
                   <FiX size={16} />
                 </button>
               </div>
-              <div className="mb-5">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+
+              {/* Tipo de vista */}
+              <div style={{ marginBottom: 20 }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: "#9898b0",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                    marginBottom: 12,
+                  }}
+                >
                   Tipo de vista
-                </label>
-             <div className="overflow-x-auto pb-2">
-  <div className="flex gap-2 min-w-max">
-    {viewOptions.map((v) => (
-      <button
-        key={v.value}
-        onClick={() => setMobileViewMode(v.value)}
-        className={`flex-shrink-0 w-24 flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all text-sm font-medium ${
-          mobileViewMode === v.value
-            ? "border-[#9B2242] bg-[#fceef2] text-[#9B2242]"
-            : "border-gray-200 bg-white text-gray-600"
-        }`}
-      >
-        {v.icon}
-        <span className="text-xs">{v.label}</span>
-      </button>
-    ))}
-  </div>
-</div>
+                </div>
+                <div style={{ overflowX: "auto", paddingBottom: 6 }}>
+                  <div
+                    style={{ display: "flex", gap: 8, minWidth: "max-content" }}
+                  >
+                    {MOBILE_VIEW_OPTIONS.map((v) => (
+                      <button
+                        key={v.value}
+                        onClick={() => setMobileViewMode(v.value)}
+                        style={{
+                          flexShrink: 0,
+                          width: 88,
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "12px 8px",
+                          borderRadius: 12,
+                          border: `2px solid ${mobileViewMode === v.value ? "#9B2242" : "#e8e8ed"}`,
+                          background:
+                            mobileViewMode === v.value ? "#fceef2" : "#fff",
+                          color:
+                            mobileViewMode === v.value ? "#9B2242" : "#5a5a72",
+                          cursor: "pointer",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        {v.icon}
+                        <span>{v.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="mb-5">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+
+              {/* Densidad */}
+              <div style={{ marginBottom: 20 }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: "#9898b0",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                    marginBottom: 12,
+                  }}
+                >
                   Densidad
-                </label>
-                <div className="grid grid-cols-3 gap-2">
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr",
+                    gap: 8,
+                  }}
+                >
                   {[
                     { value: "compact" as MobileDensity, label: "Compacta" },
                     { value: "comfortable" as MobileDensity, label: "Cómoda" },
@@ -4281,16 +5163,39 @@ const CustomTableInner = <T extends object>(
                     <button
                       key={d.value}
                       onClick={() => setMobileDensity(d.value)}
-                      className={`py-2.5 px-3 rounded-xl border-2 transition-all text-sm font-medium ${mobileDensity === d.value ? "border-[#9B2242] bg-[#fceef2] text-[#9B2242]" : "border-gray-200 bg-white text-gray-600"}`}
+                      style={{
+                        padding: "10px 8px",
+                        borderRadius: 12,
+                        border: `2px solid ${mobileDensity === d.value ? "#9B2242" : "#e8e8ed"}`,
+                        background:
+                          mobileDensity === d.value ? "#fceef2" : "#fff",
+                        color:
+                          mobileDensity === d.value ? "#9B2242" : "#5a5a72",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        transition: "all 0.15s",
+                      }}
                     >
                       {d.label}
                     </button>
                   ))}
                 </div>
               </div>
+
               <button
                 onClick={() => setShowMobileSettings(false)}
-                className="w-full py-3.5 bg-[#9B2242] text-white rounded-xl font-semibold text-sm"
+                style={{
+                  width: "100%",
+                  padding: "14px 0",
+                  background: "#9B2242",
+                  color: "#fff",
+                  borderRadius: 14,
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 15,
+                  fontWeight: 700,
+                }}
               >
                 Aplicar
               </button>
@@ -4303,34 +5208,88 @@ const CustomTableInner = <T extends object>(
 
   // ---------- States ----------
   const renderLoadingState = () => (
-    <div className="text-center py-12">
-      <motion.div className="flex justify-center items-center gap-3 text-gray-500">
+    <div style={{ textAlign: "center", padding: "48px 0" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 12,
+          color: C.text2,
+        }}
+      >
         <motion.div
-          className="w-8 h-8 border-3 border-[#9B2242] border-t-transparent rounded-full"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            border: `3px solid ${C.ruby}`,
+            borderTopColor: "transparent",
+          }}
           animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
         />
         Cargando datos...
-      </motion.div>
+      </div>
     </div>
   );
   const renderErrorState = () => (
-    <div className="text-center py-8 text-red-500">
-      <div className="flex justify-center items-center gap-2">
-        <FiAlertCircle />
+    <div style={{ textAlign: "center", padding: "32px 0", color: "#dc2626" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <FiAlertCircle size={18} />
         {error}
       </div>
     </div>
   );
   const renderEmptyState = () => (
-    <div className="text-center py-12 text-gray-500">
-      <div className="flex flex-col justify-center items-center gap-3">
-        <FiInbox className="text-4xl text-gray-300" />
-        <span>No se encontraron resultados</span>
+    <div style={{ textAlign: "center", padding: "48px 0", color: C.text3 }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: "50%",
+            background: C.surface,
+            border: `1px solid ${C.border}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <FiInbox size={24} style={{ color: C.text3 }} />
+        </div>
+        <span style={{ fontSize: 14, color: C.text2, fontWeight: 500 }}>
+          No se encontraron resultados
+        </span>
         {(globalFilter || Object.values(columnFilters).some(Boolean)) && (
           <button
             onClick={clearAll}
-            className="text-[#9B2242] hover:text-[#7A1B35] font-medium mt-2 px-4 py-2 rounded-lg border border-[#9B2242]/30 hover:bg-[#fceef2]"
+            style={{
+              color: C.ruby,
+              background: C.rubyLight,
+              border: `1px solid rgba(155,34,66,0.2)`,
+              borderRadius: C.r6,
+              cursor: "pointer",
+              padding: "8px 16px",
+              fontWeight: 700,
+              fontSize: 12,
+              fontFamily: "inherit",
+            }}
           >
             Limpiar filtros
           </button>
@@ -4403,7 +5362,7 @@ const CustomTableInner = <T extends object>(
         fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif",
         display: "flex",
         flexDirection: "column",
-        height: isFullscreen ? "100vh" : "100%", // ← "100%" en lugar de undefined
+        height: isFullscreen ? "100vh" : "100%",
         width: "100%",
       }}
     >
@@ -4417,9 +5376,7 @@ const CustomTableInner = <T extends object>(
             flexShrink: 0,
           }}
         >
-          {/* Row 1: Search + Actions */}
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {/* Search bar */}
             <div
               style={{
                 flex: 1,
@@ -4442,25 +5399,14 @@ const CustomTableInner = <T extends object>(
                   flexShrink: 0,
                 }}
               />
-              <input
-                ref={searchRef}
-                type="text"
-                placeholder="Buscar…"
+              <DebouncedSearchInput
                 value={globalFilter}
-                onChange={(e) => {
-                  setGlobalFilter(e.target.value);
+                onChange={(val) => {
+                  setGlobalFilter(val);
                   setCurrentPage(1);
                 }}
-                style={{
-                  background: "none",
-                  border: "none",
-                  outline: "none",
-                  color: C.text1,
-                  fontSize: 14,
-                  flex: 1,
-                  minWidth: 0,
-                  fontFamily: "inherit",
-                }}
+                placeholder="Buscar…"
+                C={C}
               />
               {globalFilter && (
                 <button
@@ -4479,7 +5425,6 @@ const CustomTableInner = <T extends object>(
               )}
             </div>
 
-            {/* Filter button - only when quickFilters enabled */}
             {mobileConfig?.quickFilters?.enabled && (
               <motion.button
                 whileTap={{ scale: 0.92 }}
@@ -4529,7 +5474,6 @@ const CustomTableInner = <T extends object>(
               </motion.button>
             )}
 
-            {/* View settings button - only when activeViews enabled */}
             {mobileConfig?.activeViews && (
               <motion.button
                 whileTap={{ scale: 0.92 }}
@@ -4552,7 +5496,6 @@ const CustomTableInner = <T extends object>(
               </motion.button>
             )}
 
-            {/* Refresh */}
             {refreshData && (
               <motion.button
                 whileTap={{ scale: 0.9, rotate: 180 }}
@@ -4576,10 +5519,8 @@ const CustomTableInner = <T extends object>(
             )}
           </div>
 
-          {/* Active filter chips */}
           {renderActiveFiltersChips()}
 
-          {/* Stats row */}
           <div
             style={{
               display: "flex",
@@ -4731,25 +5672,14 @@ const CustomTableInner = <T extends object>(
                   flexShrink: 0,
                 }}
               />
-              <input
-                ref={searchRef}
-                type="text"
-                placeholder="Buscar…"
+              <DebouncedSearchInput
                 value={globalFilter}
-                onChange={(e) => {
-                  setGlobalFilter(e.target.value);
+                onChange={(val) => {
+                  setGlobalFilter(val);
                   setCurrentPage(1);
                 }}
-                style={{
-                  background: "none",
-                  border: "none",
-                  outline: "none",
-                  color: C.text1,
-                  fontSize: 13,
-                  flex: 1,
-                  minWidth: 0,
-                  fontFamily: "inherit",
-                }}
+                placeholder="Buscar…"
+                C={C}
               />
               <AnimatePresence>
                 {globalFilter && (
@@ -5118,7 +6048,7 @@ const CustomTableInner = <T extends object>(
         </div>
       )}
 
-      {/* ==================== MOBILE VIEW MODE SWITCHER ==================== */}
+      {/* ==================== MOBILE VIEW MODE SWITCHER (barra de tabs) ==================== */}
       {isMobile && mobileConfig?.activeViews && (
         <div
           style={{
@@ -5132,12 +6062,12 @@ const CustomTableInner = <T extends object>(
           <div
             style={{
               display: "flex",
-              gap: 6,
-              padding: "8px 14px",
+              gap: 4,
+              padding: "8px 12px",
               whiteSpace: "nowrap",
             }}
           >
-            {[].map((v) => (
+            {MOBILE_VIEW_OPTIONS.map((v) => (
               <button
                 key={v.value}
                 onClick={() => setMobileViewMode(v.value)}
@@ -5156,6 +6086,7 @@ const CustomTableInner = <T extends object>(
                   transition: "all 0.15s",
                   whiteSpace: "nowrap",
                   fontFamily: "inherit",
+                  flexShrink: 0,
                 }}
               >
                 {v.icon}
@@ -5244,7 +6175,7 @@ const CustomTableInner = <T extends object>(
       {/* ==================== TABLE CONTENT ==================== */}
       <div
         style={{
-          overflow: "auto", // ← maneja X e Y en un solo contenedor
+          overflow: "auto",
           flex: 1,
           background: !isMobile && viewMode === "cards" ? C.pageBg : C.white,
         }}
@@ -5253,9 +6184,7 @@ const CustomTableInner = <T extends object>(
           renderLoadingState()
         ) : error ? (
           renderErrorState()
-        ) : currentRows.length === 0 ? (
-          renderEmptyState()
-        ) : isMobile ? (
+        )  : isMobile ? (
           <>
             {mobileViewMode === "list" && renderMobileListView()}
             {mobileViewMode === "compact-list" && renderMobileCompactListView()}

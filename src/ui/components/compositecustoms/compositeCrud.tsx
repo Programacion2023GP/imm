@@ -1,4 +1,4 @@
-// SuperCrud.tsx (completo, corregido con SweetAlert)
+// SuperCrud.tsx
 import React, {
   useMemo,
   useState,
@@ -7,6 +7,7 @@ import React, {
   memo,
   useRef,
 } from "react";
+import ReactDOM from "react-dom";
 import type { GenericDataReturn } from "react-zustore";
 import { useFormikContext } from "formik";
 import { FiActivity, FiBarChart2 } from "react-icons/fi";
@@ -41,8 +42,6 @@ import type {
   OverrideSelectProps,
   OverrideTableProps,
   TableActionsConfig,
-  TableActionButton,
-  TableHeaderConfig,
   MobileListTileConfig,
   MobileQuickFiltersConfig,
   MobileConfig,
@@ -50,7 +49,6 @@ import type {
 import { icons } from "../../../constant";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
 type ResponsiveSizes = {
   sm?: number;
   md?: number;
@@ -58,6 +56,8 @@ type ResponsiveSizes = {
   xl?: number;
   "2xl"?: number;
 };
+
+export type CaseTransform = "uppercase" | "lowercase" | "none";
 
 export interface FieldItem {
   name: string;
@@ -76,12 +76,13 @@ export interface FieldItem {
   disabled?: boolean;
   required?: boolean;
   type?: string;
+  loadingHook?: () => boolean;
   getFilterValue?: (value: any) => string;
   headerName?: string;
   renderField?: (value: any, row: any) => React.ReactNode;
   responsive?: ResponsiveSizes;
   selectOptions?: any[];
-  selectOptionsHook?: () => any[];
+  selectOptionsHook?: () => any[] | Promise<any[]>;
   selectIdKey?: string;
   selectLabelKey?: string;
   fileConfig?: any;
@@ -89,14 +90,36 @@ export interface FieldItem {
   passwordConfig?: any;
   textareaConfig?: any;
   numberConfig?: any;
+  refreshActionHook?: () => () => void | Promise<void>;
+  addActionHook?: () => () => void;
   radioConfig?: {
     options: any[];
     idKey: string;
     labelKey: string;
   };
+  // Nuevas propiedades
+  uppercase?: boolean;
+  caseTransform?: CaseTransform;
+  transform?: (value: any) => any;
+  onChange?: (value: any, formik: any, hooks?: any) => void;
+  onInput?: (value: any, formik: any, hooks?: any) => void;
 }
 
-interface PropsCrud<TForm extends object, TTable extends object = TForm> {
+export type ActionHookContext<
+  TRecord = any,
+  THooks extends Record<string, any> = Record<string, any>,
+  TMainHook = any,
+> = {
+  row: TRecord;
+  hooks: THooks;
+  mainHook?: TMainHook;
+};
+
+interface PropsCrud<
+  TForm extends object,
+  TTable extends object = TForm,
+  THooks extends Record<string, any> = Record<string, any>,
+> {
   hook: GenericDataReturn<TForm>;
   formTitles: { modalTitleAdd: string; modalTitleUpdate: string };
   fields?: FieldItem[];
@@ -105,37 +128,130 @@ interface PropsCrud<TForm extends object, TTable extends object = TForm> {
   mobileListTile?: MobileListTileConfig<TTable>;
   mobileQuickFilters?: MobileQuickFiltersConfig;
   enableMobileViews?: boolean;
+  actionsDispatch?: THooks;
 }
+
+// ─── PortalDropdown ────────────────────────────────────────────────────────────
+interface PortalDropdownProps {
+  anchorRef: React.RefObject<HTMLElement>;
+  isOpen: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}
+
+const PortalDropdown = ({
+  anchorRef,
+  isOpen,
+  onClose,
+  children,
+}: PortalDropdownProps) => {
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{
+    top?: number;
+    bottom?: number;
+    left: number;
+    openUp: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || !anchorRef.current) {
+      setCoords(null);
+      return;
+    }
+    const rect = anchorRef.current.getBoundingClientRect();
+    const estimatedHeight = 200;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const openUp = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
+    setCoords({
+      top: openUp ? undefined : rect.bottom + window.scrollY + 4,
+      bottom: openUp
+        ? window.innerHeight - rect.top - window.scrollY + 4
+        : undefined,
+      left: rect.right + window.scrollX,
+      openUp,
+    });
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node) &&
+        anchorRef.current &&
+        !anchorRef.current.contains(e.target as Node)
+      ) {
+        onClose();
+      }
+    };
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, onClose, anchorRef]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleScroll = () => onClose();
+    window.addEventListener("scroll", handleScroll, true);
+    return () => window.removeEventListener("scroll", handleScroll, true);
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !coords) return null;
+  return ReactDOM.createPortal(
+    <div
+      ref={dropdownRef}
+      style={{
+        position: "absolute",
+        top: coords.top,
+        bottom: coords.bottom,
+        left: coords.left,
+        transform: "translateX(-100%)",
+        zIndex: 9999,
+        minWidth: "160px",
+      }}
+      className="bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden"
+    >
+      <div className="py-1">{children}</div>
+    </div>,
+    document.body,
+  );
+};
 
 // ─── ActionButtons Component ────────────────────────────────────────────────────
-interface ActionButtonsProps<TRecord> {
+interface ActionButtonsProps<
+  TRecord,
+  THooks extends Record<string, any> = Record<string, any>,
+  TMainHook = any,
+> {
   row: TRecord;
-  actionsConfig?: TableActionsConfig<any>;
-  onEdit?: (row: any) => void;
-  onDelete?: (row: any) => void;
+  actionsConfig?: TableActionsConfig<TRecord, THooks, TMainHook>;
+  onEdit?: (row: TRecord) => void;
+  onDelete?: (row: TRecord) => void;
   maxVisibleButtons?: number;
+  actionsDispatch?: THooks;
+  mainHook?: TMainHook;
 }
 
-const ActionButtons = <TRecord,>({
+const ActionButtons = <
+  TRecord,
+  THooks extends Record<string, any> = Record<string, any>,
+  TMainHook = any,
+>({
   row,
   actionsConfig,
   onEdit,
   onDelete,
   maxVisibleButtons = 2,
-}: ActionButtonsProps<TRecord>) => {
+  actionsDispatch,
+  mainHook,
+}: ActionButtonsProps<TRecord, THooks, TMainHook>) => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
+  const triggerRef = useRef<HTMLElement>(null);
   if (!actionsConfig && !onEdit && !onDelete) return null;
 
   const buttons: Array<{
@@ -158,7 +274,6 @@ const ActionButtons = <TRecord,>({
       tooltip: "Editar",
     });
   }
-
   if (actionsConfig?.isDelete !== false && onDelete) {
     buttons.push({
       id: "delete",
@@ -170,31 +285,36 @@ const ActionButtons = <TRecord,>({
       danger: true,
     });
   }
-
   actionsConfig?.moreButtons?.forEach((btn, idx) => {
     if (btn.permission === false) return;
     if (btn.multiple === true) return;
-
     const getIcon = () => {
       if (btn.icon) {
-        if (typeof btn.icon === "string") {
+        if (typeof btn.icon === "string")
           return <i className={`${btn.icon} w-4 h-4`} />;
-        }
         return btn.icon;
       }
-      if (btn.iconName) {
-        return <i className={`${btn.iconName} w-4 h-4`} />;
-      }
+      if (btn.iconName) return <i className={`${btn.iconName} w-4 h-4`} />;
       return undefined;
     };
-
     const icon = getIcon();
-
+    let realOnClick: (() => void) | undefined;
+    if (btn.actionHook) {
+      realOnClick = () =>
+        btn.actionHook({
+          row,
+          hooks: (actionsDispatch || {}) as THooks,
+          mainHook: mainHook,
+        });
+    } else if (btn.handleOnClick) {
+      realOnClick = () => btn.handleOnClick(row);
+    }
+    if (!realOnClick) return;
     buttons.push({
       id: `custom-${idx}`,
       label: btn.label,
       icon: icon,
-      onClick: () => btn.handleOnClick(row),
+      onClick: realOnClick,
       color: btn.color,
       tooltip: btn.tooltip || btn.label,
     });
@@ -202,7 +322,6 @@ const ActionButtons = <TRecord,>({
 
   const visibleButtons = buttons.slice(0, maxVisibleButtons);
   const hiddenButtons = buttons.slice(maxVisibleButtons);
-
   return (
     <div className="flex items-center gap-2">
       {visibleButtons.map((btn) => (
@@ -217,61 +336,53 @@ const ActionButtons = <TRecord,>({
           </CustomButton>
         </Tooltip>
       ))}
-
       {hiddenButtons.length > 0 && (
-        <div className="relative" ref={menuRef}>
+        <>
           <Tooltip content="Más acciones">
-            <CustomButton
-              color="gray"
-              onClick={() => setMenuOpen(!menuOpen)}
-              icon={<HiDotsVertical className="w-4 h-4" />}
-              size="sm"
-            />
+            <span
+              ref={triggerRef as React.RefObject<HTMLSpanElement>}
+              style={{ display: "inline-flex" }}
+            >
+              <CustomButton
+                color="gray"
+                onClick={() => setMenuOpen((prev) => !prev)}
+                icon={<HiDotsVertical className="w-4 h-4" />}
+                size="sm"
+              />
+            </span>
           </Tooltip>
-
-          {menuOpen && (
-            <div className="absolute right-0 z-50 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[160px] overflow-hidden">
-              <div className="py-1">
-                {hiddenButtons.map((btn) => {
-                  const getIcon = () => {
-                    if (btn.icon) {
-                      if (typeof btn.icon === "string") {
-                        return (
-                          <span className="w-4 h-4">
-                            <i className={`${btn.icon} w-4 h-4`} />
-                          </span>
-                        );
-                      }
-                      return <span className="w-4 h-4">{btn.icon}</span>;
-                    }
-                    return null;
-                  };
-                  return (
-                    <button
-                      key={btn.id}
-                      onClick={() => {
-                        btn.onClick();
-                        setMenuOpen(false);
-                      }}
-                      className={`
-                        flex items-center gap-2 w-full px-4 py-2 text-sm text-left
-                        hover:bg-gray-100 transition-colors hover:cursor-pointer
-                        ${btn.danger ? "text-red-600 hover:bg-red-50" : "text-gray-700"}
-                      `}
-                    >
-                      <div
-                        className={`flex items-center justify-center gap-1.5 align-middle hover:translate-x-1 transition-all hover:font-bold hover:text-${btn.color}-500`}
-                      >
-                        {getIcon()}
-                        <span>{btn.label}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
+          <PortalDropdown
+            anchorRef={triggerRef}
+            isOpen={menuOpen}
+            onClose={() => setMenuOpen(false)}
+          >
+            {hiddenButtons.map((btn) => (
+              <button
+                key={btn.id}
+                onClick={() => {
+                  btn.onClick();
+                  setMenuOpen(false);
+                }}
+                className={`
+                  flex items-center gap-2 w-full px-4 py-2 text-sm text-left
+                  hover:bg-gray-100 transition-colors hover:cursor-pointer
+                  ${btn.danger ? "text-red-600 hover:bg-red-50" : "text-gray-700"}
+                `}
+              >
+                <div
+                  className={`flex items-center justify-center gap-1.5 align-middle hover:translate-x-1 transition-all hover:font-bold hover:text-${btn.color}-500`}
+                >
+                  {btn.icon && (
+                    <span className="w-4 h-4 flex items-center justify-center">
+                      {btn.icon}
+                    </span>
+                  )}
+                  <span>{btn.label}</span>
+                </div>
+              </button>
+            ))}
+          </PortalDropdown>
+        </>
       )}
     </div>
   );
@@ -607,37 +718,56 @@ const FormikCheckboxAdapter = (props: OverrideFieldProps) => (
   <FormikCheckbox name={props.name} label={props.label || ""} />
 );
 
-// ─── DynamicSelectField ────────────────────────────────────────────────────────
+// ─── DynamicSelectField corregido ──────────────────────────────────────────────
 interface DynamicSelectFieldProps {
   field: FieldItem;
   responsive: ResponsiveSizes;
+  onChange?: (value: any) => void;
+  onInput?: (value: string) => void;
+  caseTransform?: CaseTransform;
 }
 
 const DynamicSelectField = memo(
-  ({ field, responsive }: DynamicSelectFieldProps) => {
+  ({
+    field,
+    responsive,
+    onChange,
+    onInput,
+    caseTransform,
+  }: DynamicSelectFieldProps) => {
     const hookResult = field.selectOptionsHook!();
-    const [isAsync] = useState<boolean>(
-      () =>
-        hookResult != null && typeof (hookResult as any).then === "function",
-    );
+    const isLoadingOptions = field.loadingHook?.() || false;
+    const [isAsync, setIsAsync] = useState(false);
     const [asyncOptions, setAsyncOptions] = useState<any[]>([]);
 
     useEffect(() => {
-      if (!isAsync) return;
-      let active = true;
-      (hookResult as unknown as Promise<any[]>).then((data) => {
-        if (active) setAsyncOptions(Array.isArray(data) ? data : []);
-      });
-      return () => {
-        active = false;
+      const checkAsync = async () => {
+        try {
+          const result = hookResult;
+          const isPromise =
+            result && typeof (result as any).then === "function";
+          setIsAsync(isPromise);
+          if (isPromise) {
+            const data = await (result as Promise<any[]>);
+            setAsyncOptions(Array.isArray(data) ? data : []);
+          } else {
+            setAsyncOptions(Array.isArray(result) ? result : []);
+          }
+        } catch (error) {
+          console.error("Error loading select options:", error);
+          setAsyncOptions([]);
+        }
       };
-    }, []);
+      checkAsync();
+    }, [hookResult]);
 
-    const options: any[] = isAsync
+    const options = isAsync
       ? asyncOptions
       : Array.isArray(hookResult)
         ? hookResult
         : (field.selectOptions ?? []);
+    const refreshFn = field.refreshActionHook?.();
+    const addFn = field.addActionHook?.();
 
     return (
       <FormikAutocomplete
@@ -647,11 +777,193 @@ const DynamicSelectField = memo(
         idKey={field.selectIdKey || "id"}
         labelKey={field.selectLabelKey || "label"}
         responsive={responsive}
+        onRefresh={refreshFn}
+        onAdd={addFn}
+        loading={isLoadingOptions}
+        onSelect={(selectedItem) => {
+          onChange?.(selectedItem);
+        }}
+        onInput={onInput}
+        caseTransform={caseTransform}
       />
     );
   },
 );
 DynamicSelectField.displayName = "DynamicSelectField";
+
+// ─── FieldWrapper corregido ────────────────────────────────────────────────────
+const FieldWrapper = ({
+  field,
+  actionsDispatch,
+}: {
+  field: FieldItem;
+  actionsDispatch?: any;
+}) => {
+  const formik = useFormikContext();
+  const responsive = field.responsive || DEFAULT_RESPONSIVE;
+
+  const caseTransform =
+    field.caseTransform || (field.uppercase ? "uppercase" : "none");
+
+  const processValue = useCallback(
+    (value: any) => {
+      if (value === undefined || value === null) return value;
+      let processed = value;
+      if (typeof processed === "string") {
+        if (caseTransform === "uppercase") processed = processed.toUpperCase();
+        if (caseTransform === "lowercase") processed = processed.toLowerCase();
+      }
+      if (field.transform) processed = field.transform(processed);
+      return processed;
+    },
+    [caseTransform, field.transform],
+  );
+
+  const handleSelectChange = useCallback(
+    (selectedItem: any) => {
+      const idKey = field.selectIdKey || "id";
+      const idValue = selectedItem?.[idKey];
+      if (field.onChange) field.onChange(selectedItem, formik, actionsDispatch);
+      formik.setFieldValue(field.name, idValue);
+    },
+    [field, formik, actionsDispatch],
+  );
+
+  const handleChange = useCallback(
+    (rawValue: any) => {
+      const processed = processValue(rawValue);
+      if (field.onChange) field.onChange(processed, formik, actionsDispatch);
+      formik.setFieldValue(field.name, processed);
+    },
+    [field, formik, actionsDispatch, processValue],
+  );
+
+  const handleInput = useCallback(
+    (rawValue: any) => {
+      const processed = processValue(rawValue);
+      if (field.onInput) field.onInput(processed, formik, actionsDispatch);
+    },
+    [field, formik, actionsDispatch, processValue],
+  );
+
+  const commonProps = {
+    name: field.name,
+    label: field.label,
+    disabled: field.disabled,
+    required: field.required,
+    responsive,
+    onBlur: () => formik.setFieldTouched(field.name, true),
+  };
+
+  switch (field.typeField) {
+    case "Text":
+      return (
+        <FormikInput
+          {...commonProps}
+          type={(field.type as any) || "text"}
+          caseTransform={caseTransform}
+          onChange={handleChange}
+          onInput={handleInput}
+        />
+      );
+    case "TextArea":
+      return (
+        <FormikTextArea
+          {...commonProps}
+          rows={field.textareaConfig?.rows}
+          caseTransform={caseTransform}
+          onChange={handleChange}
+          onInput={handleInput}
+        />
+      );
+    case "Select":
+      if (field.selectOptionsHook) {
+        return (
+          <DynamicSelectField
+            field={field}
+            responsive={responsive}
+            onChange={handleSelectChange}
+            onInput={handleInput}
+            caseTransform={caseTransform}
+          />
+        );
+      }
+      return (
+        <FormikAutocomplete
+          {...commonProps}
+          options={field.selectOptions || []}
+          idKey={field.selectIdKey || "id"}
+          labelKey={field.selectLabelKey || "label"}
+          onSelect={handleSelectChange}
+          onInput={handleInput}
+          caseTransform={caseTransform}
+        />
+      );
+    case "Number":
+      return (
+        <FormikNumber
+          {...commonProps}
+          min={field.numberConfig?.min}
+          max={field.numberConfig?.max}
+          step={field.numberConfig?.step}
+          decimals={field.numberConfig?.decimals}
+          onChange={handleChange}
+        />
+      );
+    case "Toggle":
+      return (
+        <FormikSwitch
+          {...commonProps}
+          onChange={(checked) => handleChange(checked)}
+        />
+      );
+    case "Checkbox":
+      return (
+        <FormikCheckbox
+          {...commonProps}
+          onChange={(checked) => handleChange(checked)}
+        />
+      );
+    case "Password":
+      return <FormikPassword {...commonProps} />;
+    case "Radio":
+      return (
+        <FormikRadio
+          {...commonProps}
+          options={field.radioConfig?.options || []}
+          idKey={field.radioConfig?.idKey || "id"}
+          labelKey={field.radioConfig?.labelKey || "label"}
+          onChange={handleChange}
+        />
+      );
+    case "Color":
+      return (
+        <FormikColorPicker
+          {...commonProps}
+          colorPalette={field.colorConfig?.palette || []}
+          onChange={handleChange}
+        />
+      );
+    case "File":
+      return (
+        <FormikFileInput
+          {...commonProps}
+          {...field.fileConfig}
+          onChange={handleChange}
+        />
+      );
+    default:
+      return (
+        <FormikInput
+          {...commonProps}
+          type="text"
+          caseTransform={caseTransform}
+          onChange={handleChange}
+          onInput={handleInput}
+        />
+      );
+  }
+};
 
 // ─── StepperFormLocal ──────────────────────────────────────────────────────────
 interface StepperFormLocalProps {
@@ -843,7 +1155,11 @@ const RenderFormContent = ({
 // =============================================================================
 // ====================== COMPONENTE PRINCIPAL SuperCrud ========================
 // =============================================================================
-const SuperCrud = <TForm extends object, TTable extends object = TForm>({
+const SuperCrud = <
+  TForm extends object,
+  TTable extends object = TForm,
+  THooks extends Record<string, any> = Record<string, any>,
+>({
   hook,
   formTitles,
   fields: manualFields,
@@ -852,7 +1168,8 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
   mobileListTile,
   mobileQuickFilters,
   enableMobileViews = true,
-}: PropsCrud<TForm, TTable>) => {
+  actionsDispatch,
+}: PropsCrud<TForm, TTable, THooks>) => {
   const [activeStep, setActiveStep] = useState(0);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<TForm | null>(null);
@@ -879,7 +1196,7 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
     setActiveFilterCount(count);
   }, [filtersKey, advancedHook.search]);
 
-  // ── Computed fields ────────────────────────────────────────────────────────
+  // ── Computed fields (con soporte para caseTransform, onChange, onInput) ──
   const computedFields = useMemo((): FieldItem[] => {
     if (crudConfig) {
       const {
@@ -922,6 +1239,11 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
           required: config.required || false,
           headerName: config.label || name,
           responsive: config.responsive || DEFAULT_RESPONSIVE,
+          caseTransform: config.caseTransform,
+          uppercase: config.uppercase,
+          transform: config.transform,
+          onChange: config.onChange,
+          onInput: config.onInput,
         };
         switch (typeField) {
           case "Text":
@@ -932,6 +1254,9 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
             baseField.selectIdKey = config.keyId;
             baseField.selectLabelKey = config.keyLabel;
             baseField.selectOptionsHook = config.selectOptionsHook;
+            baseField.refreshActionHook = config.refreshActionHook;
+            baseField.addActionHook = config.addActionHook;
+            baseField.loadingHook = config.loadingHook;
             break;
           case "File":
             baseField.fileConfig = config;
@@ -1005,13 +1330,34 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
 
   const tableColumns = useMemo(() => {
     if (crudConfig?.tableColumns) {
-      return Object.entries(crudConfig.tableColumns).map(([field, config]) => ({
-        field,
-        headerName: config.label || field,
-        renderField: (value: any, row: TTable) =>
-          config.render ? config.render(value, row) : value,
-        getFilterValue: config.getFilterValue,
-      }));
+      const cols = Object.entries(crudConfig.tableColumns).map(
+        ([field, config]) => {
+          return {
+            field,
+            headerName: config.label || field,
+            renderField: (value: any, row: TTable) =>
+              config.render ? config.render(value, row) : value,
+            getFilterValue: config.getFilterValue,
+            filterType: config.filterType,
+            filterOptions: config.filterOptions,
+            width: config.width,
+            minWidth: config.minWidth,
+            align: config.align,
+            sortable: config.sortable,
+            resizable: config.resizable,
+            groupable: config.groupable,
+            aggregation: config.aggregation,
+            visibility: config.visibility,
+            priority: config.priority,
+            pinned: config.pinned,
+            frozen: config.frozen,
+            editable: config.editable,
+            tooltip: config.tooltip,
+            conditionalStyle: config.conditionalStyle,
+          };
+        },
+      );
+      return cols;
     }
     return computedFields.map((it) => ({
       field: it.name,
@@ -1083,136 +1429,19 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
     }
   };
 
-  const renderField = useCallback((field: FieldItem): React.ReactNode => {
-    const responsive = field.responsive || DEFAULT_RESPONSIVE;
-    switch (field.typeField) {
-      case "Toggle":
-        return (
-          <FormikSwitch
-            key={field.name}
-            name={field.name}
-            label={field.label}
-            responsive={responsive}
-          />
-        );
-      case "Checkbox":
-        return (
-          <FormikCheckbox
-            key={field.name}
-            name={field.name}
-            label={field.label}
-            responsive={responsive}
-          />
-        );
-      case "Select":
-        if (field.selectOptionsHook) {
-          return (
-            <DynamicSelectField
-              key={field.name}
-              field={field}
-              responsive={responsive}
-            />
-          );
-        }
-        return (
-          <FormikAutocomplete
-            key={field.name}
-            name={field.name}
-            label={field.label}
-            options={field.selectOptions || []}
-            idKey={field.selectIdKey || "id"}
-            labelKey={field.selectLabelKey || "label"}
-            responsive={responsive}
-          />
-        );
-      case "File":
-        return (
-          <FormikFileInput
-            key={field.name}
-            name={field.name}
-            label={field.label}
-            {...field.fileConfig}
-            responsive={responsive}
-          />
-        );
-      case "Color":
-        return (
-          <FormikColorPicker
-            key={field.name}
-            name={field.name}
-            label={field.label}
-            {...field.colorConfig}
-            responsive={responsive}
-          />
-        );
-      case "Password":
-        return (
-          <FormikPassword
-            key={field.name}
-            name={field.name}
-            label={field.label}
-            {...field.passwordConfig}
-            responsive={responsive}
-          />
-        );
-      case "TextArea":
-        return (
-          <FormikTextArea
-            key={field.name}
-            name={field.name}
-            label={field.label}
-            {...field.textareaConfig}
-            responsive={responsive}
-          />
-        );
-      case "Number":
-        return (
-          <FormikNumber
-            key={field.name}
-            name={field.name}
-            label={field.label}
-            {...field.numberConfig}
-            responsive={responsive}
-          />
-        );
-      case "Radio":
-        return (
-          <FormikRadio
-            key={field.name}
-            name={field.name}
-            label={field.label}
-            options={field.radioConfig?.options || []}
-            idKey={field.radioConfig?.idKey || "id"}
-            labelKey={field.radioConfig?.labelKey || "label"}
-            required={field.required}
-            responsive={responsive}
-          />
-        );
-      default:
-        return (
-          <FormikInput
-            key={field.name}
-            name={field.name}
-            label={field.label}
-            disabled={field.disabled}
-            required={field.required}
-            type={
-              (field.type as
-                | "text"
-                | "email"
-                | "password"
-                | "number"
-                | "tel"
-                | "url"
-                | "date"
-                | "datetime-local"
-                | "time") || "text"
-            }
-            responsive={responsive}
-          />
-        );
-    }
-  }, []);
+  // ─── renderField actualizado: usa FieldWrapper ─────────────────────────────
+  const renderField = useCallback(
+    (field: FieldItem): React.ReactNode => {
+      return (
+        <FieldWrapper
+          key={field.name}
+          field={field}
+          actionsDispatch={actionsDispatch}
+        />
+      );
+    },
+    [actionsDispatch],
+  );
 
   // ==================== CONFIGURACIÓN MÓVIL ====================
   const buildMobileConfig = useCallback(() => {
@@ -1260,7 +1489,6 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
             const confirmed = await showDeleteConfirmation();
             if (confirmed) {
               await hook.deleteItem(row);
-          
             }
           },
         });
@@ -1269,6 +1497,10 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
       const moreButtons = tableActions?.moreButtons || [];
       moreButtons.forEach((btn) => {
         if (btn.permission === false) return;
+        const action = btn.handleOnClick
+          ? (row: any) => btn.handleOnClick(row)
+          : undefined;
+        if (!action) return;
         const swipeItem = {
           icon:
             typeof btn.icon === "string" ? (
@@ -1278,7 +1510,7 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
             ),
           color: btn.color || "bg-gray-500",
           label: btn.label,
-          action: (row: any) => btn.handleOnClick(row),
+          action,
         };
         swipeRight.push(swipeItem);
       });
@@ -1330,17 +1562,13 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
         })),
       };
     }
+    // 👇 NUEVO: pasar la configuración del bottom sheet
+
+    if (mobileCfg?.bottomSheet) {
+      result.bottomSheet = mobileCfg.bottomSheet;
+    }
     return result;
-  }, [
-    crudConfig?.mobileConfig,
-    crudConfig?.tableActions,
-    hook,
-    mobileListTile,
-    mobileQuickFilters,
-    enableMobileViews,
-    advancedConfig,
-    showDeleteConfirmation,
-  ]);
+  }, [crudConfig?.mobileConfig, crudConfig?.tableActions, hook, mobileListTile, mobileQuickFilters, enableMobileViews, advancedConfig, showDeleteConfirmation]);
 
   // ─── Custom render mode ────────────────────────────────────────────────
   if (crudConfig?.render) {
@@ -1350,9 +1578,10 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
       children: (formikBag: any) => React.ReactNode;
     }) => {
       const hasFile = computedFields.some((f) => f.typeField === "File");
+      console.log("formData", hook.formData);
       return (
         <FormikForm
-          initialValues={(hook.formData || {}) as TForm}
+          initialValues={(hook.formData) as TForm}
           validationSchema={validationSchema}
           onSubmit={async (values) => {
             if (hasFile) await hook.saveItem(values as TForm, true);
@@ -1464,25 +1693,27 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
               </div>
             </div>
           )}
-                      <div className="h-[calc(100vh-80px)]">
+          <div className="h-[calc(85vh-60px)]">
+            <CustomTable
+              loading={hook.loading}
+              data={hook.items || []}
+              paginate={[5, 10, 25, 50, 100, 500, 1000]}
+              columns={tableColumns as any}
+              refreshData={hook.fetchData}
+              actions={(row) => (
+                <ActionButtons
+                  row={row}
+                  actionsConfig={crudConfig.tableActions as any}
+                  onEdit={handleEdit as any}
+                  onDelete={handleDelete as any}
+                  actionsDispatch={actionsDispatch}
+                  mainHook={hook}
+                  maxVisibleButtons={2}
+                />
+              )}
+              mobileConfig={mobileConfigValue}
 
-          <CustomTable
-            loading={hook.loading}
-            data={hook.items || []}
-            paginate={[5, 10, 25, 50, 100, 500, 1000]}
-            columns={tableColumns as any}
-            refreshData={hook.fetchData}
-            actions={(row) => (
-              <ActionButtons
-                row={row}
-                actionsConfig={crudConfig.tableActions}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                maxVisibleButtons={2}
-              />
-            )}
-            mobileConfig={mobileConfigValue}
-          />
+            />
           </div>
         </>
       );
@@ -1621,7 +1852,7 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
       {/* Header */}
       <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         {crudConfig?.tableHeader && (
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+          <div className="flex items-center justify-between  border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
             <div className="flex items-center gap-4">
               {crudConfig.tableHeader.icon && (
                 <div className="text-gray-600">
@@ -1794,36 +2025,35 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
 
         {(!(isAdvanced && advancedHook.viewMode) ||
           advancedHook.viewMode === "table") && (
-            <div className="h-[calc(100vh-80px)]">
-
-          <CustomTable
-
-            loading={hook.loading}
-            data={hook.items || []}
-            paginate={[5, 10, 25, 50, 100, 500, 1000]}
-            columns={tableColumns as any}
-            refreshData={hook.fetchData}
-            actions={(row) => (
-              <ActionButtons
-                row={row}
-                actionsConfig={crudConfig?.tableActions}
-                onEdit={(row) => {
-                  const formattedRow = prepareForForm(row);
-                  hook.setOpen(true);
-                  hook.setFormData(formattedRow);
-                }}
-                onDelete={async (row) => {
-                  const confirmed = await showDeleteConfirmation();
-                  if (confirmed) {
-                    await hook.deleteItem(row);
-             
-                  }
-                }}
-                maxVisibleButtons={2}
-              />
-            )}
-            mobileConfig={mobileConfigValue}
-          />
+          <div className="h-[calc(85vh-60px)]">
+            <CustomTable
+              loading={hook.loading}
+              data={hook.items || []}
+              paginate={[5, 10, 25, 50, 100, 500, 1000]}
+              columns={tableColumns as any}
+              refreshData={hook.fetchData}
+              actions={(row) => (
+                <ActionButtons
+                  row={row}
+                  actionsConfig={crudConfig?.tableActions as any}
+                  onEdit={(row) => {
+                    const formattedRow = prepareForForm(row);
+                    hook.setOpen(true);
+                    hook.setFormData(formattedRow);
+                  }}
+                  onDelete={async (row) => {
+                    const confirmed = await showDeleteConfirmation();
+                    if (confirmed) {
+                      await hook.deleteItem(row);
+                    }
+                  }}
+                  actionsDispatch={actionsDispatch}
+                  mainHook={hook}
+                  maxVisibleButtons={2}
+                />
+              )}
+              mobileConfig={mobileConfigValue}
+            />
           </div>
         )}
         {isAdvanced && advancedHook.viewMode === "kanban" && <KanbanView />}
@@ -1863,7 +2093,7 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
           );
           return (
             <FormikForm
-              initialValues={(hook.formData || {}) as TForm}
+              initialValues={(hook.formData ) as TForm}
               onSubmit={async (values) => {
                 if (hasFileFields) await hook.saveItem(values as TForm, true);
                 else await hook.saveItem(values as TForm);
@@ -1880,7 +2110,7 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
                   activeStep={activeStep}
                   setActiveStep={setActiveStep}
                   renderField={renderField}
-                  onSubmit={() => formikBag.handleSubmit()}
+                  onSubmit={formikBag.handleSubmit}
                 />
               )}
             </FormikForm>
@@ -1891,7 +2121,7 @@ const SuperCrud = <TForm extends object, TTable extends object = TForm>({
       {/* Delete confirmation modal (legacy) */}
       {deleteConfirmOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          className="fixed inset-0 z-50  flex items-center justify-center bg-black bg-opacity-50"
           onClick={() => setDeleteConfirmOpen(false)}
         >
           <div
