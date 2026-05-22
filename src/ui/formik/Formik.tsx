@@ -7,6 +7,8 @@ import { useWindowSize } from "../../hooks/windossize";
 export interface FormikFormProps<TValues> {
   initialValues: TValues;
   validationSchema?: Yup.ObjectSchema<any>;
+  enableReinitialize?: boolean; // ✅ agregar esta línea
+
   onSubmit: (values: TValues) => Promise<void> | void;
   children: (
     values: TValues,
@@ -52,6 +54,7 @@ const FormikForm = forwardRef(
         innerRef={ref}
         initialValues={initialValues}
         validationSchema={validationSchema}
+        enableReinitialize={props.enableReinitialize} // ✅ pasarla aquí
         onSubmit={async (values, { setSubmitting }) => {
           setIsLoading(true);
           try {

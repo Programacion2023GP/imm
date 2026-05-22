@@ -1,7 +1,7 @@
 // hooks/useUsersData.ts
 import { useMemo } from "react";
-import { useGenericData, type GenericDataReturn } from "react-zustore";
 import type { UsersForm } from "../../../models/users/users.models";
+import { useGenericData, type GenericDataReturn } from "../../../library/reactztore/hook/usegenericdata";
 
 // ✅ Exportado — necesario para SuperCrud<Users> en la page
 
@@ -12,7 +12,7 @@ const useUsersData = (): UsersDataReturn => {
       () => ({
       id:0,
       id_rol:0,
-      nombre_completo:"",
+      nombre_completo:"manuel de jesus",
       password:"",
       usuario:"",
       activo:false
@@ -21,14 +21,13 @@ const useUsersData = (): UsersDataReturn => {
    );
 
    return useGenericData<UsersForm>({
-     defaultValues: initialState,
-     prefix: "usuarios",
-     autoFetch: true,
-     debug:true,
-     // persistKey: "user-persist",
-     hooks: {
-       onError: (msg) => console.error("[Users]", msg),
-     },
+      initialState: initialState,
+      prefix: "usuarios",
+      autoFetch: true,
+      // persistKey: "user-persist",
+      hooks: {
+         onError: (msg) => console.error("[usuarios]", msg),
+      },
    });
 };
 

@@ -10,7 +10,7 @@ import { userMovilView } from "../../ui/movilviews/users/users.movil";
 
 export const usersBuilderCrud = ConfigCrud<UsersForm, UsersTable>()
   .fields({
-    text: ["nombre_completo", "usuario", "password"],
+    text: ["nombre_completo", "usuario"],
     // password:["password"],
     select: ["id_rol"],
   })
@@ -18,6 +18,7 @@ export const usersBuilderCrud = ConfigCrud<UsersForm, UsersTable>()
     nombre_completo: {
       label: "Nombre Completo",
       caseTransform: "uppercase",
+      placeholder: "INGE",
       onChange: (value, formik) => {
         // Limpiar y normalizar el nombre completo
         const nombreLimpio = value
@@ -56,11 +57,9 @@ export const usersBuilderCrud = ConfigCrud<UsersForm, UsersTable>()
     usuario: {
       label: "Usuario",
       disabled: true,
+      placeholder: "INGE",
     },
-    password: {
-      label: "Contraseña",
-      disabled: true,
-    },
+ 
   })
   .select({
     id_rol: {
@@ -111,6 +110,7 @@ export const usersBuilderCrud = ConfigCrud<UsersForm, UsersTable>()
       height: 500,
       showCloseButton: true,
       builder: (row, onClose) => (
+        
         <CustomDataDisplay
           data={row}
           config={userMovilView}

@@ -1,5 +1,12 @@
 @import "tailwindcss";
+#react-select-portal {
+  position: relative;
+  z-index: 9999;
+}
 
+.react-select__menu-portal {
+  z-index: 9999 !important;
+}
 @keyframes handwrite {
    0% {
       opacity: 0;

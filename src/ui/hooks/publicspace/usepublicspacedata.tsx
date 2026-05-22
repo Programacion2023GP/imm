@@ -1,27 +1,24 @@
 // hooks/useDepartamentsData.ts
 import { useMemo } from "react";
-import type { PermissionForm } from "../../../models/permissions/permission.models";
 import { useGenericData, type GenericDataReturn } from "../../../library/reactztore/hook/usegenericdata";
+import type { Catalogues } from "../../../models/catalogues/catalogues.models";
 
 // ✅ Exportado — necesario para SuperCrud<Departaments> en la page
 
-export type PermissionsDataReturn = GenericDataReturn<PermissionForm>;
+export type PublicSpaceDataReturn = GenericDataReturn<Catalogues>;
 
-const UsePermissions = (): PermissionsDataReturn => {
-   const initialState = useMemo<PermissionForm>(
+const UsePublicSpace = (): PublicSpaceDataReturn => {
+   const initialState = useMemo<Catalogues>(
      () => ({
        id: 0,
-       activo: true,
-       descripcion: "",
-       modulo: "",
-       nombre_permiso: "",
+      nombre:"",
      }),
      [],
    );
 
-   return useGenericData<PermissionForm>({
+   return useGenericData<Catalogues>({
      initialState: initialState,
-     prefix: "permisos",
+     prefix: "espaciopublico",
      autoFetch: true,
      // persistKey: "departments-persist",
      hooks: {
@@ -30,4 +27,4 @@ const UsePermissions = (): PermissionsDataReturn => {
    });
 };
 
-export default UsePermissions;
+export default UsePublicSpace;

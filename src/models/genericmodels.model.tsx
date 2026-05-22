@@ -6,8 +6,8 @@
 
 import * as yup from "yup";
 import React from "react";
-import type { GenericDataReturn } from "react-zustore";
 import type { FilePreset } from "../ui/formik/FormikInputs/forminputimage";
+import type { GenericDataReturn } from "../library/reactztore/hook/usegenericdata";
 
 // ====================================================================
 // RESPONSIVE SIZES / TAMAÑOS RESPONSIVOS
@@ -41,7 +41,7 @@ type ResponsiveSizes = {
  * Transformación de mayúsculas/minúsculas que se aplica automáticamente al valor del campo.
  * Uppercase/lowercase transformation applied automatically to field value.
  */
- type CaseTransform = "uppercase" | "lowercase" | "none";
+type CaseTransform = "uppercase" | "lowercase" | "none";
 
 /**
  * Tipo para los callbacks de campo que reciben el valor procesado, el contexto de Formik y los hooks externos.
@@ -50,7 +50,7 @@ type ResponsiveSizes = {
  * @template TFormValues - Tipo del formulario / Form type
  * @template THooks - Tipo de los hooks externos (actionsDispatch) / External hooks type
  */
- type FieldCallback<TFormValues = any, THooks = any> = (
+type FieldCallback<TFormValues = any, THooks = any> = (
   value: any,
   formik: {
     values: TFormValues;
@@ -89,7 +89,18 @@ type BaseFieldConfig<TFormValues = any, THooks = any> = {
   onChange?: FieldCallback<TFormValues, THooks>;
   onInput?: FieldCallback<TFormValues, THooks>;
 };
+// ====================================================================
+// BOX GROUP TYPE / TIPO PARA AGRUPAR CAMPOS EN CAJAS DENTRO DE UNA SECCIÓN
+// ====================================================================
 
+/**
+ * Define un grupo de campos (box) dentro de una sección del layout.
+ * Cada box tiene un título y una lista de nombres de campos.
+ */
+type BoxGroup = {
+  title: string;
+  fields: string[];
+};
 // ====================================================================
 // TEXT FIELD CONFIG / CONFIGURACIÓN DE CAMPO TEXTO
 // ====================================================================
@@ -102,7 +113,7 @@ type BaseFieldConfig<TFormValues = any, THooks = any> = {
  * @property {boolean} readOnly - Modo solo lectura (no editable, pero puede tener valor) / Read-only mode
  * @property {Function} validation - Validación con Yup / Yup validation schema
  */
- type TextConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+type TextConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
@@ -138,7 +149,7 @@ type BaseFieldConfig<TFormValues = any, THooks = any> = {
  * @property {boolean} searchable - Habilita búsqueda dentro de opciones / Enables search within options
  * @property {Function} validation - Validación Yup / Yup validation
  */
- type SelectConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+type SelectConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
@@ -151,7 +162,7 @@ type BaseFieldConfig<TFormValues = any, THooks = any> = {
   loadingHook?: () => boolean;
   multiple?: boolean;
   searchable?: boolean;
-  
+
   validation?: (
     ctx: ValidationContext<TFormValues>,
   ) => yup.Schema<unknown> | undefined;
@@ -174,7 +185,7 @@ type BaseFieldConfig<TFormValues = any, THooks = any> = {
  * @property {string} hint - Texto de ayuda adicional / Additional hint text
  * @property {Function} validation - Validación Yup / Yup validation
  */
- type FileUploadConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+type FileUploadConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
@@ -201,10 +212,10 @@ type BaseFieldConfig<TFormValues = any, THooks = any> = {
  * @property {string[]} palette - Paleta de colores personalizada / Custom color palette
  * @property {Function} validation - Validación Yup / Yup validation
  */
- type ColorPickerConfig<
-  TFormValues = any,
-  THooks = any,
-> = BaseFieldConfig<TFormValues, THooks> & {
+type ColorPickerConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+  TFormValues,
+  THooks
+> & {
   palette?: string[];
   validation?: (
     ctx: ValidationContext<TFormValues>,
@@ -221,7 +232,7 @@ type BaseFieldConfig<TFormValues = any, THooks = any> = {
  *
  * @property {Function} validation - Validación Yup (ej: mínimo 8 caracteres) / Yup validation (e.g., min 8 chars)
  */
- type PasswordConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+type PasswordConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
@@ -242,7 +253,7 @@ type BaseFieldConfig<TFormValues = any, THooks = any> = {
  * @property {boolean} readOnly - Modo solo lectura / Read-only mode
  * @property {Function} validation - Validación Yup / Yup validation
  */
- type TextareaConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+type TextareaConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
@@ -263,7 +274,7 @@ type BaseFieldConfig<TFormValues = any, THooks = any> = {
  *
  * @property {Function} validation - Validación Yup (min, max, integer, etc.) / Yup validation (min, max, integer, etc.)
  */
- type NumberConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+type NumberConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
@@ -292,7 +303,7 @@ export interface BottomSheetConfig<T = any> {
  * @property {keyof TOption} optionLabelKey - Propiedad del objeto que sirve como etiqueta / Object property for label
  * @property {Function} validation - Validación Yup / Yup validation
  */
- type RadioGroupConfig<
+type RadioGroupConfig<
   TOption = any,
   TFormValues = any,
   THooks = any,
@@ -315,7 +326,7 @@ export interface BottomSheetConfig<T = any> {
  *
  * @property {Function} validation - Validación Yup (generalmente .boolean()) / Yup validation (usually .boolean())
  */
- type ToggleConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+type ToggleConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
@@ -334,7 +345,7 @@ export interface BottomSheetConfig<T = any> {
  *
  * @property {Function} validation - Validación Yup / Yup validation
  */
- type CheckboxConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+type CheckboxConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
@@ -357,9 +368,11 @@ export interface BottomSheetConfig<T = any> {
 type NestedKeys<T> = T extends object
   ? {
       [K in keyof T]-?: K extends string | number
-        ? T[K] extends object
-          ? `${K}` | `${K}.${NestedKeys<T[K]>}`
-          : `${K}`
+        ? T[K] extends any[] // 👈 Si es un array, NO recursiona
+          ? `${K}`
+          : T[K] extends object
+            ? `${K}` | `${K}.${NestedKeys<T[K]>}`
+            : `${K}`
         : never;
     }[keyof T]
   : never;
@@ -459,7 +472,7 @@ type TableColumnConfig<TTable> = {
  * @property {boolean} permission - Permiso requerido para mostrar el botón (si es false, se oculta)
  * @property {boolean|null} multiple - Si es true, permite selección múltiple (no implementado aún)
  */
- interface TableActionButton<
+interface TableActionButton<
   TRecord = any,
   THooks extends Record<string, any> = Record<string, any>,
   TMainHook = any,
@@ -497,7 +510,7 @@ type TableColumnConfig<TTable> = {
  * @property {boolean} isDelete - Muestra el botón de eliminar (por defecto true)
  * @property {TableActionButton<TRecord, THooks, TMainHook>[]} moreButtons - Botones personalizados adicionales
  */
- interface TableActionsConfig<
+interface TableActionsConfig<
   TRecord = any,
   THooks extends Record<string, any> = Record<string, any>,
   TMainHook = any,
@@ -515,7 +528,7 @@ type TableColumnConfig<TTable> = {
  * @property {string} subtitle - Subtítulo / Subtitle
  * @property {string|React.ReactNode} icon - Ícono (string con clase CSS o componente React)
  */
- interface TableHeaderConfig {
+interface TableHeaderConfig {
   title?: string;
   subtitle?: string;
   icon?: string | React.ReactNode;
@@ -534,7 +547,7 @@ type TableColumnConfig<TTable> = {
  * @property {string} label - Etiqueta opcional / Optional label
  * @property {Function} action - Acción a ejecutar (recibe la fila)
  */
- interface SwipeActionItem {
+interface SwipeActionItem {
   icon: React.ReactNode;
   color: string;
   label?: string;
@@ -548,7 +561,7 @@ type TableColumnConfig<TTable> = {
  * @property {SwipeActionItem[]} left - Acciones al deslizar hacia la IZQUIERDA (acción DETRÁS del elemento)
  * @property {SwipeActionItem[]} right - Acciones al deslizar hacia la DERECHA (acción DETRÁS del elemento)
  */
- interface SwipeActionsConfig {
+interface SwipeActionsConfig {
   left?: SwipeActionItem[];
   right?: SwipeActionItem[];
 }
@@ -562,7 +575,7 @@ type TableColumnConfig<TTable> = {
  * @property {Function} subtitle - Subtítulo (texto gris, más pequeño)
  * @property {Function} trailing - Elemento a la derecha (badge, estado, etc.)
  */
- interface MobileListTileConfig<T = any> {
+interface MobileListTileConfig<T = any> {
   leading?: (row: T) => React.ReactNode;
   title?: (row: T) => React.ReactNode;
   subtitle?: (row: T) => React.ReactNode;
@@ -585,7 +598,7 @@ type MobileQuickFilterType = "text" | "date" | "select" | "number";
  * @property {Array<{label: string, value: any}>} options - Opciones para el tipo "select"
  * @property {string} placeholder - Texto de ayuda en el input
  */
- interface MobileQuickFilterItem<TTable = any> {
+interface MobileQuickFilterItem<TTable = any> {
   dataField: keyof TTable;
   label: string;
   type?: MobileQuickFilterType;
@@ -600,7 +613,7 @@ type MobileQuickFilterType = "text" | "date" | "select" | "number";
  * @property {boolean} enabled - Habilita el botón de filtros en móvil
  * @property {MobileQuickFilterItem[]} filters - Lista de filtros disponibles
  */
- interface MobileQuickFiltersConfig<TTable = any> {
+interface MobileQuickFiltersConfig<TTable = any> {
   enabled?: boolean;
   filters?: MobileQuickFilterItem<TTable>[];
 }
@@ -615,14 +628,14 @@ type MobileQuickFilterType = "text" | "date" | "select" | "number";
  * @property {SwipeActionsConfig} swipeActions - Acciones de deslizamiento (swipe)
  * @property {MobileQuickFiltersConfig} quickFilters - Filtros rápidos en modal
  */
- interface MobileConfig<T = any> {
-   enabled?: boolean;
-   activeViews?: boolean;
-   listTile?: MobileListTileConfig<T>;
-   swipeActions?: SwipeActionsConfig;
-   quickFilters?: MobileQuickFiltersConfig<T>;
-   bottomSheet?: BottomSheetConfig<T>;
- }
+interface MobileConfig<T = any> {
+  enabled?: boolean;
+  activeViews?: boolean;
+  listTile?: MobileListTileConfig<T>;
+  swipeActions?: SwipeActionsConfig;
+  quickFilters?: MobileQuickFiltersConfig<T>;
+  bottomSheet?: BottomSheetConfig<T>;
+}
 
 // ====================================================================
 // OVERRIDES COMPONENTS / COMPONENTES SOBRESCRITOS
@@ -1098,7 +1111,11 @@ export const ConfigCrud = <
         layout: <TNames extends readonly string[]>(uiConfig: {
           mode: "stepper" | "box";
           sections: TNames;
-          fieldsPerSection: { [K in TNames[number]]: AllAllowed[] };
+          fieldsPerSection: {
+            [K in TNames[number]]:
+              | AllAllowed[] // forma simple: solo nombres de campos
+              | BoxGroup[]; // forma con boxes: título + lista de campos
+          };
         }) => {
           uiLayoutConfig = uiConfig;
           return methods;
@@ -1203,4 +1220,5 @@ export type {
   MobileConfig,
   CaseTransform,
   FieldCallback,
+  BoxGroup,
 };

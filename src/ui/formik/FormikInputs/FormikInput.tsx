@@ -2207,3 +2207,474 @@ export function FormikImageInput(props: FormikImageInputProps) {
     </ColComponent>
   );
 }
+// components/formik/FormikReactSelect.tsx
+import Select from "react-select";
+
+interface Option {
+  value: string | number;
+  label: string;
+}
+
+interface Props {
+  name: string;
+  label: string;
+  options: Option[];
+  multiple?: boolean;
+  loading?: boolean;
+  disabled?: boolean;
+  required?: boolean;
+  placeholder?: string;
+  responsive?: ResponsiveProps;
+  onRefresh?: () => void;
+  onAdd?: () => void;
+  onChange?: (value: any, formik: any) => void;
+}
+// FormikMultiSelect.tsx
+import { createPortal } from "react-dom";
+
+// Sistema de diseño (consistente con tu FormikAutocomplete)
+
+interface Option {
+  value: string | number;
+  label: string;
+}
+
+export const FormikMultiSelect = (props: Props) => {
+  const {
+    name,
+    label,
+    options,
+    loading = false,
+    disabled = false,
+    required = false,
+    placeholder = "Seleccione...",
+    responsive,
+    onRefresh,
+    onAdd,
+    onChange: externalOnChange,
+  } = props;
+
+  const formik = useFormikContext();
+  const value: (string | number)[] = formik.values[name] || [];
+  const error =
+    formik.touched[name] && formik.errors[name]
+      ? String(formik.errors[name])
+      : null;
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({
+    top: 0,
+    left: 0,
+    width: 0,
+  });
+
+  const hasValue = value.length > 0;
+  const isActive = hasValue || isFocused || isOpen;
+
+  const filteredOptions = options.filter((opt) =>
+    opt.label.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
+
+  const updateDropdownPosition = () => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      });
+    }
+  };
+
+  const openDropdown = () => {
+    if (disabled) return;
+    updateDropdownPosition();
+    setIsOpen(true);
+    setIsFocused(true);
+    setSearchTerm("");
+  };
+
+  const closeDropdown = () => {
+    setIsOpen(false);
+    setIsFocused(false);
+    setSearchTerm("");
+  };
+
+  const toggleOpen = () => {
+    if (isOpen) closeDropdown();
+    else openDropdown();
+  };
+
+  // Clic fuera: cierra solo si el clic no está en el dropdown ni en el contenedor
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        // Verificar si el clic está dentro del dropdown (portal)
+        if (
+          dropdownRef.current &&
+          dropdownRef.current.contains(e.target as Node)
+        ) {
+          return; // No cerrar si se hizo clic dentro del dropdown
+        }
+        closeDropdown();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Recalcular posición en scroll/resize
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleUpdate = () => updateDropdownPosition();
+    window.addEventListener("scroll", handleUpdate, true);
+    window.addEventListener("resize", handleUpdate);
+    return () => {
+      window.removeEventListener("scroll", handleUpdate, true);
+      window.removeEventListener("resize", handleUpdate);
+    };
+  }, [isOpen]);
+
+  const toggleValue = (optValue: string | number) => {
+    const newValue = value.includes(optValue)
+      ? value.filter((v) => v !== optValue)
+      : [...value, optValue];
+    formik.setFieldValue(name, newValue);
+    formik.setFieldTouched(name, true);
+    externalOnChange?.(newValue, formik);
+    // No cerramos el dropdown
+  };
+
+  const handleRefresh = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onRefresh || isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleAdd = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onAdd?.();
+  };
+
+  const removeChip = (optValue: string | number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newValue = value.filter((v) => v !== optValue);
+    formik.setFieldValue(name, newValue);
+    formik.setFieldTouched(name, true);
+    externalOnChange?.(newValue, formik);
+  };
+
+  const actionButtonStyle: React.CSSProperties = {
+    /* igual */
+  };
+
+  if (disabled) {
+    const selectedLabels = options
+      .filter((opt) => value.includes(opt.value))
+      .map((opt) => opt.label);
+    return (
+      <DisabledField
+        label={label}
+        value={selectedLabels.join(", ")}
+        error={error}
+        responsive={responsive}
+      />
+    );
+  }
+
+  return (
+    <ColComponent responsive={responsive}>
+      <div
+        ref={containerRef}
+        style={{ position: "relative", marginBottom: "20px" }}
+      >
+        {/* Floating label */}
+        <label
+          style={{
+            position: "absolute",
+            left: "12px",
+            top: isActive ? "-9px" : "14px",
+            fontSize: isActive ? "11px" : "14px",
+            fontWeight: isActive ? 600 : 400,
+            color: isActive
+              ? error
+                ? DS.errorText
+                : isFocused
+                  ? DS.accent
+                  : DS.text2
+              : DS.textPlaceholder,
+            background: DS.white,
+            padding: "0 4px",
+            transition: DS.transition,
+            zIndex: 2,
+            pointerEvents: "none",
+          }}
+        >
+          {label}
+          {required && <span style={{ color: DS.errorText }}>*</span>}
+        </label>
+
+        {/* Input / chips container */}
+        <div
+          onClick={toggleOpen}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "6px",
+            minHeight: "56px",
+            border: `1.5px solid ${error ? DS.borderError : isFocused ? DS.borderFocus : DS.border}`,
+            borderRadius: DS.r8,
+            background: DS.white,
+            boxShadow: isFocused ? DS.accentGlow : "none",
+            transition: DS.transition,
+            padding: "16px 12px 8px",
+            cursor: "pointer",
+          }}
+        >
+          {value.map((v) => {
+            const opt = options.find((o) => o.value === v);
+            if (!opt) return null;
+            return (
+              <div
+                key={v}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  backgroundColor: DS.accentLight,
+                  borderRadius: "6px",
+                  padding: "2px 6px",
+                  fontSize: "12px",
+                  color: DS.accent,
+                }}
+              >
+                <span>{opt.label}</span>
+                <button
+                  type="button"
+                  onClick={(e) => removeChip(v, e)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    color: DS.accent,
+                    padding: 0,
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
+          {value.length === 0 && (
+            <span style={{ color: DS.textPlaceholder, fontSize: "14px" }}>
+              {placeholder}
+            </span>
+          )}
+          <div style={{ flex: 1 }} />
+        </div>
+
+        {/* Action buttons */}
+        <div
+          style={{
+            position: "absolute",
+            right: 8,
+            top: "50%",
+            transform: "translateY(-50%)",
+            display: "flex",
+            gap: 4,
+          }}
+        >
+          {(onRefresh || onAdd) && (
+            <div
+              style={{ width: "1px", height: "20px", background: DS.border }}
+            />
+          )}
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              style={actionButtonStyle}
+            >
+              {isRefreshing ? (
+                <div
+                  style={{
+                    width: 13,
+                    height: 13,
+                    border: `2px solid ${DS.border}`,
+                    borderTopColor: DS.accent,
+                    borderRadius: "50%",
+                    animation: "spin 0.7s linear infinite",
+                  }}
+                />
+              ) : (
+                <svg
+                  width={14}
+                  height={14}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path d="M1 4v6h6M23 20v-6h-6M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15" />
+                </svg>
+              )}
+            </button>
+          )}
+          {onAdd && (
+            <button type="button" onClick={handleAdd} style={actionButtonStyle}>
+              <svg
+                width={15}
+                height={15}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+          )}
+          {loading && (
+            <div
+              style={{
+                width: 16,
+                height: 16,
+                border: `2px solid ${DS.border}`,
+                borderTopColor: DS.accent,
+                borderRadius: "50%",
+                animation: "spin 0.7s linear infinite",
+                margin: "0 8px",
+              }}
+            />
+          )}
+        </div>
+
+        <FieldError error={error} />
+      </div>
+
+      {/* Dropdown portal */}
+      {isOpen &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            style={{
+              position: "absolute",
+              top: dropdownPosition.top,
+              left: dropdownPosition.left,
+              width: dropdownPosition.width,
+              background: DS.white,
+              border: `1.5px solid ${DS.border}`,
+              borderRadius: DS.r8,
+              boxShadow: DS.shadowDropdown,
+              zIndex: 99999,
+              maxHeight: 300,
+              overflow: "auto",
+            }}
+          >
+            <div
+              style={{ padding: "8px", borderBottom: `1px solid ${DS.border}` }}
+            >
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar..."
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  border: `1px solid ${DS.border}`,
+                  borderRadius: DS.r6,
+                  outline: "none",
+                  fontSize: "13px",
+                }}
+              />
+            </div>
+            <div style={{ padding: "4px" }}>
+              {filteredOptions.length === 0 ? (
+                <div
+                  style={{
+                    padding: "12px",
+                    textAlign: "center",
+                    color: DS.text3,
+                  }}
+                >
+                  Sin opciones
+                </div>
+              ) : (
+                filteredOptions.map((opt) => (
+                  <div
+                    key={opt.value}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Evita cerrar el dropdown
+                      toggleValue(opt.value);
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      padding: "8px 12px",
+                      cursor: "pointer",
+                      borderRadius: DS.r6,
+                      transition: "background 0.1s",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = DS.accentLight)
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "transparent")
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={value.includes(opt.value)}
+                      onChange={() => {}} // controlado por el div onClick
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <span style={{ fontSize: "13.5px" }}>{opt.label}</span>
+                  </div>
+                ))
+              )}
+            </div>
+            <div
+              style={{
+                padding: "8px",
+                borderTop: `1px solid ${DS.border}`,
+                textAlign: "right",
+              }}
+            >
+              <button
+                onClick={closeDropdown}
+                style={{
+                  padding: "4px 12px",
+                  background: DS.accent,
+                  color: "white",
+                  border: "none",
+                  borderRadius: DS.r6,
+                  cursor: "pointer",
+                }}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    </ColComponent>
+  );
+};

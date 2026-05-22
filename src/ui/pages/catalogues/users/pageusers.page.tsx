@@ -1,8 +1,11 @@
 import { usersBuilderCrud } from "../../../../crudbuilder/users/users.builder";
 import SuperCrud from "../../../components/compositecustoms/compositeCrud";
-import useUsersData from "../../../hooks/users/useUsersdata";
+import useUsersData from "../../../hooks/users/useUsersData";
 
 const PageUsers = ({}) => {
+  const usersData = useUsersData();
+
+
   return (
     <>
       <SuperCrud
@@ -10,7 +13,7 @@ const PageUsers = ({}) => {
           modalTitleAdd: "Agregar Usuario",
           modalTitleUpdate: "Editar Usuario",
         }}
-        hook={useUsersData()}
+        hook={usersData}
         crudConfig={usersBuilderCrud}
       />
     </>

@@ -1,8 +1,8 @@
 // src/hooks/useAdvancedCrud.ts
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { useGenericData, GenericDataConfig, GenericDataReturn } from "./usegenericdata";
-import { AdvancedCrudConfig, AuditLog, DashboardStats, ViewMode } from "../types/crud-advanced.types";
 import * as XLSX from "xlsx";
+import { useGenericData, type GenericDataConfig, type GenericDataReturn } from "./usegenericdata";
+import type { AdvancedCrudConfig, AuditLog, DashboardStats, ViewMode } from "../../../types/crud-advanced.types";
 
 // ==================== HOOK AVANZADO ====================
 export interface AdvancedCrudReturn<TForm = any, TTable = any> extends GenericDataReturn<TForm> {
@@ -104,8 +104,7 @@ export const useAdvancedCrud = <
   const [autosaveEnabled, setAutosaveEnabled] = useState(
     advancedConfig?.autosave?.enabled || false
   );
-  const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
+const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);  
   // Importación
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);

@@ -4903,10 +4903,21 @@ const CustomTableInner = <T extends object>(
   const renderBottomSheet = () => {
     if (!showBottomSheet || !selectedRowForSheet || !mobileConfig?.bottomSheet)
       return null;
+
+    // Determinar si debe ocupar toda la pantalla
+    const isFullscreen =null
+      // mobileConfig.bottomSheet.height === "100vh" ||
+      // mobileConfig.bottomSheet.fullscreen === true;
+
     return (
       <AnimatePresence>
         <motion.div
-          style={{ position: "fixed", inset: 0, zIndex: 50 }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 50,
+            backgroundColor: "rgba(0,0,0,0.5)",
+          }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -4926,10 +4937,15 @@ const CustomTableInner = <T extends object>(
               left: 0,
               right: 0,
               background: "#fff",
-              borderRadius: "24px 24px 0 0",
+              borderRadius: isFullscreen ? "0" : "24px 24px 0 0",
               boxShadow: "0 -8px 40px rgba(0,0,0,0.2)",
               overflow: "hidden",
-              maxHeight: mobileConfig.bottomSheet.height || "80vh",
+              height: isFullscreen ? "100vh" : "auto",
+              maxHeight: isFullscreen
+                ? "100vh"
+                : mobileConfig.bottomSheet.height || "80vh",
+              display: "flex",
+              flexDirection: "column",
             }}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
@@ -4941,41 +4957,66 @@ const CustomTableInner = <T extends object>(
               mass: 0.8,
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                paddingTop: 12,
-                paddingBottom: 8,
-              }}
-            >
+            {/* Barra de arrastre (solo visible si no es fullscreen) */}
+            {!isFullscreen && (
               <div
                 style={{
-                  width: 64,
-                  height: 6,
-                  background: "#e8e8ed",
-                  borderRadius: 3,
+                  display: "flex",
+                  justifyContent: "center",
+                  paddingTop: 12,
+                  paddingBottom: 8,
+                  flexShrink: 0,
+                  cursor: "grab",
                 }}
-              />
-            </div>
+              >
+                <div
+                  style={{
+                    width: 64,
+                    height: 6,
+                    background: "#e8e8ed",
+                    borderRadius: 3,
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Botón de cerrar */}
             {(mobileConfig.bottomSheet.showCloseButton ?? true) && (
               <button
                 onClick={closeBottomSheet}
                 style={{
                   position: "absolute",
-                  top: 8,
-                  right: 12,
+                  top: isFullscreen ? 16 : 8,
+                  right: isFullscreen ? 16 : 12,
                   padding: 8,
-                  background: "#f5f5f8",
+                  background: "rgba(0,0,0,0.05)",
+                  backdropFilter: "blur(8px)",
                   borderRadius: "50%",
                   border: "none",
                   cursor: "pointer",
+                  zIndex: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s",
                 }}
+                // whileHover={{ scale: 1.1 }}
+                // whileTap={{ scale: 0.9 }}
               >
-                <FiX size={20} />
+                <FiX size={isFullscreen ? 24 : 20} />
               </button>
             )}
-            <div style={{ padding: "0 16px 24px" }}>
+
+            {/* Contenido scrolleable */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                overflowX: "hidden",
+                padding: isFullscreen ? "0" : "0 16px 24px",
+                WebkitOverflowScrolling: "touch",
+              }}
+            >
               {mobileConfig.bottomSheet.builder(
                 selectedRowForSheet,
                 closeBottomSheet,

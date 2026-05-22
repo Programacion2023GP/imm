@@ -1,8 +1,8 @@
 // hooks/useDepartamentsData.ts
 import { useMemo } from "react";
-import { useGenericData, type GenericDataReturn } from "react-zustore";
 import type { RolesForm } from "../../../models/roles/roles.models";
 import UsePermissions from "../permissions/usepermissionsdata";
+import { useGenericData, type GenericDataReturn } from "../../../library/reactztore/hook/usegenericdata";
 
 export interface ExtraState {
   openRolPermission: boolean;
@@ -35,10 +35,10 @@ const UseRoles = (): RolesDataReturn => {
   );
 
   return useGenericData<RolesForm, Methods, {}, ExtraState>({
-    defaultValues: initialState,
+    initialState: initialState,
     prefix: "roles",
     autoFetch: true,
-    
+
     extraState: {
       openRolPermission: false,
       rol: {

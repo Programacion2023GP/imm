@@ -8,7 +8,7 @@ import React, {
   useRef,
 } from "react";
 import ReactDOM from "react-dom";
-import type { GenericDataReturn } from "react-zustore";
+
 import { useFormikContext } from "formik";
 import { FiActivity, FiBarChart2 } from "react-icons/fi";
 import { HiDotsVertical } from "react-icons/hi";
@@ -29,6 +29,7 @@ import {
   FormikNumber,
   FormikRadio,
   FormikColorPicker,
+  FormikMultiSelect,
 } from "../../formik/FormikInputs/FormikInput";
 import { RowComponent } from "../../components/responsive/Responsive";
 import FormikFileInput from "../../formik/FormikInputs/forminputimage";
@@ -45,8 +46,10 @@ import type {
   MobileListTileConfig,
   MobileQuickFiltersConfig,
   MobileConfig,
+  BoxGroup,
 } from "../../../models/genericmodels.model";
 import { icons } from "../../../constant";
+import type { GenericDataReturn } from "../../../library/reactztore/hook/usegenericdata";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ResponsiveSizes = {
@@ -76,6 +79,7 @@ export interface FieldItem {
   disabled?: boolean;
   required?: boolean;
   type?: string;
+  multiple: boolean;
   loadingHook?: () => boolean;
   getFilterValue?: (value: any) => string;
   headerName?: string;
@@ -97,7 +101,7 @@ export interface FieldItem {
     idKey: string;
     labelKey: string;
   };
-  // Nuevas propiedades
+  placeholder?: string;
   uppercase?: boolean;
   caseTransform?: CaseTransform;
   transform?: (value: any) => any;
@@ -222,7 +226,7 @@ const PortalDropdown = ({
   );
 };
 
-// ─── ActionButtons Component ────────────────────────────────────────────────────
+// ─── ActionButtons ─────────────────────────────────────────────────────────────
 interface ActionButtonsProps<
   TRecord,
   THooks extends Record<string, any> = Record<string, any>,
@@ -718,7 +722,7 @@ const FormikCheckboxAdapter = (props: OverrideFieldProps) => (
   <FormikCheckbox name={props.name} label={props.label || ""} />
 );
 
-// ─── DynamicSelectField corregido ──────────────────────────────────────────────
+// ─── DynamicSelectField ────────────────────────────────────────────────────────
 interface DynamicSelectFieldProps {
   field: FieldItem;
   responsive: ResponsiveSizes;
@@ -726,6 +730,77 @@ interface DynamicSelectFieldProps {
   onInput?: (value: string) => void;
   caseTransform?: CaseTransform;
 }
+// ─── DynamicMultipleSelectField (para selección múltiple asíncrona) ─────────
+interface DynamicMultipleSelectFieldProps {
+  field: FieldItem;
+  responsive: ResponsiveSizes;
+  onChange?: (value: any) => void;
+  caseTransform?: CaseTransform;
+}
+
+const DynamicMultipleSelectField = memo(
+  ({ field, responsive, onChange }: DynamicMultipleSelectFieldProps) => {
+    const hookResult = field.selectOptionsHook!();
+    const isLoadingOptions = field.loadingHook?.() || false;
+    const [isAsync, setIsAsync] = useState(false);
+    const [asyncOptions, setAsyncOptions] = useState<any[]>([]);
+
+    useEffect(() => {
+      const checkAsync = async () => {
+        try {
+          const result = hookResult;
+          const isPromise =
+            result && typeof (result as any).then === "function";
+          setIsAsync(isPromise);
+          if (isPromise) {
+            const data = await (result as Promise<any[]>);
+            setAsyncOptions(Array.isArray(data) ? data : []);
+          } else {
+            setAsyncOptions(Array.isArray(result) ? result : []);
+          }
+        } catch (error) {
+          console.error("Error loading multiple select options:", error);
+          setAsyncOptions([]);
+        }
+      };
+      checkAsync();
+    }, [hookResult]);
+
+    const options = isAsync
+      ? asyncOptions
+      : Array.isArray(hookResult)
+        ? hookResult
+        : (field.selectOptions ?? []);
+
+    const selectOptions = options.map((opt) => ({
+      value: opt[field.selectIdKey || "id"],
+      label: opt[field.selectLabelKey || "name"],
+    }));
+
+    const refreshFn = field.refreshActionHook?.();
+    const addFn = field.addActionHook?.();
+
+    return (
+      <FormikMultiSelect
+        name={field.name}
+        label={field.label}
+        options={selectOptions}
+        multiple={true}
+        loading={isLoadingOptions}
+        disabled={field.disabled}
+        required={field.required}
+        placeholder={field.placeholder}
+        responsive={responsive}
+        onRefresh={refreshFn}
+        onAdd={addFn}
+        onChange={(newValue, formik) => {
+          if (field.onChange) field.onChange(newValue, formik, undefined);
+        }}
+      />
+    );
+  },
+);
+DynamicMultipleSelectField.displayName = "DynamicMultipleSelectField";
 
 const DynamicSelectField = memo(
   ({
@@ -791,7 +866,7 @@ const DynamicSelectField = memo(
 );
 DynamicSelectField.displayName = "DynamicSelectField";
 
-// ─── FieldWrapper corregido ────────────────────────────────────────────────────
+// ─── FieldWrapper ──────────────────────────────────────────────────────────────
 const FieldWrapper = ({
   field,
   actionsDispatch,
@@ -878,6 +953,15 @@ const FieldWrapper = ({
       );
     case "Select":
       if (field.selectOptionsHook) {
+        if (field.multiple) {
+          return (
+            <DynamicMultipleSelectField
+              field={field}
+              responsive={responsive}
+              onChange={handleSelectChange}
+            />
+          );
+        }
         return (
           <DynamicSelectField
             field={field}
@@ -885,6 +969,25 @@ const FieldWrapper = ({
             onChange={handleSelectChange}
             onInput={handleInput}
             caseTransform={caseTransform}
+          />
+        );
+      }
+      if (field.multiple) {
+        const selectOptions = (field.selectOptions || []).map((opt) => ({
+          value: opt[field.selectIdKey || "id"],
+          label: opt[field.selectLabelKey || "name"],
+        }));
+        return (
+          <FormikMultiSelect
+            name={field.name}
+            label={field.label}
+            options={selectOptions}
+            multiple={true}
+            loading={field.loadingHook?.()}
+            disabled={field.disabled}
+            required={field.required}
+            placeholder={field.placeholder}
+            responsive={responsive}
           />
         );
       }
@@ -965,12 +1068,19 @@ const FieldWrapper = ({
   }
 };
 
-// ─── StepperFormLocal ──────────────────────────────────────────────────────────
+// ─── StepperFormLocal — diseño mejorado + soporte para boxes ───────────────────
 interface StepperFormLocalProps {
-  sections: { title: string; fields: FieldItem[] }[];
+  sections: Array<{
+    title: string;
+    fields?: FieldItem[]; // modo simple (sin boxes)
+    boxes?: Array<{
+      // modo con boxes
+      title: string;
+      fields: FieldItem[];
+    }>;
+  }>;
   activeStep: number;
   onStepChange: (idx: number) => void;
-  onSave: () => void;
   renderField: (field: FieldItem) => React.ReactNode;
 }
 
@@ -978,51 +1088,295 @@ const StepperFormLocal = ({
   sections,
   activeStep,
   onStepChange,
-  onSave,
   renderField,
 }: StepperFormLocalProps) => {
+  const formik = useFormikContext();
   const currentSection = sections[activeStep];
+  const isLast = activeStep === sections.length - 1;
+
+  const handleNext = async () => {
+    // Obtener todos los nombres de campos del paso actual (ya sea con boxes o sin ellos)
+    let currentFieldNames: string[] = [];
+    if (currentSection.boxes) {
+      currentFieldNames = currentSection.boxes.flatMap((box) =>
+        box.fields.map((f) => f.name),
+      );
+    } else if (currentSection.fields) {
+      currentFieldNames = currentSection.fields.map((f) => f.name);
+    }
+    const touchedPatch = currentFieldNames.reduce(
+      (acc: any, name) => ({ ...acc, [name]: true }),
+      {},
+    );
+    await formik.setTouched({ ...formik.touched, ...touchedPatch });
+    const errors = await formik.validateForm();
+    const hasErrors = currentFieldNames.some((name) => errors[name]);
+    if (!hasErrors) onStepChange(activeStep + 1);
+  };
+
+  const handleSave = async () => {
+    // Obtener todos los campos de todas las secciones
+    let allFields: FieldItem[] = [];
+    sections.forEach((section) => {
+      if (section.boxes) {
+        section.boxes.forEach((box) => allFields.push(...box.fields));
+      } else if (section.fields) {
+        allFields.push(...section.fields);
+      }
+    });
+    const allTouched = allFields.reduce(
+      (acc: any, f: FieldItem) => ({ ...acc, [f.name]: true }),
+      {},
+    );
+    await formik.setTouched(allTouched);
+    await formik.submitForm();
+  };
+
   return (
-    <div>
-      <div className="flex gap-2 mb-4 border-b">
-        {sections.map((s, idx) => (
-          <button
-            key={s.title}
-            onClick={() => onStepChange(idx)}
-            className={`pb-2 px-3 ${
-              idx === activeStep
-                ? "border-b-2 border-blue-600 font-medium"
-                : "text-gray-500"
-            }`}
-          >
-            {s.title}
-          </button>
-        ))}
+    <div className="flex flex-col w-full">
+      {/* Progress header */}
+      <div className="relative px-2 pt-2">
+        <div
+          className="absolute h-0.5 bg-gray-200"
+          style={{
+            top: "calc(1.25rem + 0.5rem)",
+            left: `calc(${100 / (sections.length * 2)}% + 0.5rem)`,
+            right: `calc(${100 / (sections.length * 2)}% + 0.5rem)`,
+            zIndex: 0,
+          }}
+        />
+        <div
+          className="absolute h-0.5 bg-indigo-500 transition-all duration-500 ease-in-out"
+          style={{
+            top: "calc(1.25rem + 0.5rem)",
+            left: `calc(${100 / (sections.length * 2)}% + 0.5rem)`,
+            width:
+              sections.length <= 1
+                ? "0%"
+                : `calc(${
+                    (activeStep / (sections.length - 1)) *
+                    (100 - 100 / sections.length)
+                  }% - 1rem)`,
+            zIndex: 1,
+          }}
+        />
+        <div className="relative flex justify-between" style={{ zIndex: 2 }}>
+          {sections.map((s, idx) => {
+            const isDone = idx < activeStep;
+            const isCurrent = idx === activeStep;
+            return (
+              <button
+                key={s.title}
+                type="button"
+                onClick={() => isDone && onStepChange(idx)}
+                className="flex flex-col items-center gap-1.5 flex-1"
+                style={{
+                  cursor: isDone ? "pointer" : "default",
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                }}
+              >
+                <div
+                  className={`
+                    relative flex items-center justify-center
+                    w-10 h-10 rounded-full border-2 font-semibold text-sm
+                    transition-all duration-300
+                    ${
+                      isDone
+                        ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-200"
+                        : isCurrent
+                          ? "bg-white border-indigo-600 text-indigo-600 shadow-lg shadow-indigo-100 ring-4 ring-indigo-50 scale-110"
+                          : "bg-white border-gray-200 text-gray-400"
+                    }
+                  `}
+                >
+                  {isDone ? (
+                    <svg
+                      className="w-5 h-5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 11.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  ) : (
+                    <span>{idx + 1}</span>
+                  )}
+                </div>
+                <span
+                  className={`
+                    text-xs font-medium text-center leading-tight max-w-[72px]
+                    transition-colors duration-200 select-none
+                    ${isCurrent ? "text-indigo-700 font-semibold" : isDone ? "text-indigo-400" : "text-gray-400"}
+                  `}
+                >
+                  {s.title}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <div className="mb-4">
-        <RowComponent>{currentSection.fields.map(renderField)}</RowComponent>
+
+      {/* Step content */}
+      <div className="rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden mt-4">
+        <div className="flex items-center gap-3 px-5 py-3 bg-gradient-to-r from-indigo-50 to-white border-b border-gray-100">
+          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold shrink-0">
+            {activeStep + 1}
+          </div>
+          <span className="text-sm font-semibold text-gray-700">
+            {currentSection.title}
+          </span>
+          <span className="ml-auto text-xs text-gray-400 shrink-0">
+            {activeStep + 1} / {sections.length}
+          </span>
+        </div>
+
+        <div className="p-5">
+          {currentSection.boxes ? (
+            // Modo con boxes: diseño mejorado (sin gris apagado)
+            currentSection.boxes.map((box, idx) => (
+              <div
+                key={idx}
+                className="mb-6 last:mb-0 bg-white rounded-lg border border-indigo-100 shadow-sm hover:shadow transition-all duration-200 overflow-hidden"
+              >
+                <div className="px-5 pt-4 pb-2">
+                  <h4 className="text-sm font-semibold text-indigo-600 uppercase tracking-wide flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>
+                    {box.title}
+                  </h4>
+                </div>
+                <div className="px-5 pb-5">
+                  <RowComponent>{box.fields.map(renderField)}</RowComponent>
+                </div>
+              </div>
+            ))
+          ) : (
+            // Modo simple (sin boxes)
+            <RowComponent>
+              {currentSection.fields?.map(renderField)}
+            </RowComponent>
+          )}
+        </div>
       </div>
-      <div className="flex justify-between">
+
+      {/* Navigation buttons */}
+      <div className="flex items-center justify-between mt-4">
         <button
+          type="button"
           disabled={activeStep === 0}
           onClick={() => onStepChange(activeStep - 1)}
-          className="px-4 py-2 border rounded"
+          className={`
+            inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
+            border transition-all duration-150
+            ${
+              activeStep === 0
+                ? "border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50"
+                : "border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400 active:scale-95"
+            }
+          `}
         >
+          <svg
+            className="w-4 h-4"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 5l-7 5 7 5"
+            />
+          </svg>
           Atrás
         </button>
-        {activeStep === sections.length - 1 ? (
+
+        <div className="flex items-center gap-1.5">
+          {sections.map((_, idx) => (
+            <div
+              key={idx}
+              className={`rounded-full transition-all duration-300 ${
+                idx === activeStep
+                  ? "w-5 h-2 bg-indigo-600"
+                  : idx < activeStep
+                    ? "w-2 h-2 bg-indigo-400"
+                    : "w-2 h-2 bg-gray-200"
+              }`}
+            />
+          ))}
+        </div>
+
+        {isLast ? (
           <button
-            onClick={onSave}
-            className="px-4 py-2 text-white bg-blue-600 rounded"
+            type="button"
+            onClick={handleSave}
+            disabled={formik.isSubmitting}
+            className="
+              inline-flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold
+              bg-indigo-600 text-white shadow-md shadow-indigo-200
+              hover:bg-indigo-700 active:scale-95 transition-all duration-150
+              disabled:opacity-60 disabled:cursor-not-allowed
+            "
           >
-            Guardar
+            {formik.isSubmitting ? (
+              <>
+                <svg
+                  className="w-4 h-4 animate-spin"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                </svg>
+                Guardando…
+              </>
+            ) : (
+              <>
+                Guardar
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 11.586l7.293-7.293a1 1 0 011.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </>
+            )}
           </button>
         ) : (
           <button
-            onClick={() => onStepChange(activeStep + 1)}
-            className="px-4 py-2 text-white bg-blue-600 rounded"
+            type="button"
+            onClick={handleNext}
+            className="
+              inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
+              bg-indigo-600 text-white shadow-sm shadow-indigo-200
+              hover:bg-indigo-700 active:scale-95 transition-all duration-150
+            "
           >
             Siguiente
+            <svg
+              className="w-4 h-4"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 5l7 5-7 5"
+              />
+            </svg>
           </button>
         )}
       </div>
@@ -1030,25 +1384,26 @@ const StepperFormLocal = ({
   );
 };
 
-// ─── BoxFormLocal ──────────────────────────────────────────────────────────────
+// ─── BoxFormLocal (sin cambios, se mantiene igual) ─────────────────────────────
 interface BoxFormLocalProps {
   sections: { title: string; fields: FieldItem[] }[];
-  onSave: () => void;
   renderField: (field: FieldItem) => React.ReactNode;
 }
 
-const BoxFormLocal = ({ sections, onSave, renderField }: BoxFormLocalProps) => {
+const BoxFormLocal = ({ sections, renderField }: BoxFormLocalProps) => {
   const formik = useFormikContext();
 
   const handleSave = async () => {
-    const errors = await formik.validateForm();
     const allFields = sections.flatMap((s) => s.fields);
     const allTouched = allFields.reduce(
       (acc: any, f: FieldItem) => ({ ...acc, [f.name]: true }),
       {},
     );
     await formik.setTouched({ ...formik.touched, ...allTouched });
-    if (Object.keys(errors).length === 0) onSave();
+    const errors = await formik.validateForm();
+    if (Object.keys(errors).length === 0) {
+      await formik.submitForm();
+    }
   };
 
   return (
@@ -1107,18 +1462,21 @@ const BoxFormLocal = ({ sections, onSave, renderField }: BoxFormLocalProps) => {
   );
 };
 
-// ─── RenderFormContent ─────────────────────────────────────────────────────────
+// ─── RenderFormContent (adaptado para pasar la nueva estructura de secciones) ───
 interface RenderFormContentProps {
   computedFields: FieldItem[];
   sectioned: {
     hasSections: boolean;
     sectionType: string | null;
-    sections: { title: string; fields: FieldItem[] }[];
+    sections: Array<{
+      title: string;
+      fields?: FieldItem[];
+      boxes?: Array<{ title: string; fields: FieldItem[] }>;
+    }>;
   };
   activeStep: number;
   setActiveStep: (step: number) => void;
   renderField: (field: FieldItem) => React.ReactNode;
-  onSubmit: () => void;
 }
 
 const RenderFormContent = ({
@@ -1127,7 +1485,6 @@ const RenderFormContent = ({
   activeStep,
   setActiveStep,
   renderField,
-  onSubmit,
 }: RenderFormContentProps) => {
   if (!sectioned.hasSections) {
     return <RowComponent>{computedFields.map(renderField)}</RowComponent>;
@@ -1138,18 +1495,17 @@ const RenderFormContent = ({
         sections={sectioned.sections}
         activeStep={activeStep}
         onStepChange={setActiveStep}
-        onSave={onSubmit}
         renderField={renderField}
       />
     );
   }
-  return (
-    <BoxFormLocal
-      sections={sectioned.sections}
-      onSave={onSubmit}
-      renderField={renderField}
-    />
-  );
+  // Modo "box" tradicional (sin soporte de sub-boxes, pero se podría extender)
+  // Convertir sections al formato esperado por BoxFormLocal (cada sección con fields)
+  const boxSections = sectioned.sections.map((s) => ({
+    title: s.title,
+    fields: s.fields || (s.boxes ? s.boxes.flatMap((b) => b.fields) : []),
+  }));
+  return <BoxFormLocal sections={boxSections} renderField={renderField} />;
 };
 
 // =============================================================================
@@ -1196,7 +1552,7 @@ const SuperCrud = <
     setActiveFilterCount(count);
   }, [filtersKey, advancedHook.search]);
 
-  // ── Computed fields (con soporte para caseTransform, onChange, onInput) ──
+  // ── Computed fields ────────────────────────────────────────────────────────
   const computedFields = useMemo((): FieldItem[] => {
     if (crudConfig) {
       const {
@@ -1231,11 +1587,21 @@ const SuperCrud = <
         config: any,
       ) => {
         if (fieldsMap.has(name)) return;
+
+        let label = "";
+        if (config.label) {
+          label = config.required ? `${config.label} *` : config.label;
+        } else {
+          label = config.required ? `${name} *` : name;
+        }
+
         const baseField: FieldItem = {
           name,
-          label: config.label || name,
+          label,
           typeField,
+          multiple: config.multiple,
           disabled: config.disabled || false,
+          placeholder: config.placeholder || "",
           required: config.required || false,
           headerName: config.label || name,
           responsive: config.responsive || DEFAULT_RESPONSIVE,
@@ -1251,6 +1617,8 @@ const SuperCrud = <
             break;
           case "Select":
             baseField.selectOptions = config.options;
+            baseField.multiple = config.multiple;
+
             baseField.selectIdKey = config.keyId;
             baseField.selectLabelKey = config.keyLabel;
             baseField.selectOptionsHook = config.selectOptionsHook;
@@ -1312,7 +1680,16 @@ const SuperCrud = <
       let allFields = Array.from(fieldsMap.values());
 
       if (uiLayout?.fieldsPerSection) {
-        const orderedNames = Object.values(uiLayout.fieldsPerSection).flat();
+        const orderedNames = Object.values(uiLayout.fieldsPerSection).flatMap(
+          (def: any) =>
+            Array.isArray(def)
+              ? def
+                  .map((item: any) =>
+                    typeof item === "string" ? item : item.fields,
+                  )
+                  .flat()
+              : [],
+        );
         const orderedFields: FieldItem[] = [];
         for (const name of orderedNames) {
           const field = allFields.find((f) => f.name === name);
@@ -1368,20 +1745,45 @@ const SuperCrud = <
     }));
   }, [crudConfig, computedFields]);
 
+  // ── Procesamiento de secciones con soporte para boxes ───────────────────────
   const sectioned = useMemo(() => {
     if (crudConfig?.uiLayout) {
       const { fieldsPerSection, sections, mode } = crudConfig.uiLayout;
-      const sectionsList = sections.map((name: string) => ({
-        title: name,
-        fields: computedFields.filter((field) =>
-          fieldsPerSection?.[name]?.includes(field.name),
-        ),
-      }));
-      return {
-        hasSections: true,
-        sectionType: mode,
-        sections: sectionsList,
-      };
+      const sectionsList = sections.map((name: string) => {
+        const definition = fieldsPerSection?.[name];
+        if (!definition) return { title: name, fields: [] };
+        // Si es un array de strings → forma simple
+        if (
+          Array.isArray(definition) &&
+          definition.every((item) => typeof item === "string")
+        ) {
+          const fieldsList = computedFields.filter((field) =>
+            definition.includes(field.name),
+          );
+          return { title: name, fields: fieldsList };
+        }
+        // Si es un array de objetos BoxGroup
+        if (
+          Array.isArray(definition) &&
+          definition.every(
+            (item) =>
+              item &&
+              typeof item === "object" &&
+              "title" in item &&
+              "fields" in item,
+          )
+        ) {
+          const boxes = (definition as BoxGroup[]).map((box) => ({
+            title: box.title,
+            fields: computedFields.filter((field) =>
+              box.fields.includes(field.name),
+            ),
+          }));
+          return { title: name, boxes };
+        }
+        return { title: name, fields: [] };
+      });
+      return { hasSections: true, sectionType: mode, sections: sectionsList };
     }
     return { hasSections: false, sectionType: null, sections: [] };
   }, [crudConfig, computedFields]);
@@ -1421,7 +1823,7 @@ const SuperCrud = <
     if (itemToDelete) {
       const confirmed = await showDeleteConfirmation();
       if (confirmed) {
-        await hook.deleteItem(itemToDelete);
+        await hook.removeItemData(itemToDelete);
         setDeleteConfirmOpen(false);
         setItemToDelete(null);
         Swal.fire("Eliminado", "El registro ha sido eliminado.", "success");
@@ -1429,7 +1831,6 @@ const SuperCrud = <
     }
   };
 
-  // ─── renderField actualizado: usa FieldWrapper ─────────────────────────────
   const renderField = useCallback(
     (field: FieldItem): React.ReactNode => {
       return (
@@ -1443,15 +1844,13 @@ const SuperCrud = <
     [actionsDispatch],
   );
 
-  // ==================== CONFIGURACIÓN MÓVIL ====================
+  // ── Mobile config ──────────────────────────────────────────────────────────
   const buildMobileConfig = useCallback(() => {
     const mobileCfg = crudConfig?.mobileConfig as
       | MobileConfig<TTable>
       | undefined;
 
-    if (mobileCfg?.enabled === false) {
-      return undefined;
-    }
+    if (mobileCfg?.enabled === false) return undefined;
 
     const finalListTile = mobileListTile ?? mobileCfg?.listTile;
     const finalQuickFilters = mobileQuickFilters ?? mobileCfg?.quickFilters;
@@ -1475,7 +1874,7 @@ const SuperCrud = <
           action: (row: any) => {
             const formattedRow = prepareForForm(row);
             hook.setOpen(true);
-            hook.setFormData(formattedRow);
+            hook.handleChangeItem(formattedRow);
           },
         });
       }
@@ -1487,9 +1886,7 @@ const SuperCrud = <
           label: "Eliminar",
           action: async (row: any) => {
             const confirmed = await showDeleteConfirmation();
-            if (confirmed) {
-              await hook.deleteItem(row);
-            }
+            if (confirmed) await hook.removeItemData(row);
           },
         });
       }
@@ -1562,15 +1959,21 @@ const SuperCrud = <
         })),
       };
     }
-    // 👇 NUEVO: pasar la configuración del bottom sheet
 
-    if (mobileCfg?.bottomSheet) {
-      result.bottomSheet = mobileCfg.bottomSheet;
-    }
+    if (mobileCfg?.bottomSheet) result.bottomSheet = mobileCfg.bottomSheet;
     return result;
-  }, [crudConfig?.mobileConfig, crudConfig?.tableActions, hook, mobileListTile, mobileQuickFilters, enableMobileViews, advancedConfig, showDeleteConfirmation]);
+  }, [
+    crudConfig?.mobileConfig,
+    crudConfig?.tableActions,
+    hook,
+    mobileListTile,
+    mobileQuickFilters,
+    enableMobileViews,
+    advancedConfig,
+    showDeleteConfirmation,
+  ]);
 
-  // ─── Custom render mode ────────────────────────────────────────────────
+  // ─── Custom render mode ──────────────────────────────────────────────────────
   if (crudConfig?.render) {
     const FormikProvider = ({
       children,
@@ -1578,15 +1981,13 @@ const SuperCrud = <
       children: (formikBag: any) => React.ReactNode;
     }) => {
       const hasFile = computedFields.some((f) => f.typeField === "File");
-      console.log("formData", hook.formData);
       return (
         <FormikForm
-          initialValues={(hook.formData) as TForm}
+          initialValues={hook.initialValues as TForm}
           validationSchema={validationSchema}
           onSubmit={async (values) => {
-            if (hasFile) await hook.saveItem(values as TForm, true);
-            else await hook.saveItem(values as TForm);
-            hook.setOpen(false);
+            if (hasFile) await hook.postItem(values as TForm, true);
+            else await hook.postItem(values as TForm);
           }}
           buttonMessage={undefined}
         >
@@ -1599,13 +2000,13 @@ const SuperCrud = <
       const handleEdit = (row: TTable) => {
         const formattedRow = prepareForForm(row as unknown as TForm);
         hook.setOpen(true);
-        hook.setFormData(formattedRow);
+        hook.handleChangeItem(formattedRow);
       };
 
       const handleDelete = async (row: TTable) => {
         const confirmed = await showDeleteConfirmation();
         if (confirmed) {
-          await hook.deleteItem(row as unknown as TForm);
+          await hook.removeItemData(row as unknown as TForm);
           Swal.fire("Eliminado", "El registro ha sido eliminado.", "success");
         }
       };
@@ -1712,7 +2113,6 @@ const SuperCrud = <
                 />
               )}
               mobileConfig={mobileConfigValue}
-
             />
           </div>
         </>
@@ -1824,7 +2224,7 @@ const SuperCrud = <
         open: hook.open,
         close: () => hook.setOpen(false),
         openWith: (data?: TForm) => {
-          if (data) hook.setFormData(data);
+          if (data) hook.postItem(data);
           hook.setOpen(true);
         },
       },
@@ -1844,7 +2244,7 @@ const SuperCrud = <
     );
   }
 
-  // ─── Default render ──────────────────────────────────────────────────────
+  // ─── Default render ──────────────────────────────────────────────────────────
   const mobileConfigValue = buildMobileConfig();
 
   return (
@@ -1852,7 +2252,7 @@ const SuperCrud = <
       {/* Header */}
       <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         {crudConfig?.tableHeader && (
-          <div className="flex items-center justify-between  border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+          <div className="flex items-center justify-between border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
             <div className="flex items-center gap-4">
               {crudConfig.tableHeader.icon && (
                 <div className="text-gray-600">
@@ -1941,10 +2341,7 @@ const SuperCrud = <
           <Tooltip content="Agregar Registro">
             <CustomButton
               className="w-4 h-4"
-              onClick={() => {
-                hook.setFormData({} as TForm);
-                hook.setOpen(true);
-              }}
+              onClick={() => hook.setOpen(true)}
             >
               <icons.Pi.PiListPlus size={25} />
             </CustomButton>
@@ -2039,13 +2436,11 @@ const SuperCrud = <
                   onEdit={(row) => {
                     const formattedRow = prepareForForm(row);
                     hook.setOpen(true);
-                    hook.setFormData(formattedRow);
+                    hook.handleChangeItem(formattedRow);
                   }}
                   onDelete={async (row) => {
                     const confirmed = await showDeleteConfirmation();
-                    if (confirmed) {
-                      await hook.deleteItem(row);
-                    }
+                    if (confirmed) await hook.removeItemData(row);
                   }}
                   actionsDispatch={actionsDispatch}
                   mainHook={hook}
@@ -2083,7 +2478,7 @@ const SuperCrud = <
         formDirection="modal"
         fullModal={false}
         modalTitle={
-          hook.formData && (hook.formData as any).id
+          hook.initialValues && (hook.initialValues as any).id
             ? formTitles.modalTitleUpdate
             : formTitles.modalTitleAdd
         }
@@ -2093,24 +2488,23 @@ const SuperCrud = <
           );
           return (
             <FormikForm
-              initialValues={(hook.formData ) as TForm}
+              initialValues={hook.initialValues as TForm}
               onSubmit={async (values) => {
-                if (hasFileFields) await hook.saveItem(values as TForm, true);
-                else await hook.saveItem(values as TForm);
+                if (hasFileFields) await hook.postItem(values as TForm, true);
+                else await hook.postItem(values as TForm);
                 hook.setOpen(false);
               }}
               validationSchema={validationSchema}
               buttonMessage={!sectioned.hasSections ? "Guardar" : undefined}
               buttonLoading={hook.loading}
             >
-              {(formikBag: any) => (
+              {() => (
                 <RenderFormContent
                   computedFields={computedFields}
                   sectioned={sectioned}
                   activeStep={activeStep}
                   setActiveStep={setActiveStep}
                   renderField={renderField}
-                  onSubmit={formikBag.handleSubmit}
                 />
               )}
             </FormikForm>
@@ -2121,7 +2515,7 @@ const SuperCrud = <
       {/* Delete confirmation modal (legacy) */}
       {deleteConfirmOpen && (
         <div
-          className="fixed inset-0 z-50  flex items-center justify-center bg-black bg-opacity-50"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
           onClick={() => setDeleteConfirmOpen(false)}
         >
           <div
