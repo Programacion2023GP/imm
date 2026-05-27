@@ -53,7 +53,8 @@ export const GetAxios = async (url: string) => {
     const response = await axiosInstance.get(url);
     return response.data;
   } catch (error: any) {
-    console.error("Error en la solicitud:", error);
+    console.log("error",error)
+    // console.error("Error en la solicitud:", error);
     if (error.response?.status === 401) {
       authService.logout();
       window.location.href = "/";

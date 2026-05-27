@@ -1,10 +1,13 @@
-import { genericConfig } from "../../../../reactztore.config";
+import { genericConfig } from "../../../../config/reactztore.config";
 import { AxiosRequest, GetAxios } from "../../axios/Axios";
 // import type {
 //   GenericRepository,
 //   RequestOptions,
 // } from "../../domain/repositories/generic/generic.repositories";
-import type { GenericRepository, RequestOptions } from "../../models/generic.repositores";
+import type {
+  GenericRepository,
+  RequestOptions,
+} from "../../models/generic.repositores";
 import type { Result } from "../../models/response.domain";
 
 export class GenericApi<T extends object> implements GenericRepository<T> {
