@@ -1,4 +1,4 @@
-import { FiDroplet, FiUser } from "react-icons/fi";
+import {  FiUser } from "react-icons/fi";
 import type { DataDisplayConfig } from "../../components/movil/view/customviewmovil";
 import type { UsersTable } from "../../../models/users/users.models";
 

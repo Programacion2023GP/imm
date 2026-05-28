@@ -2,7 +2,7 @@
 
 const env = {
    APP_KEY: "local", // Clave para WebSocket
-   VERSION: __APP_VERSION__, //import.meta.env.VITE_VERSION,
+   // VERSION: __APP_VERSION__, //import.meta.env.VITE_VERSION,
    API_URL: import.meta.env.VITE_API_URL,
    API_URL_IMG: import.meta.env.VITE_API_URL_IMG,
    NAME_SYSTEM: "GP Central",

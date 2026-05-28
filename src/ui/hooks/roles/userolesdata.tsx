@@ -52,7 +52,7 @@ const UseRoles = (): RolesDataReturn => {
     hooks: {
       onError: (msg) => console.error("[Roles]", msg),
     },
-    extension: (set, get, prefix) => ({
+    extension: (set, get) => ({
       toggleOpenRolPermission: () => {
         set({ openRolPermission: !get().openRolPermission });
       },

@@ -11,8 +11,8 @@ const useUsersData = (): UsersDataReturn => {
    const initialState = useMemo<UsersForm>(
       () => ({
       id:0,
-      id_rol:0,
-      nombre_completo:"manuel de jesus",
+      id_rol:null,
+      nombre_completo:"",
       password:"",
       usuario:"",
       activo:false

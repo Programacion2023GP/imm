@@ -7,11 +7,14 @@ const PageInterview = ({}) => {
 
   return (
     <>
-    
       <SuperCrud
         formTitles={{
           modalTitleAdd: "Agregar Entrevista",
           modalTitleUpdate: "Editar Entrevista",
+        }}
+        actionsDispatch={{
+          // ← ¡AQUÍ ESTÁ LA CLAVE!
+          UseInterview: interviewData,
         }}
         hook={interviewData}
         crudConfig={interviewBuilderCrud}

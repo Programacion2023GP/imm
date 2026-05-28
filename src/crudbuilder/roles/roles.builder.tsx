@@ -30,7 +30,7 @@ export const rolBuilderCrud = ConfigCrud<RolesForm, RolesTable, RolesDispatch>()
 
   .tableHeader({
     title: "Catalogo de roles",
-    subtitle: "ssss",
+    subtitle: "",
     icon: <FaList />,
   })
   .tableColumns({

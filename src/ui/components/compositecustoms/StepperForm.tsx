@@ -3,29 +3,7 @@ import { useFormikContext } from "formik";
 import { motion, AnimatePresence } from "framer-motion";
 import { RowComponent } from "../responsive/Responsive";
 import type { FieldItem } from "./compositeCrud";
-
-// Design system (mismo que en compositeCrud)
-const DS = {
-  bg: "#FAFAF9",
-  white: "#FFFFFF",
-  surface: "#F5F4F1",
-  border: "#D6D3CC",
-  borderFocus: "#2D2A26",
-  borderError: "#C0392B",
-  text1: "#1C1A17",
-  text2: "#6B6560",
-  text3: "#A8A39A",
-  accent: "#3730A3",
-  accentLight: "rgba(55,48,163,0.08)",
-  accentGlow: "0 0 0 3px rgba(55,48,163,0.12)",
-  errorText: "#DC2626",
-  errorBg: "#FEF2F2",
-  errorBorder: "#FCA5A5",
-  r6: "8px",
-  r8: "10px",
-  shadowMd: "0 4px 16px rgba(0,0,0,0.08)",
-  transition: "all 0.18s cubic-bezier(0.4,0,0.2,1)",
-};
+import { theme } from "../../../config/themes";
 
 interface StepperFormProps {
   sections: { title: string; fields: FieldItem[] }[];
@@ -99,7 +77,7 @@ const StepperForm: React.FC<StepperFormProps> = ({
           display: "flex",
           gap: "8px",
           marginBottom: "24px",
-          borderBottom: `1px solid ${DS.border}`,
+          borderBottom: `1px solid ${theme.colors.border.DEFAULT}`,
           paddingBottom: "8px",
           flexWrap: "wrap",
         }}
@@ -118,25 +96,31 @@ const StepperForm: React.FC<StepperFormProps> = ({
                 gap: "6px",
                 background: isActive
                   ? hasError
-                    ? DS.errorBg
-                    : DS.accent
+                    ? theme.colors.feedback.errorLight
+                    : theme.colors.primary.DEFAULT
                   : hasError
-                  ? DS.errorBg
-                  : "transparent",
+                    ? theme.colors.feedback.errorLight
+                    : "transparent",
                 color: isActive
                   ? hasError
-                    ? DS.errorText
-                    : DS.white
+                    ? theme.colors.status.error
+                    : theme.colors.text.inverse
                   : hasError
-                  ? DS.errorText
-                  : DS.text2,
-                border: `1.5px solid ${hasError ? DS.errorBorder : isActive ? DS.accent : DS.border}`,
+                    ? theme.colors.status.error
+                    : theme.colors.text.secondary,
+                border: `1.5px solid ${
+                  hasError
+                    ? theme.colors.border.error
+                    : isActive
+                      ? theme.colors.primary.DEFAULT
+                      : theme.colors.border.DEFAULT
+                }`,
                 padding: "6px 16px",
                 borderRadius: "40px",
-                fontSize: "13px",
+                fontSize: theme.typography.fontSize.sm,
                 fontWeight: isActive || hasError ? 600 : 400,
                 cursor: "pointer",
-                transition: DS.transition,
+                transition: theme.transitions.DEFAULT,
               }}
             >
               <span
@@ -151,12 +135,15 @@ const StepperForm: React.FC<StepperFormProps> = ({
                   fontWeight: 700,
                   background: isActive
                     ? hasError
-                      ? DS.errorText
+                      ? theme.colors.status.error
                       : "rgba(255,255,255,0.25)"
                     : hasError
-                    ? DS.errorText
-                    : DS.border,
-                  color: isActive || hasError ? DS.white : DS.text2,
+                      ? theme.colors.status.error
+                      : theme.colors.border.DEFAULT,
+                  color:
+                    isActive || hasError
+                      ? theme.colors.text.inverse
+                      : theme.colors.text.secondary,
                 }}
               >
                 {hasError ? "!" : idx + 1}
@@ -185,7 +172,7 @@ const StepperForm: React.FC<StepperFormProps> = ({
           justifyContent: "space-between",
           marginTop: "28px",
           paddingTop: "16px",
-          borderTop: `1px solid ${DS.border}`,
+          borderTop: `1px solid ${theme.colors.border.DEFAULT}`,
         }}
       >
         <button
@@ -195,10 +182,24 @@ const StepperForm: React.FC<StepperFormProps> = ({
           style={{
             padding: "8px 20px",
             background: "transparent",
-            border: `1px solid ${DS.border}`,
-            borderRadius: DS.r6,
+            border: `1px solid ${theme.colors.border.DEFAULT}`,
+            borderRadius: theme.radius.md,
             cursor: activeStep === 0 ? "not-allowed" : "pointer",
             opacity: activeStep === 0 ? 0.4 : 1,
+            transition: theme.transitions.DEFAULT,
+          }}
+          onMouseEnter={(e) => {
+            if (activeStep !== 0) {
+              e.currentTarget.style.background =
+                theme.colors.background.surface;
+              e.currentTarget.style.borderColor = theme.colors.border.hover;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (activeStep !== 0) {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.borderColor = theme.colors.border.DEFAULT;
+            }
           }}
         >
           ← Anterior
@@ -209,12 +210,23 @@ const StepperForm: React.FC<StepperFormProps> = ({
           disabled={formik.isSubmitting}
           style={{
             padding: "8px 24px",
-            background: DS.accent,
-            color: DS.white,
+            background: theme.colors.primary.DEFAULT,
+            color: theme.colors.text.inverse,
             border: "none",
-            borderRadius: DS.r6,
+            borderRadius: theme.radius.md,
             cursor: formik.isSubmitting ? "not-allowed" : "pointer",
             fontWeight: 600,
+            transition: theme.transitions.DEFAULT,
+          }}
+          onMouseEnter={(e) => {
+            if (!formik.isSubmitting) {
+              e.currentTarget.style.background = theme.colors.primary.dark;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!formik.isSubmitting) {
+              e.currentTarget.style.background = theme.colors.primary.DEFAULT;
+            }
           }}
         >
           {formik.isSubmitting

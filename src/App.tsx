@@ -31,9 +31,7 @@ import { env } from "./constant";
 import useAuthData from "./ui/hooks/auth/useauthdata";
 
 // Lazy imports
-const PageDepartaments = lazy(
-  () => import("./ui/pages/catalogues/departaments/PageDepartments"),
-);
+
 const PageInterview = lazy(
   () => import("./ui/pages/interview/pageinterview.page"),
 );
@@ -433,14 +431,14 @@ function App() {
               </Suspense>
             }
           />
-          <Route
+          {/* <Route
             path="departamentos"
             element={
               <Suspense fallback={<Spinner />}>
                 <PageDepartaments />
               </Suspense>
             }
-          />
+          /> */}
         </Route>
 
         <Route path="*" element={<Navigate to="/404" replace />} />

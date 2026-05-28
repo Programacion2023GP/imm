@@ -1,6 +1,6 @@
 // src/types/crud-advanced.types.ts
 import * as yup from "yup";
-import React from "react";
+import React, { ReactNode } from "react";
 
 // ==================== PERMISOS Y RBAC ====================
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete' | 'export' | 'import' | 'bulk_delete' | 'bulk_update';
@@ -24,7 +24,7 @@ export interface UserPermissions {
 
 // ==================== AUDITORÍA ====================
 export interface AuditLog {
-  [x: string]: ReactNode;
+  [x: string]: any;
   id: string;
   action: 'CREATE' | 'UPDATE' | 'DELETE' | 'BULK_DELETE' | 'BULK_UPDATE' | 'IMPORT' | 'EXPORT';
   resource: string;

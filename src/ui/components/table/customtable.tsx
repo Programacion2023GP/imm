@@ -47,7 +47,7 @@ import {
   MdOutlineKeyboardArrowRight,
   MdOutlineKeyboardArrowLeft,
 } from "react-icons/md";
-
+import { theme, type Theme } from "../../../config/themes";
 // ==================== DEEP FIELD UTILITY ====================
 const getNestedValue = (obj: any, path: string): any => {
   if (!path) return undefined;
@@ -106,7 +106,6 @@ export interface Column<T extends object> {
 }
 
 type ViewMode = "table" | "cards" | "compact";
-type Theme = "light" | "dark";
 type DensityMode = "comfortable" | "compact" | "spacious";
 type MobileViewMode =
   | "list"
@@ -202,7 +201,6 @@ export interface CustomTableHandle<T extends object = any> {
   deselectAllRows: () => void;
   getSelectedRows: () => T[];
   getFilteredRows: () => T[];
-  setTheme: (theme: Theme) => void;
   setDensity: (density: DensityMode) => void;
   setViewMode: (mode: ViewMode) => void;
   goToPage: (page: number) => void;
@@ -260,48 +258,136 @@ export interface PropsTable<T extends object> {
 }
 
 // ==================== DESIGN TOKENS ====================
-const makeTokens = (theme: Theme) => ({
-  pageBg: theme === "dark" ? "#0f0f14" : "#f5f5f8",
-  white: theme === "dark" ? "#1a1a24" : "#ffffff",
-  surface: theme === "dark" ? "#151520" : "#fafafa",
-  surfaceElevated: theme === "dark" ? "#1e1e2e" : "#ffffff",
-  hover: theme === "dark" ? "#22223a" : "#fdf4f6",
-  border: theme === "dark" ? "#2a2a40" : "#e8e8ed",
-  borderMd: theme === "dark" ? "#36364f" : "#d8d8df",
-  thead: theme === "dark" ? "#13131e" : "#f2f2f6",
-  theadBorder: theme === "dark" ? "#2a2a40" : "#e2e2ea",
-  ruby: "#9B2242",
-  rubyMid: "#b52a4f",
-  rubyLight: theme === "dark" ? "rgba(155,34,66,0.18)" : "#fceef2",
-  rubyGlow: "rgba(155,34,66,0.15)",
-  gold: "#c9920a",
-  goldLight: theme === "dark" ? "rgba(201,146,10,0.15)" : "#fef9ec",
-  green: "#16a34a",
-  greenLight: theme === "dark" ? "rgba(22,163,74,0.15)" : "#f0fdf4",
-  blue: "#2563eb",
-  blueLight: theme === "dark" ? "rgba(37,99,235,0.15)" : "#eff6ff",
-  orange: "#ea580c",
-  orangeLight: theme === "dark" ? "rgba(234,88,12,0.15)" : "#fff7ed",
-  red: "#dc2626",
-  redLight: theme === "dark" ? "rgba(220,38,38,0.15)" : "#fef2f2",
-  text1: theme === "dark" ? "#e8e8f0" : "#1a1a24",
-  text2: theme === "dark" ? "#9898b8" : "#5a5a72",
-  text3: theme === "dark" ? "#55556a" : "#9898b0",
-  r4: "6px",
-  r6: "10px",
-  r8: "14px",
-  r12: "18px",
-  shadow:
-    theme === "dark"
-      ? "0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3)"
-      : "0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.05)",
-  shadowMd:
-    theme === "dark"
-      ? "0 4px 20px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.3)"
-      : "0 4px 20px rgba(0,0,0,0.09), 0 1px 4px rgba(0,0,0,0.05)",
-  shadowHover: "0 8px 32px rgba(155,34,66,0.18), 0 2px 8px rgba(0,0,0,0.1)",
-});
+// const makeTokens = (theme: Theme) => ({
+//    const isDark = mode === "dark";
+//   return {
+//     pageBg: isDark ? "#0f0f14" : theme.colors.background.page,
+//     white: isDark ? "#1a1a24" : theme.colors.background.card,
+//     surface: isDark ? "#151520" : theme.colors.background.surface,
+//     surfaceElevated: isDark ? "#1e1e2e" : theme.colors.background.card,
+//     hover: isDark ? "#22223a" : theme.colors.feedback.primaryLight,
+//     border: isDark ? "#2a2a40" : theme.colors.border.DEFAULT,
+//     borderMd: isDark ? "#36364f" : theme.colors.border.light,
+//     thead: isDark ? "#13131e" : theme.colors.neutral[100],
+//     theadBorder: isDark ? "#2a2a40" : theme.colors.border.DEFAULT,
+//     ruby: theme.colors.component.ruby,
+//     rubyMid: theme.colors.component.rubyMid,
+//     rubyLight: theme.colors.component.rubyLight,
+//     rubyGlow: theme.colors.component.rubyGlow,
+//     gold: theme.colors.component.gold,
+//     goldLight: theme.colors.component.goldLight,
+//     green: theme.colors.component.green,
+//     greenLight: theme.colors.component.greenLight,
+//     blue: theme.colors.component.blue,
+//     blueLight: theme.colors.component.blueLight,
+//     orange: theme.colors.component.orange,
+//     orangeLight: theme.colors.component.orangeLight,
+//     red: theme.colors.component.red,
+//     redLight: theme.colors.component.redLight,
+//     text1: isDark ? "#e8e8f0" : theme.colors.text.primary,
+//     text2: isDark ? "#9898b8" : theme.colors.text.secondary,
+//     text3: isDark ? "#55556a" : theme.colors.text.placeholder,
+//     r4: theme.radius.sm,
+//     r6: theme.radius.md,
+//     r8: theme.radius.lg,
+//     r12: theme.radius.xl,
+//     shadow: isDark ? "0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3)" : theme.shadows.sm,
+//     shadowMd: isDark ? "0 4px 20px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.3)" : theme.shadows.md,
+//     shadowHover: "0 8px 32px rgba(155,34,66,0.18), 0 2px 8px rgba(0,0,0,0.1)",
+//   };
+// });
+export const makeTokens = (theme: Theme) => {
+  return {
+    // 🎨 Fondos y superficies médicas
+    pageBg: theme.colors.background.page,
+    white: theme.colors.background.card,
+    surface: theme.colors.background.surface,
+    surfaceElevated: theme.colors.background.card,
+    surfaceHover: theme.colors.background.surfaceHover,
+    hover: theme.colors.feedback.primaryLight,
+     borderMd:  theme.colors.border.light,
 
+    // 🖼️ Bordes
+    border: theme.colors.border.DEFAULT,
+    borderLight: theme.colors.border.light,
+    borderHover: theme.colors.border.hover,
+    borderFocus: theme.colors.border.focus,
+    borderError: theme.colors.border.error,
+    thead: theme.colors.neutral[100],
+    theadBorder: theme.colors.border.DEFAULT,
+
+    // 🏥 Colores por especialidad médica
+    cardiology: theme.colors.primary[700],
+    neurology: theme.colors.secondary[700],
+    emergency: theme.colors.status.critical,
+    stable: theme.colors.status.stable,
+    
+    // 🩺 Colores médicos específicos
+    ruby: theme.colors.primary[700],
+    rubyMid: theme.colors.secondary[700],
+    rubyLight: theme.colors.background.page,
+    rubyGlow: theme.colors.feedback.primaryGlow,
+    gold: theme.colors.primary[600],
+    goldLight: theme.colors.primary[400],
+    
+    // 🟢 Indicadores de severidad médica
+    critical: theme.colors.status.critical,
+    criticalLight: `${theme.colors.status.critical}1A`, // 10% opacity
+    high: '#F97316',
+    highLight: 'rgba(249,115,22,0.1)',
+    medium: theme.colors.status.warning,
+    mediumLight: `${theme.colors.status.warning}1A`,
+    low: theme.colors.status.success,
+    lowLight: `${theme.colors.status.success}1A`,
+    
+    // Estados médicos unificados
+    green: theme.colors.status.success,
+    greenLight: `${theme.colors.status.success}26`, // 15% opacity
+    blue: theme.colors.status.info,
+    blueLight: `${theme.colors.status.info}26`,
+    orange: '#ea580c',
+    orangeLight: 'rgba(234,88,12,0.15)',
+    red: theme.colors.status.error,
+    redLight: `${theme.colors.status.error}26`,
+
+    // 📝 Textos médicos
+    textPrimary: theme.colors.text.primary,
+    textSecondary: theme.colors.text.secondary,
+    textPlaceholder: theme.colors.text.placeholder,
+    textDisabled: theme.colors.text.disabled,
+    textInverse: theme.colors.text.inverse,
+    
+    // Alias para compatibilidad
+    text1: theme.colors.text.primary,
+    text2: theme.colors.text.secondary,
+    text3: theme.colors.text.placeholder,
+
+    // 📐 Radios médicos (redondeados para sensación amigable)
+    r4: theme.radius.sm,    // 6px
+    r6: theme.radius.md,    // 10px  
+    r8: theme.radius.lg,    // 14px
+    r10: theme.radius.xl,   // 18px
+    r12: theme.radius["2xl"], // 24px
+    rFull: theme.radius.full,
+
+    // 🎭 Sombras médicas
+    shadow: theme.shadows.sm,
+    shadowMd: theme.shadows.md,
+    shadowLg: theme.shadows.lg,
+    shadowCard: theme.shadows.card,
+    shadowDropdown: theme.shadows.dropdown,
+    shadowFocus: theme.shadows.focus,
+    shadowHover: `0 8px 32px ${theme.colors.primary[700]}2E, 0 2px 8px rgba(0,0,0,0.1)`, // 18% opacity de color primario
+
+    // ⚡ Transiciones
+    transitionFast: theme.transitions.fast,
+    transitionNormal: theme.transitions.normal,
+    transitionSlow: theme.transitions.slow,
+
+    // 📏 Espaciado adicional
+    spacing: theme.spacing,
+  };
+};
 // ==================== FILTER HELPERS ====================
 const DateFilterInput = ({
   field,
@@ -652,7 +738,7 @@ const CustomTableInner = <T extends object>(
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<ViewMode>(defaultView);
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
-  const [theme, setTheme] = useState<Theme>(defaultTheme);
+  // const [theme, setTheme] = useState<Theme>(null);
   const [density, setDensity] = useState<DensityMode>(defaultDensity);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [columns, setColumns] = useState(initialColumns);
@@ -716,7 +802,7 @@ const CustomTableInner = <T extends object>(
   });
   const filterTimeoutRef = useRef<any>(null);
 
-  const C = makeTokens(theme);
+  const C = useMemo(() => makeTokens(theme), []); // theme es el objeto importado
   const safeData = useMemo(() => (Array.isArray(data) ? data : []), [data]);
 
   const getRowId = useCallback(
@@ -1347,7 +1433,7 @@ const CustomTableInner = <T extends object>(
         const p = JSON.parse(saved);
         if (p.hiddenColumns) setHiddenColumns(new Set(p.hiddenColumns));
         if (p.columnWidths) setColumnWidths(p.columnWidths);
-        if (p.theme) setTheme(p.theme);
+        if (p.theme) C;
         if (p.density) setDensity(p.density);
         if (p.savedFilters) setSavedFilters(p.savedFilters);
         if (p.rowsPerPage) setRowsPerPage(p.rowsPerPage);
@@ -4905,9 +4991,9 @@ const CustomTableInner = <T extends object>(
       return null;
 
     // Determinar si debe ocupar toda la pantalla
-    const isFullscreen =null
-      // mobileConfig.bottomSheet.height === "100vh" ||
-      // mobileConfig.bottomSheet.fullscreen === true;
+    const isFullscreen = null;
+    // mobileConfig.bottomSheet.height === "100vh" ||
+    // mobileConfig.bottomSheet.fullscreen === true;
 
     return (
       <AnimatePresence>
@@ -5366,7 +5452,7 @@ const CustomTableInner = <T extends object>(
       },
       getSelectedRows: () => selectedData,
       getFilteredRows: () => sortedData,
-      setTheme,
+      
       setDensity,
       setViewMode,
       goToPage: (page) =>
@@ -5818,6 +5904,7 @@ const CustomTableInner = <T extends object>(
                     setShowColumnManager(false);
                     setShowExportMenu(false);
                   }}
+                  
                   title="Filtros guardados"
                   active={showFilterLibrary}
                   C={C}
@@ -5839,7 +5926,7 @@ const CustomTableInner = <T extends object>(
                   <FiColumns size={14} />
                 </IconBtn>
               )}
-              {enableThemeToggle && (
+              {/* {enableThemeToggle && (
                 <IconBtn
                   onClick={() =>
                     setTheme((t) => (t === "light" ? "dark" : "light"))
@@ -5853,7 +5940,7 @@ const CustomTableInner = <T extends object>(
                     <FiSun size={14} />
                   )}
                 </IconBtn>
-              )}
+              )} */}
               {enableFullscreen && (
                 <IconBtn
                   onClick={() => setIsFullscreen((f) => !f)}
@@ -6225,7 +6312,7 @@ const CustomTableInner = <T extends object>(
           renderLoadingState()
         ) : error ? (
           renderErrorState()
-        )  : isMobile ? (
+        ) : isMobile ? (
           <>
             {mobileViewMode === "list" && renderMobileListView()}
             {mobileViewMode === "compact-list" && renderMobileCompactListView()}

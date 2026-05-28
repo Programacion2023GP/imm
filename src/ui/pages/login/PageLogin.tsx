@@ -3,7 +3,7 @@ import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { FiEye, FiEyeOff, FiHeart, FiUsers, FiShield } from "react-icons/fi";
+import { FiEye, FiEyeOff, FiHeart } from "react-icons/fi";
 import { FaFemale, FaVenusMars, FaDove } from "react-icons/fa";
 import { GiRose } from "react-icons/gi";
 import { IoMdFemale, IoMdTransgender } from "react-icons/io";
@@ -313,7 +313,7 @@ const PageLoginInstitutoMujer = () => {
                     Datos protegidos por la Ley de Igualdad
                   </p>
                   <p className="text-[#727372] text-xs mt-1">
-                    Versión {import.meta.env.VITE_APP_VERSION || "2.0.0"}
+                    Versión { "2.0.0"}
                   </p>
                 </div>
               </Form>

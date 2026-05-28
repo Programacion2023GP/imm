@@ -22,7 +22,7 @@ const UseParticleSpace = (): ParticleSpaceDataReturn => {
      autoFetch: true,
      // persistKey: "departments-persist",
      hooks: {
-       onError: (msg) => console.error("[Permissions]", msg),
+       onError: (msg) => console.error("[UseParticleSpace]", msg),
      },
    });
 };

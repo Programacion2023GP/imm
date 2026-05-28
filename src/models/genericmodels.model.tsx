@@ -13,18 +13,6 @@ import type { GenericDataReturn } from "../library/reactztore/hook/usegenericdat
 // RESPONSIVE SIZES / TAMAÑOS RESPONSIVOS
 // ====================================================================
 
-/**
- * Configuración de tamaños responsivos para grids (sistema de 12 columnas de Tailwind)
- * Responsive grid sizes configuration (Tailwind 12-column system)
- *
- * @example { sm: 12, md: 6, lg: 4, xl: 3, "2xl": 2 }
- *
- * @property {number} sm - Pantallas pequeñas (< 640px) / Small screens (< 640px)
- * @property {number} md - Pantallas medianas (< 768px) / Medium screens (< 768px)
- * @property {number} lg - Pantallas grandes (< 1024px) / Large screens (< 1024px)
- * @property {number} xl - Pantallas extra grandes (< 1280px) / Extra large screens (< 1280px)
- * @property {number} "2xl" - Pantallas 2XL (≥ 1536px) / 2XL screens (≥ 1536px)
- */
 type ResponsiveSizes = {
   sm?: number;
   md?: number;
@@ -37,19 +25,8 @@ type ResponsiveSizes = {
 // BASE FIELD CONFIG / CONFIGURACIÓN BASE DE CAMPOS
 // ====================================================================
 
-/**
- * Transformación de mayúsculas/minúsculas que se aplica automáticamente al valor del campo.
- * Uppercase/lowercase transformation applied automatically to field value.
- */
 type CaseTransform = "uppercase" | "lowercase" | "none";
 
-/**
- * Tipo para los callbacks de campo que reciben el valor procesado, el contexto de Formik y los hooks externos.
- * Type for field callbacks that receive processed value, Formik context, and external hooks.
- *
- * @template TFormValues - Tipo del formulario / Form type
- * @template THooks - Tipo de los hooks externos (actionsDispatch) / External hooks type
- */
 type FieldCallback<TFormValues = any, THooks = any> = (
   value: any,
   formik: {
@@ -60,23 +37,9 @@ type FieldCallback<TFormValues = any, THooks = any> = (
     touched: Record<string, boolean>;
   },
   hooks?: THooks,
+  actions?: FieldActions<TFormValues>,
 ) => void;
 
-/**
- * Configuración base común para todos los tipos de campos
- * Base configuration common to all field types
- *
- * @property {string} label - Etiqueta visible del campo / Field visible label
- * @property {string} placeholder - Texto de ayuda dentro del input / Input placeholder text
- * @property {boolean} disabled - Deshabilita el campo (no editable) / Disables the field (not editable)
- * @property {unknown} defaultValue - Valor por defecto inicial / Initial default value
- * @property {ResponsiveSizes} responsive - Configuración responsiva (tamaños en grid) / Responsive grid configuration
- * @property {CaseTransform} caseTransform - Transformación automática de mayúsculas/minúsculas / Auto case transformation
- * @property {boolean} uppercase - (Deprecated) Usar caseTransform en su lugar / Use caseTransform instead
- * @property {(value: any) => any} transform - Función personalizada para transformar el valor antes de guardarlo / Custom transform function
- * @property {FieldCallback<TFormValues, THooks>} onChange - Callback cuando el valor cambia (después de transformar) / Callback when value changes (after transform)
- * @property {FieldCallback<TFormValues, THooks>} onInput - Callback mientras el usuario escribe (antes de commitear a Formik) / Callback while user types (before committing to Formik)
- */
 type BaseFieldConfig<TFormValues = any, THooks = any> = {
   label?: string;
   placeholder?: string;
@@ -84,35 +47,27 @@ type BaseFieldConfig<TFormValues = any, THooks = any> = {
   defaultValue?: unknown;
   responsive?: ResponsiveSizes;
   caseTransform?: CaseTransform;
-  uppercase?: boolean; // deprecated
+  uppercase?: boolean;
   transform?: (value: any) => any;
   onChange?: FieldCallback<TFormValues, THooks>;
   onInput?: FieldCallback<TFormValues, THooks>;
+  hidden?: boolean | ((values: TFormValues) => boolean);
+  onVisibilityChange?: (hidden: boolean, formik: any, hooks?: THooks) => void;
 };
+
 // ====================================================================
-// BOX GROUP TYPE / TIPO PARA AGRUPAR CAMPOS EN CAJAS DENTRO DE UNA SECCIÓN
+// BOX GROUP TYPE / TIPO PARA AGRUPAR CAMPOS EN CAJAS
 // ====================================================================
 
-/**
- * Define un grupo de campos (box) dentro de una sección del layout.
- * Cada box tiene un título y una lista de nombres de campos.
- */
-type BoxGroup = {
+type BoxGroup<TForm> = {
   title: string;
-  fields: string[];
+  fields: (keyof TForm)[];
 };
+
 // ====================================================================
-// TEXT FIELD CONFIG / CONFIGURACIÓN DE CAMPO TEXTO
+// FIELD CONFIGS EXISTENTES
 // ====================================================================
 
-/**
- * Configuración para campos de texto, email, password, número, teléfono, URL, fechas
- * Configuration for text, email, password, number, phone, URL, date fields
- *
- * @property {string} type - Tipo de input HTML / HTML input type
- * @property {boolean} readOnly - Modo solo lectura (no editable, pero puede tener valor) / Read-only mode
- * @property {Function} validation - Validación con Yup / Yup validation schema
- */
 type TextConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
@@ -133,22 +88,6 @@ type TextConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   ) => yup.Schema<unknown> | undefined;
 };
 
-// ====================================================================
-// SELECT FIELD CONFIG / CONFIGURACIÓN DE CAMPO SELECCIÓN
-// ====================================================================
-
-/**
- * Configuración para campos de selección (dropdown / autocomplete)
- * Configuration for select/dropdown/autocomplete fields
- *
- * @property {string} keyId - Nombre de la propiedad que sirve como ID único (ej: "id") / Property name for unique ID (e.g., "id")
- * @property {string} keyLabel - Nombre de la propiedad que sirve como etiqueta visible (ej: "name") / Property name for visible label (e.g., "name")
- * @property {any[]} options - Opciones estáticas / Static options array
- * @property {Function} selectOptionsHook - Hook para cargar opciones asíncronamente (ej: useRolesData) / Hook for async options loading
- * @property {boolean} multiple - Permite selección múltiple / Enables multi-selection
- * @property {boolean} searchable - Habilita búsqueda dentro de opciones / Enables search within options
- * @property {Function} validation - Validación Yup / Yup validation
- */
 type SelectConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
@@ -162,29 +101,11 @@ type SelectConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   loadingHook?: () => boolean;
   multiple?: boolean;
   searchable?: boolean;
-
   validation?: (
     ctx: ValidationContext<TFormValues>,
   ) => yup.Schema<unknown> | undefined;
 };
 
-// ====================================================================
-// FILE UPLOAD CONFIG / CONFIGURACIÓN DE CARGA DE ARCHIVOS
-// ====================================================================
-
-/**
- * Configuración para campos de carga de archivos (imágenes, documentos)
- * Configuration for file upload fields (images, documents)
- *
- * @property {FilePreset|FilePreset[]} preset - Preset de carpeta de destino / Destination folder preset
- * @property {number} maxFiles - Número máximo de archivos permitidos / Maximum number of files allowed
- * @property {number} maxSizeMB - Tamaño máximo en MB por archivo / Maximum size in MB per file
- * @property {boolean} multiple - Permite múltiples archivos / Allows multiple files
- * @property {boolean} showPreviews - Muestra previsualización de imágenes / Shows image preview
- * @property {boolean} compressImages - Comprime imágenes automáticamente / Automatically compress images
- * @property {string} hint - Texto de ayuda adicional / Additional hint text
- * @property {Function} validation - Validación Yup / Yup validation
- */
 type FileUploadConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
@@ -201,17 +122,6 @@ type FileUploadConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   ) => yup.Schema<unknown> | undefined;
 };
 
-// ====================================================================
-// COLOR PICKER CONFIG / CONFIGURACIÓN DE SELECTOR DE COLOR
-// ====================================================================
-
-/**
- * Configuración para selector de colores
- * Configuration for color picker field
- *
- * @property {string[]} palette - Paleta de colores personalizada / Custom color palette
- * @property {Function} validation - Validación Yup / Yup validation
- */
 type ColorPickerConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
@@ -222,16 +132,6 @@ type ColorPickerConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   ) => yup.Schema<unknown> | undefined;
 };
 
-// ====================================================================
-// PASSWORD FIELD CONFIG / CONFIGURACIÓN DE CAMPO CONTRASEÑA
-// ====================================================================
-
-/**
- * Configuración para campo de contraseña (con toggle de visibilidad)
- * Configuration for password field (with visibility toggle)
- *
- * @property {Function} validation - Validación Yup (ej: mínimo 8 caracteres) / Yup validation (e.g., min 8 chars)
- */
 type PasswordConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
@@ -241,18 +141,6 @@ type PasswordConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   ) => yup.Schema<unknown> | undefined;
 };
 
-// ====================================================================
-// TEXTAREA FIELD CONFIG / CONFIGURACIÓN DE ÁREA DE TEXTO
-// ====================================================================
-
-/**
- * Configuración para área de texto (textarea) multilínea
- * Configuration for multiline textarea field
- *
- * @property {number} rows - Número de filas visibles / Number of visible rows
- * @property {boolean} readOnly - Modo solo lectura / Read-only mode
- * @property {Function} validation - Validación Yup / Yup validation
- */
 type TextareaConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
@@ -265,15 +153,44 @@ type TextareaConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
 };
 
 // ====================================================================
-// NUMBER FIELD CONFIG / CONFIGURACIÓN DE CAMPO NUMÉRICO
+// ARRAY FIELD CONFIG (subformulario para listas)
 // ====================================================================
 
-/**
- * Configuración para campo numérico (con validación de rango)
- * Configuration for numeric field (with range validation)
- *
- * @property {Function} validation - Validación Yup (min, max, integer, etc.) / Yup validation (min, max, integer, etc.)
- */
+type ArrayFieldConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+  TFormValues,
+  THooks
+> & {
+  fields: ArrayFieldItem[];
+  allowAdd?: boolean;
+  allowRemove?: boolean;
+  editMode?: "inline" | "modal";
+  addButtonLabel?: string;
+  itemLabel?: string;
+  itemsLabel?: string;
+  validation?: (
+    ctx: ValidationContext<TFormValues>,
+  ) => yup.Schema<unknown> | undefined;
+};
+ type SelectKeyType = "id" | "label";
+
+// genericmodels.model.ts
+  interface ArrayFieldItem {
+    name: string;
+    label: string;
+    type: "text" | "number" | "select" | "date" | "checkbox" | "toggle";
+    required?: boolean;
+    options?: Array<{ id: any; label: string }>;
+    selectIdKey?: string;
+    selectLabelKey?: string;
+    defaultValue?: any;
+
+    // 🚀 NUEVAS PROPIEDADES PARA SELECT DINÁMICO
+    selectOptionsHook?: () => any[] | Promise<any[]>;
+    refreshActionHook?: () => () => void | Promise<void> | Promise<any>; // ← ampliado
+    addActionHook?: () => () => void;
+    loadingHook?: () => boolean;
+  }
+
 type NumberConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
@@ -283,26 +200,6 @@ type NumberConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   ) => yup.Schema<unknown> | undefined;
 };
 
-// ====================================================================
-// RADIO GROUP CONFIG / CONFIGURACIÓN DE GRUPO DE RADIO BUTTONS
-// ====================================================================
-export interface BottomSheetConfig<T = any> {
-  /** Altura del bottom sheet (píxeles o porcentaje, ej: 400, "50%", "70vh") */
-  height?: number | string;
-  /** Muestra botón de cerrar en la parte superior */
-  showCloseButton?: boolean;
-  /** Función que construye el contenido del bottom sheet. Recibe la fila y una función para cerrar. */
-  builder: (row: T, onClose: () => void) => React.ReactNode;
-}
-/**
- * Configuración para grupo de botones de opción (radio buttons)
- * Configuration for radio button group
- *
- * @property {TOption[]} options - Lista de opciones disponibles / List of available options
- * @property {keyof TOption} optionIdKey - Propiedad del objeto que sirve como ID / Object property for ID
- * @property {keyof TOption} optionLabelKey - Propiedad del objeto que sirve como etiqueta / Object property for label
- * @property {Function} validation - Validación Yup / Yup validation
- */
 type RadioGroupConfig<
   TOption = any,
   TFormValues = any,
@@ -316,16 +213,6 @@ type RadioGroupConfig<
   ) => yup.Schema<unknown> | undefined;
 };
 
-// ====================================================================
-// TOGGLE / SWITCH CONFIG / CONFIGURACIÓN DE INTERRUPTOR
-// ====================================================================
-
-/**
- * Configuración para interruptor (toggle / switch) de booleano
- * Configuration for boolean toggle/switch field
- *
- * @property {Function} validation - Validación Yup (generalmente .boolean()) / Yup validation (usually .boolean())
- */
 type ToggleConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
@@ -335,16 +222,6 @@ type ToggleConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   ) => yup.Schema<unknown> | undefined;
 };
 
-// ====================================================================
-// CHECKBOX CONFIG / CONFIGURACIÓN DE CHECKBOX
-// ====================================================================
-
-/**
- * Configuración para checkbox individual (booleano)
- * Configuration for single checkbox (boolean)
- *
- * @property {Function} validation - Validación Yup / Yup validation
- */
 type CheckboxConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
@@ -355,20 +232,80 @@ type CheckboxConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
 };
 
 // ====================================================================
+// NUEVAS CONFIGURACIONES PARA COMPONENTES AGREGADOS
+// ====================================================================
+
+type DateConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+  TFormValues,
+  THooks
+> & {
+  type?: "date" | "datetime-local" | "time" | "month" | "week";
+  min?: string;
+  max?: string;
+  validation?: (
+    ctx: ValidationContext<TFormValues>,
+  ) => yup.Schema<unknown> | undefined;
+};
+
+type DateRangeConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+  TFormValues,
+  THooks
+> & {
+  nameFrom?: string;
+  nameTo?: string;
+  labelFrom?: string;
+  labelTo?: string;
+  min?: string;
+  max?: string;
+  validation?: (
+    ctx: ValidationContext<TFormValues>,
+  ) => yup.Schema<unknown> | undefined;
+};
+
+type NumberDirectConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+  TFormValues,
+  THooks
+> & {
+  min?: number;
+  max?: number;
+  step?: number;
+  decimals?: number;
+  prefix?: string;
+  suffix?: string;
+  showStepper?: boolean;
+  validation?: (
+    ctx: ValidationContext<TFormValues>,
+  ) => yup.Schema<unknown> | undefined;
+};
+
+type SliderMark = {
+  value: number;
+  label: string;
+};
+
+type SliderConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+  TFormValues,
+  THooks
+> & {
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+  showTooltip?: boolean;
+  marks?: SliderMark[];
+  validation?: (
+    ctx: ValidationContext<TFormValues>,
+  ) => yup.Schema<unknown> | undefined;
+};
+
+// ====================================================================
 // HELPERS / UTILIDADES
 // ====================================================================
 
-/**
- * Obtiene las claves anidadas de un objeto (para paths como "user.address.city")
- * Gets nested keys of an object (for paths like "user.address.city")
- *
- * @template T - Tipo del objeto / Object type
- * @internal
- */
 type NestedKeys<T> = T extends object
   ? {
       [K in keyof T]-?: K extends string | number
-        ? T[K] extends any[] // 👈 Si es un array, NO recursiona
+        ? T[K] extends any[]
           ? `${K}`
           : T[K] extends object
             ? `${K}` | `${K}.${NestedKeys<T[K]>}`
@@ -377,45 +314,12 @@ type NestedKeys<T> = T extends object
     }[keyof T]
   : never;
 
-/**
- * Contexto de validación pasado a las funciones de validación Yup
- * Validation context passed to Yup validation functions
- *
- * @property {typeof yup} yup - Objeto Yup para crear esquemas / Yup object to create schemas
- * @property {any} value - Valor actual del campo / Current field value
- * @property {TFormValues} formData - Todos los datos del formulario / All form data
- */
 type ValidationContext<TFormValues = any> = {
   yup: typeof yup;
   value: any;
   formData: TFormValues;
 };
 
-/**
- * Configuración de una columna en la tabla (para renderizado personalizado y filtros)
- * Table column configuration (for custom rendering and filtering)
- *
- * @property {string} label - Etiqueta visible de la columna / Column visible label
- * @property {Function} render - Función para renderizar el contenido de la celda / Function to render cell content
- * @property {Function} getFilterValue - Función para obtener el valor a filtrar (útil para fechas o valores complejos) / Function to get filterable value
- * @property {string} filterType - Tipo de filtro para la columna / Column filter type
- * @property {Array<{value: any, label: string}>} filterOptions - Opciones para filtros tipo "select" o "multi-select"
- * @property {number} width - Ancho de la columna en píxeles / Column width in pixels
- * @property {number} minWidth - Ancho mínimo de la columna / Minimum column width
- * @property {string} align - Alineación del texto: "left" | "center" | "right"
- * @property {boolean} sortable - Permite ordenamiento por esta columna
- * @property {boolean} resizable - Permite redimensionar la columna
- * @property {boolean} groupable - Permite agrupar por esta columna
- * @property {string} aggregation - Tipo de agregación: "sum" | "avg" | "min" | "max" | "count"
- * @property {string} format - Formato de visualización: "currency" | "percent" | "number" | "date" | "text"
- * @property {boolean} editable - Permite edición inline
- * @property {Function} tooltip - Función que retorna el tooltip para la celda
- * @property {Function} conditionalStyle - Función que retorna estilos condicionales
- * @property {string} visibility - Visibilidad: "always" | "desktop" | "expanded" | "hidden" | "mobile"
- * @property {number} priority - Prioridad para columnas responsivas
- * @property {string} pinned - Fijar columna: "left" | "right"
- * @property {boolean} frozen - Congelar columna al hacer scroll
- */
 type TableColumnConfig<TTable> = {
   label: string;
   render?: (value: any, record: TTable) => React.ReactNode;
@@ -451,27 +355,15 @@ type TableColumnConfig<TTable> = {
 };
 
 // ====================================================================
-// TABLE ACTIONS CONFIG (Desktop) / CONFIGURACIÓN DE ACCIONES DE TABLA (ESCRITORIO)
+// TABLE ACTIONS CONFIG
 // ====================================================================
 
-/**
- * Botón de acción personalizado en la tabla (aparece en menú "Más acciones" y en swipe móvil)
- * Custom action button in table (appears in "More actions" menu and mobile swipe)
- *
- * @template TRecord - Tipo de la fila / Row type
- * @template THooks - Tipo de los hooks inyectados / Injected hooks type
- * @template TMainHook - Tipo del hook principal / Main hook type
- *
- * @property {string} label - Texto del botón / Button text
- * @property {string|React.ReactNode} icon - Ícono (puede ser string con clase CSS o componente React)
- * @property {string} iconName - Deprecated: usar 'icon' en su lugar
- * @property {string} tooltip - Texto de ayuda al hacer hover
- * @property {Function} actionHook - Función que recibe { row, hooks, mainHook } y se ejecuta al hacer clic
- * @property {Function} handleOnClick - (Deprecated) Función que recibe solo la fila
- * @property {string} color - Color del botón (opciones: "blue", "red", "green", "orange", "ruby", etc.)
- * @property {boolean} permission - Permiso requerido para mostrar el botón (si es false, se oculta)
- * @property {boolean|null} multiple - Si es true, permite selección múltiple (no implementado aún)
- */
+interface BottomSheetConfig<T = any> {
+  height?: number | string;
+  showCloseButton?: boolean;
+  builder: (row: T, onClose: () => void) => React.ReactNode;
+}
+
 interface TableActionButton<
   TRecord = any,
   THooks extends Record<string, any> = Record<string, any>,
@@ -481,35 +373,17 @@ interface TableActionButton<
   icon?: string | React.ReactNode;
   iconName?: string;
   tooltip?: string;
-  /**
-   * Acción personalizada con contexto completo tipado
-   * Custom action with full typed context
-   * @param params - { row: TRecord, hooks: THooks, mainHook?: TMainHook }
-   */
   actionHook?: (params: {
     row: TRecord;
     hooks: THooks;
     mainHook?: TMainHook;
   }) => void;
-  /** @deprecated Usa actionHook en su lugar / Use actionHook instead */
   handleOnClick?: (record: TRecord) => void;
   color?: string;
   permission?: boolean;
   multiple?: boolean | null;
 }
 
-/**
- * Configuración de acciones de la tabla (botones de editar, eliminar y personalizados)
- * Table actions configuration (edit, delete, and custom buttons)
- *
- * @template TRecord - Tipo de la fila / Row type
- * @template THooks - Tipo de los hooks inyectados / Injected hooks type
- * @template TMainHook - Tipo del hook principal / Main hook type
- *
- * @property {boolean} isEditing - Muestra el botón de editar (por defecto true)
- * @property {boolean} isDelete - Muestra el botón de eliminar (por defecto true)
- * @property {TableActionButton<TRecord, THooks, TMainHook>[]} moreButtons - Botones personalizados adicionales
- */
 interface TableActionsConfig<
   TRecord = any,
   THooks extends Record<string, any> = Record<string, any>,
@@ -520,14 +394,6 @@ interface TableActionsConfig<
   moreButtons?: TableActionButton<TRecord, THooks, TMainHook>[];
 }
 
-/**
- * Configuración del encabezado de la tabla (título, subtítulo, ícono)
- * Table header configuration (title, subtitle, icon)
- *
- * @property {string} title - Título principal de la tabla / Main table title
- * @property {string} subtitle - Subtítulo / Subtitle
- * @property {string|React.ReactNode} icon - Ícono (string con clase CSS o componente React)
- */
 interface TableHeaderConfig {
   title?: string;
   subtitle?: string;
@@ -535,18 +401,9 @@ interface TableHeaderConfig {
 }
 
 // ====================================================================
-// MOBILE CONFIGURATION / CONFIGURACIÓN MÓVIL
+// MOBILE CONFIGURATION
 // ====================================================================
 
-/**
- * Ítem de acción para deslizamiento (swipe) en móvil
- * Swipe action item for mobile
- *
- * @property {React.ReactNode} icon - Ícono a mostrar (componente React)
- * @property {string} color - Color de fondo (clase de Tailwind como "bg-red-500")
- * @property {string} label - Etiqueta opcional / Optional label
- * @property {Function} action - Acción a ejecutar (recibe la fila)
- */
 interface SwipeActionItem {
   icon: React.ReactNode;
   color: string;
@@ -554,27 +411,11 @@ interface SwipeActionItem {
   action?: (row: any) => void;
 }
 
-/**
- * Configuración de acciones de deslizamiento (swipe) para móvil
- * Swipe actions configuration for mobile
- *
- * @property {SwipeActionItem[]} left - Acciones al deslizar hacia la IZQUIERDA (acción DETRÁS del elemento)
- * @property {SwipeActionItem[]} right - Acciones al deslizar hacia la DERECHA (acción DETRÁS del elemento)
- */
 interface SwipeActionsConfig {
   left?: SwipeActionItem[];
   right?: SwipeActionItem[];
 }
 
-/**
- * Configuración de cómo se muestra cada elemento en la lista móvil
- * Configuration of how each item appears in mobile list
- *
- * @property {Function} leading - Elemento a la izquierda (avatar, ícono, imagen)
- * @property {Function} title - Título principal (negrita, más grande)
- * @property {Function} subtitle - Subtítulo (texto gris, más pequeño)
- * @property {Function} trailing - Elemento a la derecha (badge, estado, etc.)
- */
 interface MobileListTileConfig<T = any> {
   leading?: (row: T) => React.ReactNode;
   title?: (row: T) => React.ReactNode;
@@ -582,22 +423,8 @@ interface MobileListTileConfig<T = any> {
   trailing?: (row: T) => React.ReactNode;
 }
 
-/**
- * Tipos de filtro disponibles para el filtro rápido móvil
- * Available filter types for mobile quick filter
- */
 type MobileQuickFilterType = "text" | "date" | "select" | "number";
 
-/**
- * Ítem de filtro rápido para móvil (aparece en el modal de filtros)
- * Quick filter item for mobile (appears in filter modal)
- *
- * @property {keyof TTable} dataField - Campo de la tabla a filtrar
- * @property {string} label - Etiqueta visible del filtro
- * @property {MobileQuickFilterType} type - Tipo de filtro
- * @property {Array<{label: string, value: any}>} options - Opciones para el tipo "select"
- * @property {string} placeholder - Texto de ayuda en el input
- */
 interface MobileQuickFilterItem<TTable = any> {
   dataField: keyof TTable;
   label: string;
@@ -606,28 +433,11 @@ interface MobileQuickFilterItem<TTable = any> {
   placeholder?: string;
 }
 
-/**
- * Configuración de filtros rápidos para móvil
- * Quick filters configuration for mobile
- *
- * @property {boolean} enabled - Habilita el botón de filtros en móvil
- * @property {MobileQuickFilterItem[]} filters - Lista de filtros disponibles
- */
 interface MobileQuickFiltersConfig<TTable = any> {
   enabled?: boolean;
   filters?: MobileQuickFilterItem<TTable>[];
 }
 
-/**
- * Configuración completa para la experiencia móvil de la tabla
- * Complete configuration for mobile table experience
- *
- * @property {boolean} enabled - Habilita/deshabilita toda la configuración móvil
- * @property {boolean} activeViews - Muestra el selector de vistas (lista, tarjetas, timeline, etc.)
- * @property {MobileListTileConfig} listTile - Personalización del aspecto de cada fila
- * @property {SwipeActionsConfig} swipeActions - Acciones de deslizamiento (swipe)
- * @property {MobileQuickFiltersConfig} quickFilters - Filtros rápidos en modal
- */
 interface MobileConfig<T = any> {
   enabled?: boolean;
   activeViews?: boolean;
@@ -638,13 +448,9 @@ interface MobileConfig<T = any> {
 }
 
 // ====================================================================
-// OVERRIDES COMPONENTS / COMPONENTES SOBRESCRITOS
+// OVERRIDES COMPONENTS
 // ====================================================================
 
-/**
- * Componentes personalizados para sobrescribir el renderizado de campos y tabla
- * Custom components to override field and table rendering
- */
 export interface OverrideComponents {
   text?: React.ComponentType<OverrideFieldProps>;
   select?: React.ComponentType<OverrideSelectProps>;
@@ -657,16 +463,14 @@ export interface OverrideComponents {
   toggle?: React.ComponentType<OverrideFieldProps>;
   checkbox?: React.ComponentType<OverrideFieldProps>;
   date?: React.ComponentType<OverrideFieldProps>;
-  range?: React.ComponentType<OverrideFieldProps>;
+  daterange?: React.ComponentType<OverrideFieldProps>;
+  numberdirect?: React.ComponentType<OverrideFieldProps>;
+  slider?: React.ComponentType<OverrideFieldProps>;
   tableColumns?: React.ComponentType<OverrideTableProps>;
   submitButton?: React.ComponentType<OverrideSubmitButtonProps>;
   [fieldName: string]: React.ComponentType<any> | undefined;
 }
 
-/**
- * Props estándar para componentes de campo sobrescritos
- * Standard props for overridden field components
- */
 export interface OverrideFieldProps {
   name: string;
   label?: string;
@@ -678,23 +482,16 @@ export interface OverrideFieldProps {
   required?: boolean;
   disabled?: boolean;
   placeholder?: string;
+  responsive:ResponsiveSizes
   [key: string]: any;
 }
 
-/**
- * Props específicas para componentes de selección sobrescritos
- * Specific props for overridden select components
- */
 export interface OverrideSelectProps extends OverrideFieldProps {
   options?: Array<{ id: string | number; name: string; [key: string]: any }>;
   multiple?: boolean;
   searchable?: boolean;
 }
 
-/**
- * Props para componente de tabla sobrescrito
- * Props for overridden table component
- */
 export interface OverrideTableProps<T = any> {
   columns: Array<{
     field: string;
@@ -709,10 +506,6 @@ export interface OverrideTableProps<T = any> {
   headerConfig?: TableHeaderConfig;
 }
 
-/**
- * Props para botón de envío sobrescrito
- * Props for overridden submit button
- */
 export interface OverrideSubmitButtonProps {
   isSubmitting?: boolean;
   label?: string;
@@ -721,13 +514,9 @@ export interface OverrideSubmitButtonProps {
 }
 
 // ====================================================================
-// BUILD RESULT / RESULTADO DEL CONSTRUCTOR (ahora con THooks)
+// BUILD RESULT
 // ====================================================================
 
-/**
- * Resultado final de la configuración del CRUD
- * Final CRUD configuration output
- */
 export type BuildResult<TForm = any, TTable = any, THooks = any> = {
   textFields: string[];
   selectFields: string[];
@@ -739,8 +528,13 @@ export type BuildResult<TForm = any, TTable = any, THooks = any> = {
   radioFields: string[];
   toggleFields: string[];
   checkboxFields: string[];
+  dateFields: string[];
+  dateRangeFields: string[];
+  numberDirectFields: string[];
+  sliderFields: string[];
+  arrayFields: string[];
+arrayConfigs: Record<string, ArrayFieldConfig<TForm, THooks>>;
   textConfigs: Record<string, TextConfig<TForm, THooks>>;
-  tableColumns: Record<string, TableColumnConfig<TTable>>;
   selectConfigs: Record<string, SelectConfig<TForm, THooks>>;
   fileConfigs: Record<string, FileUploadConfig<TForm, THooks>>;
   colorConfigs: Record<string, ColorPickerConfig<TForm, THooks>>;
@@ -750,10 +544,19 @@ export type BuildResult<TForm = any, TTable = any, THooks = any> = {
   radioConfigs: Record<string, RadioGroupConfig<any, TForm, THooks>>;
   toggleConfigs: Record<string, ToggleConfig<TForm, THooks>>;
   checkboxConfigs: Record<string, CheckboxConfig<TForm, THooks>>;
+  dateConfigs: Record<string, DateConfig<TForm, THooks>>;
+  dateRangeConfigs: Record<string, DateRangeConfig<TForm, THooks>>;
+  numberDirectConfigs: Record<string, NumberDirectConfig<TForm, THooks>>;
+  sliderConfigs: Record<string, SliderConfig<TForm, THooks>>;
+  tableColumns: Record<string, TableColumnConfig<TTable>>;
   tableConfig: Record<string, TableColumnConfig<TTable>>;
   tableActions?: TableActionsConfig<TTable>;
   tableHeader?: TableHeaderConfig;
-  uiLayout: any;
+  uiLayout: {
+    mode: "stepper" | "box";
+    sections: readonly string[];
+    fieldsPerSection: Record<string, any>;
+  };
   validationSchema: any;
   overrides: OverrideComponents;
   render: ((ctx: RenderContext<TForm, TTable>) => React.ReactNode) | null;
@@ -763,13 +566,9 @@ export type BuildResult<TForm = any, TTable = any, THooks = any> = {
 };
 
 // ====================================================================
-// RENDER CONTEXT / CONTEXTO DE RENDERIZADO
+// RENDER CONTEXT
 // ====================================================================
 
-/**
- * Contexto de renderizado para la función personalizada de render
- * Render context for custom render function
- */
 export type RenderContext<TForm, TTable> = {
   fields: {
     text: Array<{
@@ -832,13 +631,25 @@ export type RenderContext<TForm, TTable> = {
       config: any;
       props: any;
     }>;
-    date?: Array<{
+    date: Array<{
       name: string;
       component: React.ComponentType<OverrideFieldProps>;
       config: any;
       props: any;
     }>;
-    range?: Array<{
+    daterange: Array<{
+      name: string;
+      component: React.ComponentType<OverrideFieldProps>;
+      config: any;
+      props: any;
+    }>;
+    numberdirect: Array<{
+      name: string;
+      component: React.ComponentType<OverrideFieldProps>;
+      config: any;
+      props: any;
+    }>;
+    slider: Array<{
       name: string;
       component: React.ComponentType<OverrideFieldProps>;
       config: any;
@@ -846,16 +657,7 @@ export type RenderContext<TForm, TTable> = {
     }>;
   };
   Formik: React.ComponentType<{
-    children: (formikBag: {
-      values: TForm;
-      setFieldValue: (name: string, value: any) => void;
-      setFieldTouched: (name: string, touched: boolean) => void;
-      errors: Record<string, string>;
-      touched: Record<string, boolean>;
-      isSubmitting: boolean;
-      submitForm: () => Promise<void>;
-      handleSubmit: () => void;
-    }) => React.ReactNode;
+    children: (formikBag: any) => React.ReactNode;
   }>;
   Table?: React.ComponentType<{}>;
   overrides: OverrideComponents;
@@ -868,31 +670,14 @@ export type RenderContext<TForm, TTable> = {
 };
 
 // ====================================================================
-// CONFIGURATION BUILDER / CONSTRUCTOR DE CONFIGURACIÓN (ahora con THooks)
+// CONFIGURATION BUILDER
 // ====================================================================
 
-/**
- * Constructor fluido para configurar un CRUD completo
- * Fluent builder for complete CRUD configuration
- *
- * @template TForm - Tipo del formulario (datos que se guardan en BD)
- * @template TTable - Tipo de la tabla (datos enriquecidos para mostrar)
- * @template THooks - Tipo de los hooks externos (actionsDispatch) que se pasan a SuperCrud
- *
- * @example
- * const config = ConfigCrud<MyForm, MyTable, MyHooks>()
- *   .fields({ select: ["role_id"] })
- *   .select({ role_id: { label: "Rol", keyId: "id", keyLabel: "name",
- *     onChange: (value, formik, hooks) => { hooks?.myFunction(value); }
- *   }})
- *   .build();
- */
 export const ConfigCrud = <
   TForm extends object,
   TTable extends object = TForm,
   THooks = any,
 >() => {
-  // Listas de campos / Field lists
   let textFieldsList: (NestedKeys<TForm> & string)[] = [];
   let selectFieldsList: (NestedKeys<TForm> & string)[] = [];
   let fileFieldsList: (NestedKeys<TForm> & string)[] = [];
@@ -903,8 +688,12 @@ export const ConfigCrud = <
   let radioFieldsList: (NestedKeys<TForm> & string)[] = [];
   let toggleFieldsList: (NestedKeys<TForm> & string)[] = [];
   let checkboxFieldsList: (NestedKeys<TForm> & string)[] = [];
-
-  // Configuraciones / Configurations (ahora con THooks)
+  let dateFieldsList: (NestedKeys<TForm> & string)[] = [];
+  let dateRangeFieldsList: (NestedKeys<TForm> & string)[] = [];
+  let numberDirectFieldsList: (NestedKeys<TForm> & string)[] = [];
+  let sliderFieldsList: (NestedKeys<TForm> & string)[] = [];
+  let arrayFieldsList: (NestedKeys<TForm> & string)[] = []; // ← AGREGAR
+  let arrayConfigs: Record<string, ArrayFieldConfig<TForm, THooks>> = {}; // ← AGREGAR
   let textConfigs: Record<string, TextConfig<TForm, THooks>> = {};
   let selectConfigs: Record<string, SelectConfig<TForm, THooks>> = {};
   let fileConfigs: Record<string, FileUploadConfig<TForm, THooks>> = {};
@@ -915,23 +704,24 @@ export const ConfigCrud = <
   let radioConfigs: Record<string, RadioGroupConfig<any, TForm, THooks>> = {};
   let toggleConfigs: Record<string, ToggleConfig<TForm, THooks>> = {};
   let checkboxConfigs: Record<string, CheckboxConfig<TForm, THooks>> = {};
+  let dateConfigs: Record<string, DateConfig<TForm, THooks>> = {};
+  let dateRangeConfigs: Record<string, DateRangeConfig<TForm, THooks>> = {};
+  let numberDirectConfigs: Record<
+    string,
+    NumberDirectConfig<TForm, THooks>
+  > = {};
+  let sliderConfigs: Record<string, SliderConfig<TForm, THooks>> = {};
+
   let tableConfig: Record<string, TableColumnConfig<TTable>> = {};
   let uiLayoutConfig: any = null;
-
-  // Configuraciones de tabla / Table configurations
   let tableActionsConfig: TableActionsConfig<TTable> | undefined = undefined;
   let tableHeaderConfig: TableHeaderConfig | undefined = undefined;
   let mobileConfigValue: MobileConfig<TTable> | undefined = undefined;
-
-  // Overrides y render / Overrides and render
   let overrideComponents: OverrideComponents = {};
   let renderFunction:
     | ((ctx: RenderContext<TForm, TTable>) => React.ReactNode)
     | null = null;
 
-  /**
-   * Construye el esquema de validación Yup combinando todas las validaciones de los campos
-   */
   const buildValidationSchema = () => {
     const schema: Record<string, yup.Schema<unknown>> = {};
     const addValidations = (configs: Record<string, any>) => {
@@ -956,21 +746,37 @@ export const ConfigCrud = <
     addValidations(radioConfigs);
     addValidations(toggleConfigs);
     addValidations(checkboxConfigs);
+    addValidations(dateConfigs);
+    addValidations(dateRangeConfigs);
+    addValidations(numberDirectConfigs);
+    addValidations(sliderConfigs);
+    addValidations(arrayConfigs); // ← AGREGAR
+    Object.entries(arrayConfigs).forEach(([field, cfg]) => {
+      if (!cfg.validation && schema[field] === undefined) {
+        schema[field] = yup.array().of(yup.mixed());
+      }
+    });
     return yup.object().shape(schema);
   };
 
   const api = {
     fields: <
-      TText extends readonly (NestedKeys<TForm> & string)[],
-      TSelect extends readonly (NestedKeys<TForm> & string)[],
-      TFile extends readonly (NestedKeys<TForm> & string)[],
-      TColor extends readonly (NestedKeys<TForm> & string)[],
-      TPassword extends readonly (NestedKeys<TForm> & string)[],
-      TTextarea extends readonly (NestedKeys<TForm> & string)[],
-      TNumber extends readonly (NestedKeys<TForm> & string)[],
-      TRadio extends readonly (NestedKeys<TForm> & string)[],
-      TToggle extends readonly (NestedKeys<TForm> & string)[],
-      TCheckbox extends readonly (NestedKeys<TForm> & string)[],
+      TText extends readonly (NestedKeys<TForm> & string)[] = readonly [],
+      TSelect extends readonly (NestedKeys<TForm> & string)[] = readonly [],
+      TFile extends readonly (NestedKeys<TForm> & string)[] = readonly [],
+      TColor extends readonly (NestedKeys<TForm> & string)[] = readonly [],
+      TPassword extends readonly (NestedKeys<TForm> & string)[] = readonly [],
+      TTextarea extends readonly (NestedKeys<TForm> & string)[] = readonly [],
+      TNumber extends readonly (NestedKeys<TForm> & string)[] = readonly [],
+      TRadio extends readonly (NestedKeys<TForm> & string)[] = readonly [],
+      TToggle extends readonly (NestedKeys<TForm> & string)[] = readonly [],
+      TCheckbox extends readonly (NestedKeys<TForm> & string)[] = readonly [],
+      TDate extends readonly (NestedKeys<TForm> & string)[] = readonly [],
+      TDateRange extends readonly (NestedKeys<TForm> & string)[] = readonly [],
+      TNumberDirect extends readonly (NestedKeys<TForm> & string)[] =
+        readonly [],
+      TSlider extends readonly (NestedKeys<TForm> & string)[] = readonly [],
+      TArray extends readonly (NestedKeys<TForm> & string)[] = readonly [],
     >(config: {
       text?: TText;
       select?: TSelect;
@@ -982,7 +788,50 @@ export const ConfigCrud = <
       radio?: TRadio;
       toggle?: TToggle;
       checkbox?: TCheckbox;
+      date?: TDate;
+      daterange?: TDateRange;
+      numberdirect?: TNumberDirect;
+      slider?: TSlider;
+      array?: TArray; // ← AGREGAR
     }) => {
+      // ============================================================
+      // VALIDACIÓN EN TIEMPO DE EJECUCIÓN: NO REPETIR CAMPOS
+      // ============================================================
+      const usedFields = new Map<string, string>(); // field -> tipo donde se declaró primero
+      const allTypes = [
+        "text",
+        "select",
+        "file",
+        "color",
+        "password",
+        "textarea",
+        "number",
+        "radio",
+        "toggle",
+        "checkbox",
+        "date",
+        "daterange",
+        "numberdirect",
+        "slider",
+        "array", // ← AGREGAR
+      ] as const;
+
+      for (const type of allTypes) {
+        const fields = config[type];
+        if (Array.isArray(fields)) {
+          for (const field of fields) {
+            if (usedFields.has(field)) {
+              const previousType = usedFields.get(field);
+              throw new Error(
+                `❌ ConfigCrud: El campo "${field}" ya fue declarado en '${previousType}' y no puede repetirse en '${type}'. Los campos deben ser únicos por formulario.`,
+              );
+            }
+            usedFields.set(field, type);
+          }
+        }
+      }
+      // ============================================================
+
       if (config.text) textFieldsList = [...config.text];
       if (config.select) selectFieldsList = [...config.select];
       if (config.file) fileFieldsList = [...config.file];
@@ -993,7 +842,12 @@ export const ConfigCrud = <
       if (config.radio) radioFieldsList = [...config.radio];
       if (config.toggle) toggleFieldsList = [...config.toggle];
       if (config.checkbox) checkboxFieldsList = [...config.checkbox];
-
+      if (config.date) dateFieldsList = [...config.date];
+      if (config.daterange) dateRangeFieldsList = [...config.daterange];
+      if (config.numberdirect)
+        numberDirectFieldsList = [...config.numberdirect];
+      if (config.slider) sliderFieldsList = [...config.slider];
+      if (config.array) arrayFieldsList = [...config.array];
       type AllAllowed =
         | TText[number]
         | TSelect[number]
@@ -1004,7 +858,11 @@ export const ConfigCrud = <
         | TNumber[number]
         | TRadio[number]
         | TToggle[number]
-        | TCheckbox[number];
+        | TCheckbox[number]
+        | TDate[number]
+        | TDateRange[number]
+        | TNumberDirect[number]
+        | TSlider[number];
 
       const methods = {
         text: (
@@ -1085,6 +943,44 @@ export const ConfigCrud = <
           checkboxConfigs = { ...checkboxConfigs, ...newConfig };
           return methods;
         },
+        date: (
+          newConfig: Partial<Record<TDate[number], DateConfig<TForm, THooks>>>,
+        ) => {
+          dateConfigs = { ...dateConfigs, ...newConfig };
+          return methods;
+        },
+        daterange: (
+          newConfig: Partial<
+            Record<TDateRange[number], DateRangeConfig<TForm, THooks>>
+          >,
+        ) => {
+          dateRangeConfigs = { ...dateRangeConfigs, ...newConfig };
+          return methods;
+        },
+        numberdirect: (
+          newConfig: Partial<
+            Record<TNumberDirect[number], NumberDirectConfig<TForm, THooks>>
+          >,
+        ) => {
+          numberDirectConfigs = { ...numberDirectConfigs, ...newConfig };
+          return methods;
+        },
+        slider: (
+          newConfig: Partial<
+            Record<TSlider[number], SliderConfig<TForm, THooks>>
+          >,
+        ) => {
+          sliderConfigs = { ...sliderConfigs, ...newConfig };
+          return methods;
+        },
+        array: (
+          newConfig: Partial<
+            Record<TArray[number], ArrayFieldConfig<TForm, THooks>>
+          >,
+        ) => {
+          arrayConfigs = { ...arrayConfigs, ...newConfig };
+          return methods;
+        },
         tableColumns: (
           newConfig: Partial<Record<keyof TTable, TableColumnConfig<TTable>>>,
         ) => {
@@ -1108,18 +1004,27 @@ export const ConfigCrud = <
           mobileConfigValue = config;
           return methods;
         },
-        layout: <TNames extends readonly string[]>(uiConfig: {
-          mode: "stepper" | "box";
-          sections: TNames;
-          fieldsPerSection: {
-            [K in TNames[number]]:
-              | AllAllowed[] // forma simple: solo nombres de campos
-              | BoxGroup[]; // forma con boxes: título + lista de campos
-          };
-        }) => {
-          uiLayoutConfig = uiConfig;
-          return methods;
-        },
+        layout:
+          <TNames extends string[]>(
+            mode: "stepper" | "box",
+            ...sections: TNames
+          ) =>
+          <
+            TFieldsPerSection extends {
+              [K in TNames[number]]:
+                | (NestedKeys<TForm> & string)[]
+                | BoxGroup<TForm>[];
+            },
+          >(
+            fieldsPerSection: TFieldsPerSection,
+          ) => {
+            uiLayoutConfig = {
+              mode,
+              sections: sections as unknown as readonly string[],
+              fieldsPerSection: fieldsPerSection as any,
+            };
+            return methods;
+          },
         override: (overrides: {
           text?: React.ComponentType<OverrideFieldProps>;
           select?: React.ComponentType<OverrideSelectProps>;
@@ -1132,7 +1037,9 @@ export const ConfigCrud = <
           toggle?: React.ComponentType<OverrideFieldProps>;
           checkbox?: React.ComponentType<OverrideFieldProps>;
           date?: React.ComponentType<OverrideFieldProps>;
-          range?: React.ComponentType<OverrideFieldProps>;
+          daterange?: React.ComponentType<OverrideFieldProps>;
+          numberdirect?: React.ComponentType<OverrideFieldProps>;
+          slider?: React.ComponentType<OverrideFieldProps>;
           tableColumns?: React.ComponentType<OverrideTableProps<TTable>>;
           submitButton?: React.ComponentType<OverrideSubmitButtonProps>;
           [fieldName: string]: React.ComponentType<any> | undefined;
@@ -1147,8 +1054,8 @@ export const ConfigCrud = <
           return methods;
         },
         build: (): BuildResult<TForm, TTable, THooks> => ({
-          tableColumns: tableConfig,
-          tableConfig: tableConfig,
+          arrayFields: arrayFieldsList, // ← AGREGAR
+          arrayConfigs: arrayConfigs,
           textFields: textFieldsList,
           selectFields: selectFieldsList,
           fileFields: fileFieldsList,
@@ -1159,6 +1066,10 @@ export const ConfigCrud = <
           radioFields: radioFieldsList,
           toggleFields: toggleFieldsList,
           checkboxFields: checkboxFieldsList,
+          dateFields: dateFieldsList,
+          dateRangeFields: dateRangeFieldsList,
+          numberDirectFields: numberDirectFieldsList,
+          sliderFields: sliderFieldsList,
           textConfigs,
           selectConfigs,
           fileConfigs,
@@ -1169,6 +1080,12 @@ export const ConfigCrud = <
           radioConfigs,
           toggleConfigs,
           checkboxConfigs,
+          dateConfigs,
+          dateRangeConfigs,
+          numberDirectConfigs,
+          sliderConfigs,
+          tableColumns: tableConfig,
+          tableConfig: tableConfig,
           tableActions: tableActionsConfig,
           tableHeader: tableHeaderConfig,
           mobileConfig: mobileConfigValue,
@@ -1195,7 +1112,27 @@ export const ConfigCrud = <
 };
 
 // ====================================================================
-// EXPORTED TYPES / TIPOS EXPORTADOS
+// FIELD ACTIONS
+// ====================================================================
+
+type FieldActions<TFormValues> = {
+  setHidden: <K extends keyof TFormValues>(field: K, hidden: boolean) => void;
+  setRequired: <K extends keyof TFormValues>(
+    field: K,
+    required: boolean,
+  ) => void;
+  setDisabled: <K extends keyof TFormValues>(
+    field: K,
+    disabled: boolean,
+  ) => void;
+  setValue: <K extends keyof TFormValues>(
+    field: K,
+    value: TFormValues[K],
+  ) => void;
+};
+
+// ====================================================================
+// EXPORTED TYPES
 // ====================================================================
 
 export type {
@@ -1210,6 +1147,11 @@ export type {
   RadioGroupConfig,
   ToggleConfig,
   CheckboxConfig,
+  DateConfig,
+  DateRangeConfig,
+  NumberDirectConfig,
+  SliderConfig,
+  SliderMark,
   TableActionButton,
   TableActionsConfig,
   TableHeaderConfig,
@@ -1221,4 +1163,8 @@ export type {
   CaseTransform,
   FieldCallback,
   BoxGroup,
+  FieldActions,
+  BottomSheetConfig,
+  ArrayFieldConfig, // ← AGREGAR
+  ArrayFieldItem,
 };

@@ -6,6 +6,7 @@ import React, {
   useCallback,
   memo,
   useRef,
+  useImperativeHandle,
 } from "react";
 import ReactDOM from "react-dom";
 
@@ -30,6 +31,11 @@ import {
   FormikRadio,
   FormikColorPicker,
   FormikMultiSelect,
+  FormikDatePicker,
+  FormikDateRange,
+  FormikNumberDirect,
+  FormikSlider,
+  FormikArrayTable,
 } from "../../formik/FormikInputs/FormikInput";
 import { RowComponent } from "../../components/responsive/Responsive";
 import FormikFileInput from "../../formik/FormikInputs/forminputimage";
@@ -47,9 +53,13 @@ import type {
   MobileQuickFiltersConfig,
   MobileConfig,
   BoxGroup,
+  ArrayFieldItem,
 } from "../../../models/genericmodels.model";
 import { icons } from "../../../constant";
 import type { GenericDataReturn } from "../../../library/reactztore/hook/usegenericdata";
+
+// 🎨 Importamos el tema global
+import { theme } from "../../../config/themes";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ResponsiveSizes = {
@@ -75,7 +85,51 @@ export interface FieldItem {
     | "Password"
     | "TextArea"
     | "Number"
-    | "Radio";
+    | "Radio"
+    | "Date"
+    | "DateRange"
+    | "NumberDirect"
+    | "Slider"
+    | "Array"; // ← AGREGAR "Array"
+
+  dateConfig?: {
+    type?: "date" | "datetime-local" | "time" | "month" | "week";
+    min?: string;
+    max?: string;
+  };
+  dateRangeConfig?: {
+    nameFrom: string;
+    nameTo: string;
+    labelFrom?: string;
+    labelTo?: string;
+    min?: string;
+    max?: string;
+  };
+  numberDirectConfig?: {
+    min?: number;
+    max?: number;
+    step?: number;
+    decimals?: number;
+    prefix?: string;
+    suffix?: string;
+    showStepper?: boolean;
+  };
+  sliderConfig?: {
+    min?: number;
+    max?: number;
+    step?: number;
+    unit?: string;
+    showTooltip?: boolean;
+    marks?: Array<{ value: number; label: string }>;
+  };
+  arrayConfig?: {
+    fields: ArrayFieldItem[];
+    allowAdd?: boolean;
+    allowRemove?: boolean;
+    addButtonLabel?: string;
+    itemLabel?: string;
+  };
+
   disabled?: boolean;
   required?: boolean;
   type?: string;
@@ -86,6 +140,8 @@ export interface FieldItem {
   renderField?: (value: any, row: any) => React.ReactNode;
   responsive?: ResponsiveSizes;
   selectOptions?: any[];
+  hidden?: boolean | ((values: any) => boolean); // 👈 NUEVO
+
   selectOptionsHook?: () => any[] | Promise<any[]>;
   selectIdKey?: string;
   selectLabelKey?: string;
@@ -98,8 +154,8 @@ export interface FieldItem {
   addActionHook?: () => () => void;
   radioConfig?: {
     options: any[];
-    idKey: string;
-    labelKey: string;
+    optionIdKey: string;
+    optionLabelKey: string;
   };
   placeholder?: string;
   uppercase?: boolean;
@@ -135,7 +191,7 @@ interface PropsCrud<
   actionsDispatch?: THooks;
 }
 
-// ─── PortalDropdown ────────────────────────────────────────────────────────────
+// ─── PortalDropdown (con theme) ────────────────────────────────────────────────
 interface PortalDropdownProps {
   anchorRef: React.RefObject<HTMLElement>;
   isOpen: boolean;
@@ -215,10 +271,14 @@ const PortalDropdown = ({
         bottom: coords.bottom,
         left: coords.left,
         transform: "translateX(-100%)",
-        zIndex: 9999,
+        zIndex: theme.zIndex.portal,
         minWidth: "160px",
+        background: theme.colors.background.card,
+        border: `1px solid ${theme.colors.border.DEFAULT}`,
+        borderRadius: theme.radius.md,
+        boxShadow: theme.shadows.dropdown,
+        overflow: "hidden",
       }}
-      className="bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden"
     >
       <div className="py-1">{children}</div>
     </div>,
@@ -226,7 +286,7 @@ const PortalDropdown = ({
   );
 };
 
-// ─── ActionButtons ─────────────────────────────────────────────────────────────
+// ─── ActionButtons (con theme) ─────────────────────────────────────────────────
 interface ActionButtonsProps<
   TRecord,
   THooks extends Record<string, any> = Record<string, any>,
@@ -392,29 +452,7 @@ const ActionButtons = <
   );
 };
 
-// ─── Design System ──────────────────────────────────────────────────────────────
-const DS = {
-  bg: "#FAFAF9",
-  white: "#FFFFFF",
-  surface: "#F5F4F1",
-  border: "#D6D3CC",
-  borderFocus: "#2D2A26",
-  borderError: "#C0392B",
-  text1: "#1C1A17",
-  text2: "#6B6560",
-  text3: "#A8A39A",
-  accent: "#3730A3",
-  accentLight: "rgba(55,48,163,0.08)",
-  accentGlow: "0 0 0 3px rgba(55,48,163,0.12)",
-  errorText: "#DC2626",
-  errorBg: "#FEF2F2",
-  errorBorder: "#FCA5A5",
-  r6: "8px",
-  r8: "10px",
-  shadowMd: "0 4px 16px rgba(0,0,0,0.08)",
-  transition: "all 0.18s cubic-bezier(0.4,0,0.2,1)",
-};
-
+// ─── Design System (ahora usa el tema global) ─────────────────────────────────
 const DEFAULT_RESPONSIVE: ResponsiveSizes = {
   sm: 12,
   md: 12,
@@ -423,7 +461,7 @@ const DEFAULT_RESPONSIVE: ResponsiveSizes = {
   "2xl": 12,
 };
 
-// ─── Date helpers ───────────────────────────────────────────────────────────────
+// ─── Date helpers (se mantienen igual) ─────────────────────────────────────────
 const isISODateString = (value: any): boolean => {
   if (typeof value !== "string") return false;
   const isoDateRegex =
@@ -507,7 +545,7 @@ export const prepareForBackend = <T = any,>(obj: T): T => {
   return transformDatesInObject(obj, toISOFullFormat);
 };
 
-// ─── Fallback UI Components ─────────────────────────────────────────────────────
+// ─── Fallback UI Components adaptados al theme ────────────────────────────────
 const SearchBar = ({ value, onChange, placeholder, debounceMs = 300 }: any) => {
   const [localValue, setLocalValue] = useState(value);
   useEffect(() => {
@@ -520,7 +558,13 @@ const SearchBar = ({ value, onChange, placeholder, debounceMs = 300 }: any) => {
       value={localValue}
       onChange={(e) => setLocalValue(e.target.value)}
       placeholder={placeholder || "Buscar..."}
-      className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+      style={{
+        width: "100%",
+        padding: "6px 12px",
+        border: `1px solid ${theme.colors.border.DEFAULT}`,
+        borderRadius: theme.radius.md,
+        fontSize: theme.typography.fontSize.sm,
+      }}
     />
   );
 };
@@ -528,21 +572,50 @@ const SearchBar = ({ value, onChange, placeholder, debounceMs = 300 }: any) => {
 const FilterPanel = ({ filters, values, onChange, onClear, isOpen }: any) => {
   if (!isOpen) return null;
   return (
-    <div className="p-3 border rounded bg-gray-50">
+    <div
+      style={{
+        padding: "12px",
+        border: `1px solid ${theme.colors.border.DEFAULT}`,
+        borderRadius: theme.radius.md,
+        background: theme.colors.background.surface,
+      }}
+    >
       <div className="flex justify-between mb-2">
-        <span className="font-medium">Filtros</span>
-        <button onClick={onClear} className="text-xs text-red-600">
+        <span
+          className="font-medium"
+          style={{ color: theme.colors.text.primary }}
+        >
+          Filtros
+        </span>
+        <button
+          onClick={onClear}
+          style={{
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.status.error,
+          }}
+        >
           Limpiar
         </button>
       </div>
       {filters?.map((filter: any) => (
         <div key={filter.field} className="mb-2">
-          <label className="block mb-1 text-xs">{filter.label}</label>
+          <label
+            className="block mb-1 text-xs"
+            style={{ color: theme.colors.text.secondary }}
+          >
+            {filter.label}
+          </label>
           <input
             type="text"
             value={values[filter.field] || ""}
             onChange={(e) => onChange(filter.field, e.target.value)}
-            className="w-full p-1 text-sm border rounded"
+            style={{
+              width: "100%",
+              padding: "4px 8px",
+              fontSize: theme.typography.fontSize.sm,
+              border: `1px solid ${theme.colors.border.DEFAULT}`,
+              borderRadius: theme.radius.sm,
+            }}
           />
         </div>
       ))}
@@ -557,19 +630,47 @@ const BulkActionsBar = ({
   customActions,
   onCustomAction,
 }: any) => (
-  <div className="flex items-center gap-3 p-2 rounded-md bg-blue-50">
-    <span className="text-sm">{selectedCount} seleccionados</span>
-    <button onClick={onClearSelection} className="text-xs text-gray-600">
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      padding: "8px",
+      borderRadius: theme.radius.md,
+      background: theme.colors.feedback.primaryLight,
+    }}
+  >
+    <span
+      style={{
+        fontSize: theme.typography.fontSize.sm,
+        color: theme.colors.text.primary,
+      }}
+    >
+      {selectedCount} seleccionados
+    </span>
+    <button
+      onClick={onClearSelection}
+      style={{
+        fontSize: theme.typography.fontSize.xs,
+        color: theme.colors.text.secondary,
+      }}
+    >
       Cancelar
     </button>
-    <button onClick={onBulkDelete} className="text-xs text-red-600">
+    <button
+      onClick={onBulkDelete}
+      style={{
+        fontSize: theme.typography.fontSize.xs,
+        color: theme.colors.status.error,
+      }}
+    >
       Eliminar
     </button>
     {customActions?.map((action: any) => (
       <button
         key={action.id}
         onClick={() => onCustomAction(action.id)}
-        className="text-xs"
+        style={{ fontSize: theme.typography.fontSize.xs }}
       >
         {action.label}
       </button>
@@ -578,14 +679,27 @@ const BulkActionsBar = ({
 );
 
 const ViewSwitcher = ({ currentView, onViewChange, availableViews }: any) => (
-  <div className="flex gap-1 p-1 bg-gray-100 rounded-md">
+  <div
+    style={{
+      display: "flex",
+      gap: "4px",
+      padding: "4px",
+      background: theme.colors.background.surface,
+      borderRadius: theme.radius.md,
+    }}
+  >
     {availableViews.map((mode: string) => (
       <button
         key={mode}
         onClick={() => onViewChange(mode)}
-        className={`px-2 py-1 text-xs rounded ${
-          currentView === mode ? "bg-white shadow" : ""
-        }`}
+        style={{
+          padding: "4px 8px",
+          fontSize: theme.typography.fontSize.xs,
+          borderRadius: theme.radius.sm,
+          background:
+            currentView === mode ? theme.colors.background.card : "transparent",
+          boxShadow: currentView === mode ? theme.shadows.sm : "none",
+        }}
       >
         {mode === "table"
           ? "📋"
@@ -600,49 +714,75 @@ const ViewSwitcher = ({ currentView, onViewChange, availableViews }: any) => (
 );
 
 const DashboardStats = ({ stats, title, onRefresh }: any) => (
-  <div className="p-4 bg-white border rounded shadow-sm">
+  <div
+    style={{
+      padding: "16px",
+      background: theme.colors.background.card,
+      border: `1px solid ${theme.colors.border.DEFAULT}`,
+      borderRadius: theme.radius.lg,
+      boxShadow: theme.shadows.sm,
+    }}
+  >
     <div className="flex justify-between">
-      <h3 className="font-medium">{title}</h3>
-      <button onClick={onRefresh} className="text-xs">
+      <h3 style={{ fontWeight: 500, color: theme.colors.text.primary }}>
+        {title}
+      </h3>
+      <button
+        onClick={onRefresh}
+        style={{ fontSize: theme.typography.fontSize.xs }}
+      >
         ⟳
       </button>
     </div>
     <div className="grid grid-cols-3 gap-4 mt-2 text-center">
-      <div>
+      <div style={{ color: theme.colors.text.secondary }}>
         Total
         <br />
-        {stats.total ?? 0}
+        <span style={{ fontWeight: 600 }}>{stats.total ?? 0}</span>
       </div>
-      <div>
+      <div style={{ color: theme.colors.text.secondary }}>
         Activos
         <br />
-        {stats.active ?? 0}
+        <span style={{ fontWeight: 600 }}>{stats.active ?? 0}</span>
       </div>
-      <div>
+      <div style={{ color: theme.colors.text.secondary }}>
         Inactivos
         <br />
-        {stats.inactive ?? 0}
+        <span style={{ fontWeight: 600 }}>{stats.inactive ?? 0}</span>
       </div>
     </div>
   </div>
 );
 
 const AuditLogViewer = ({ logs, loading, onRefresh }: any) => (
-  <div className="p-3 border rounded">
+  <div
+    style={{
+      padding: "12px",
+      border: `1px solid ${theme.colors.border.DEFAULT}`,
+      borderRadius: theme.radius.md,
+    }}
+  >
     <div className="flex justify-between">
-      <h3 className="font-medium">Auditoría</h3>
-      <button onClick={onRefresh} className="text-xs">
+      <h3 style={{ fontWeight: 500, color: theme.colors.text.primary }}>
+        Auditoría
+      </h3>
+      <button
+        onClick={onRefresh}
+        style={{ fontSize: theme.typography.fontSize.xs }}
+      >
         ⟳
       </button>
     </div>
     {loading ? (
-      <p>Cargando...</p>
+      <p style={{ color: theme.colors.text.secondary }}>Cargando...</p>
     ) : logs.length === 0 ? (
-      <p className="text-gray-500">Sin registros</p>
+      <p style={{ color: theme.colors.text.disabled }}>Sin registros</p>
     ) : (
       <ul className="mt-2 text-sm">
         {logs.slice(0, 5).map((log: any, idx: number) => (
-          <li key={idx}>📄 {log.message || log.action}</li>
+          <li key={idx} style={{ color: theme.colors.text.secondary }}>
+            📄 {log.message || log.action}
+          </li>
         ))}
       </ul>
     )}
@@ -650,12 +790,28 @@ const AuditLogViewer = ({ logs, loading, onRefresh }: any) => (
 );
 
 const KanbanView = () => (
-  <div className="p-4 text-center text-gray-500 border rounded">
+  <div
+    style={{
+      padding: "16px",
+      textAlign: "center",
+      color: theme.colors.text.disabled,
+      border: `1px solid ${theme.colors.border.DEFAULT}`,
+      borderRadius: theme.radius.md,
+    }}
+  >
     Kanban View (en construcción)
   </div>
 );
 const CalendarView = () => (
-  <div className="p-4 text-center text-gray-500 border rounded">
+  <div
+    style={{
+      padding: "16px",
+      textAlign: "center",
+      color: theme.colors.text.disabled,
+      border: `1px solid ${theme.colors.border.DEFAULT}`,
+      borderRadius: theme.radius.md,
+    }}
+  >
     Calendar View (en construcción)
   </div>
 );
@@ -670,6 +826,83 @@ const FormikTextAdapter = (props: OverrideFieldProps) => (
     disabled={props.disabled}
   />
 );
+// Adaptador para DatePicker
+const FormikDateAdapter = (props: OverrideFieldProps) => {
+  const config = props.config || {};
+  return (
+    <FormikDatePicker
+      name={props.name}
+      label={props.label || ""}
+      type={config.type || "date"}
+      min={config.min}
+      max={config.max}
+      disabled={props.disabled}
+      required={props.required}
+      responsive={props.responsive}
+    />
+  );
+};
+
+// Adaptador para DateRange
+const FormikDateRangeAdapter = (props: OverrideFieldProps) => {
+  const config = props.config || {};
+  return (
+    <FormikDateRange
+      nameFrom={config.nameFrom || props.name + "_from"}
+      nameTo={config.nameTo || props.name + "_to"}
+      labelFrom={config.labelFrom}
+      labelTo={config.labelTo}
+      min={config.min}
+      max={config.max}
+      disabled={props.disabled}
+      required={props.required}
+      label={props.label}
+      responsive={props.responsive}
+    />
+  );
+};
+
+// Adaptador para NumberDirect
+const FormikNumberDirectAdapter = (props: OverrideFieldProps) => {
+  const config = props.config || {};
+  return (
+    <FormikNumberDirect
+      name={props.name}
+      label={props.label || ""}
+      min={config.min}
+      max={config.max}
+      step={config.step}
+      decimals={config.decimals}
+      prefix={config.prefix}
+      suffix={config.suffix}
+      showStepper={config.showStepper}
+      disabled={props.disabled}
+      required={props.required}
+      placeholder={props.placeholder}
+      responsive={props.responsive}
+    />
+  );
+};
+
+// Adaptador para Slider
+const FormikSliderAdapter = (props: OverrideFieldProps) => {
+  const config = props.config || {};
+  return (
+    <FormikSlider
+      name={props.name}
+      label={props.label || ""}
+      min={config.min ?? 0}
+      max={config.max ?? 100}
+      step={config.step ?? 1}
+      unit={config.unit}
+      showTooltip={config.showTooltip}
+      marks={config.marks}
+      disabled={props.disabled}
+      required={props.required}
+      responsive={props.responsive}
+    />
+  );
+};
 const FormikSelectAdapter = (props: OverrideSelectProps) => (
   <FormikAutocomplete
     name={props.name}
@@ -688,7 +921,6 @@ const FormikColorAdapter = (props: OverrideFieldProps) => (
     name={props.name}
     label={props.label || ""}
     required={props.required || false}
-    colorPalette={[]}
   />
 );
 const FormikPasswordAdapter = (props: OverrideFieldProps) => (
@@ -722,7 +954,7 @@ const FormikCheckboxAdapter = (props: OverrideFieldProps) => (
   <FormikCheckbox name={props.name} label={props.label || ""} />
 );
 
-// ─── DynamicSelectField ────────────────────────────────────────────────────────
+// ─── DynamicSelectField y DynamicMultipleSelectField ───────────────────────────
 interface DynamicSelectFieldProps {
   field: FieldItem;
   responsive: ResponsiveSizes;
@@ -730,77 +962,6 @@ interface DynamicSelectFieldProps {
   onInput?: (value: string) => void;
   caseTransform?: CaseTransform;
 }
-// ─── DynamicMultipleSelectField (para selección múltiple asíncrona) ─────────
-interface DynamicMultipleSelectFieldProps {
-  field: FieldItem;
-  responsive: ResponsiveSizes;
-  onChange?: (value: any) => void;
-  caseTransform?: CaseTransform;
-}
-
-const DynamicMultipleSelectField = memo(
-  ({ field, responsive, onChange }: DynamicMultipleSelectFieldProps) => {
-    const hookResult = field.selectOptionsHook!();
-    const isLoadingOptions = field.loadingHook?.() || false;
-    const [isAsync, setIsAsync] = useState(false);
-    const [asyncOptions, setAsyncOptions] = useState<any[]>([]);
-
-    useEffect(() => {
-      const checkAsync = async () => {
-        try {
-          const result = hookResult;
-          const isPromise =
-            result && typeof (result as any).then === "function";
-          setIsAsync(isPromise);
-          if (isPromise) {
-            const data = await (result as Promise<any[]>);
-            setAsyncOptions(Array.isArray(data) ? data : []);
-          } else {
-            setAsyncOptions(Array.isArray(result) ? result : []);
-          }
-        } catch (error) {
-          console.error("Error loading multiple select options:", error);
-          setAsyncOptions([]);
-        }
-      };
-      checkAsync();
-    }, [hookResult]);
-
-    const options = isAsync
-      ? asyncOptions
-      : Array.isArray(hookResult)
-        ? hookResult
-        : (field.selectOptions ?? []);
-
-    const selectOptions = options.map((opt) => ({
-      value: opt[field.selectIdKey || "id"],
-      label: opt[field.selectLabelKey || "name"],
-    }));
-
-    const refreshFn = field.refreshActionHook?.();
-    const addFn = field.addActionHook?.();
-
-    return (
-      <FormikMultiSelect
-        name={field.name}
-        label={field.label}
-        options={selectOptions}
-        multiple={true}
-        loading={isLoadingOptions}
-        disabled={field.disabled}
-        required={field.required}
-        placeholder={field.placeholder}
-        responsive={responsive}
-        onRefresh={refreshFn}
-        onAdd={addFn}
-        onChange={(newValue, formik) => {
-          if (field.onChange) field.onChange(newValue, formik, undefined);
-        }}
-      />
-    );
-  },
-);
-DynamicMultipleSelectField.displayName = "DynamicMultipleSelectField";
 
 const DynamicSelectField = memo(
   ({
@@ -866,6 +1027,76 @@ const DynamicSelectField = memo(
 );
 DynamicSelectField.displayName = "DynamicSelectField";
 
+interface DynamicMultipleSelectFieldProps {
+  field: FieldItem;
+  responsive: ResponsiveSizes;
+  onChange?: (value: any) => void;
+  caseTransform?: CaseTransform;
+}
+
+const DynamicMultipleSelectField = memo(
+  ({ field, responsive, onChange }: DynamicMultipleSelectFieldProps) => {
+    const hookResult = field.selectOptionsHook!();
+    const isLoadingOptions = field.loadingHook?.() || false;
+    const [isAsync, setIsAsync] = useState(false);
+    const [asyncOptions, setAsyncOptions] = useState<any[]>([]);
+
+    useEffect(() => {
+      const checkAsync = async () => {
+        try {
+          const result = hookResult;
+          const isPromise =
+            result && typeof (result as any).then === "function";
+          setIsAsync(isPromise);
+          if (isPromise) {
+            const data = await (result as Promise<any[]>);
+            setAsyncOptions(Array.isArray(data) ? data : []);
+          } else {
+            setAsyncOptions(Array.isArray(result) ? result : []);
+          }
+        } catch (error) {
+          console.error("Error loading multiple select options:", error);
+          setAsyncOptions([]);
+        }
+      };
+      checkAsync();
+    }, [hookResult]);
+
+    const options = isAsync
+      ? asyncOptions
+      : Array.isArray(hookResult)
+        ? hookResult
+        : (field.selectOptions ?? []);
+
+    const selectOptions = options.map((opt) => ({
+      value: opt[field.selectIdKey || "id"],
+      label: opt[field.selectLabelKey || "name"],
+    }));
+
+    const refreshFn = field.refreshActionHook?.();
+    const addFn = field.addActionHook?.();
+
+    return (
+      <FormikMultiSelect
+        name={field.name}
+        label={field.label}
+        options={selectOptions}
+        loading={isLoadingOptions}
+        disabled={field.disabled}
+        required={field.required}
+        placeholder={field.placeholder}
+        responsive={responsive}
+        onRefresh={refreshFn}
+        onAdd={addFn}
+        onChange={(newValue, formik) => {
+          if (field.onChange) field.onChange(newValue, formik, undefined);
+        }}
+      />
+    );
+  },
+);
+DynamicMultipleSelectField.displayName = "DynamicMultipleSelectField";
+
 // ─── FieldWrapper ──────────────────────────────────────────────────────────────
 const FieldWrapper = ({
   field,
@@ -893,7 +1124,6 @@ const FieldWrapper = ({
     },
     [caseTransform, field.transform],
   );
-
   const handleSelectChange = useCallback(
     (selectedItem: any) => {
       const idKey = field.selectIdKey || "id";
@@ -920,6 +1150,15 @@ const FieldWrapper = ({
     },
     [field, formik, actionsDispatch, processValue],
   );
+  const isHidden = useMemo(() => {
+    if (field.hidden === undefined) return false;
+    if (typeof field.hidden === "function") {
+      return field.hidden(formik.values);
+    }
+    return field.hidden;
+  }, [field.hidden, formik.values]);
+
+  if (isHidden) return null; // No renderiza el campo
 
   const commonProps = {
     name: field.name,
@@ -938,6 +1177,7 @@ const FieldWrapper = ({
           type={(field.type as any) || "text"}
           caseTransform={caseTransform}
           onChange={handleChange}
+          responsive={responsive}
           onInput={handleInput}
         />
       );
@@ -948,6 +1188,7 @@ const FieldWrapper = ({
           rows={field.textareaConfig?.rows}
           caseTransform={caseTransform}
           onChange={handleChange}
+          responsive={responsive}
           onInput={handleInput}
         />
       );
@@ -982,7 +1223,6 @@ const FieldWrapper = ({
             name={field.name}
             label={field.label}
             options={selectOptions}
-            multiple={true}
             loading={field.loadingHook?.()}
             disabled={field.disabled}
             required={field.required}
@@ -999,6 +1239,7 @@ const FieldWrapper = ({
           labelKey={field.selectLabelKey || "label"}
           onSelect={handleSelectChange}
           onInput={handleInput}
+          responsive={responsive}
           caseTransform={caseTransform}
         />
       );
@@ -1007,6 +1248,7 @@ const FieldWrapper = ({
         <FormikNumber
           {...commonProps}
           min={field.numberConfig?.min}
+          responsive={responsive}
           max={field.numberConfig?.max}
           step={field.numberConfig?.step}
           decimals={field.numberConfig?.decimals}
@@ -1017,6 +1259,7 @@ const FieldWrapper = ({
       return (
         <FormikSwitch
           {...commonProps}
+          responsive={responsive}
           onChange={(checked) => handleChange(checked)}
         />
       );
@@ -1024,35 +1267,177 @@ const FieldWrapper = ({
       return (
         <FormikCheckbox
           {...commonProps}
+          responsive={responsive}
           onChange={(checked) => handleChange(checked)}
         />
       );
     case "Password":
-      return <FormikPassword {...commonProps} />;
+      return <FormikPassword {...commonProps} responsive={responsive} />;
     case "Radio":
       return (
         <FormikRadio
           {...commonProps}
+          responsive={responsive}
           options={field.radioConfig?.options || []}
-          idKey={field.radioConfig?.idKey || "id"}
-          labelKey={field.radioConfig?.labelKey || "label"}
+          idKey={field.radioConfig?.optionIdKey || "id"}
+          labelKey={field.radioConfig?.optionLabelKey || "label"}
           onChange={handleChange}
+        />
+      );
+    case "Date":
+      return (
+        <FormikDatePicker
+          {...commonProps}
+          responsive={responsive}
+          type={field.dateConfig?.type || "date"}
+          min={field.dateConfig?.min}
+          max={field.dateConfig?.max}
+          onChange={(value, formik) => {
+            if (field.onChange) field.onChange(value, formik, actionsDispatch);
+          }}
+        />
+      );
+
+    case "DateRange":
+      // Para DateRange, el nombre del campo es el grupo, pero internamente usa nameFrom/nameTo
+      return (
+        <FormikDateRange
+          responsive={responsive}
+          nameFrom={field.dateRangeConfig?.nameFrom || field.name + "_from"}
+          nameTo={field.dateRangeConfig?.nameTo || field.name + "_to"}
+          labelFrom={field.dateRangeConfig?.labelFrom}
+          labelTo={field.dateRangeConfig?.labelTo}
+          min={field.dateRangeConfig?.min}
+          max={field.dateRangeConfig?.max}
+          label={field.label}
+          disabled={field.disabled}
+          required={field.required}
+          onChange={(from, to, formik) => {
+            if (field.onChange)
+              field.onChange({ from, to }, formik, actionsDispatch);
+          }}
+        />
+      );
+
+    case "NumberDirect":
+      return (
+        <FormikNumberDirect
+          {...commonProps}
+          min={field.numberDirectConfig?.min}
+          max={field.numberDirectConfig?.max}
+          step={field.numberDirectConfig?.step}
+          decimals={field.numberDirectConfig?.decimals}
+          prefix={field.numberDirectConfig?.prefix}
+          suffix={field.numberDirectConfig?.suffix}
+          showStepper={field.numberDirectConfig?.showStepper}
+          placeholder={field.placeholder}
+          responsive={responsive}
+          onChange={(value, formik) => {
+            if (field.onChange) field.onChange(value, formik, actionsDispatch);
+          }}
+        />
+      );
+
+    case "Slider":
+      return (
+        <FormikSlider
+          {...commonProps}
+          min={field.sliderConfig?.min ?? 0}
+          max={field.sliderConfig?.max ?? 100}
+          step={field.sliderConfig?.step ?? 1}
+          unit={field.sliderConfig?.unit}
+          showTooltip={field.sliderConfig?.showTooltip}
+          marks={field.sliderConfig?.marks}
+          responsive={responsive}
+          onChange={(value, formik) => {
+            if (field.onChange) field.onChange(value, formik, actionsDispatch);
+          }}
         />
       );
     case "Color":
       return (
         <FormikColorPicker
+          responsive={responsive}
           {...commonProps}
-          colorPalette={field.colorConfig?.palette || []}
           onChange={handleChange}
         />
       );
     case "File":
       return (
         <FormikFileInput
+          responsive={responsive}
           {...commonProps}
           {...field.fileConfig}
           onChange={handleChange}
+        />
+      );
+    case "Date":
+      return (
+        <FormikDatePicker
+          {...commonProps}
+          responsive={responsive}
+          type={field.dateConfig?.type || "date"}
+          min={field.dateConfig?.min}
+          max={field.dateConfig?.max}
+        />
+      );
+    case "DateRange":
+      return (
+        <FormikDateRange
+          responsive={responsive}
+          nameFrom={field.dateRangeConfig?.nameFrom || field.name + "_from"}
+          nameTo={field.dateRangeConfig?.nameTo || field.name + "_to"}
+          labelFrom={field.dateRangeConfig?.labelFrom}
+          labelTo={field.dateRangeConfig?.labelTo}
+          min={field.dateRangeConfig?.min}
+          max={field.dateRangeConfig?.max}
+          label={field.label}
+          disabled={field.disabled}
+          required={field.required}
+        />
+      );
+    case "NumberDirect":
+      return (
+        <FormikNumberDirect
+          {...commonProps}
+          responsive={responsive}
+          min={field.numberDirectConfig?.min}
+          max={field.numberDirectConfig?.max}
+          step={field.numberDirectConfig?.step}
+          decimals={field.numberDirectConfig?.decimals}
+          prefix={field.numberDirectConfig?.prefix}
+          suffix={field.numberDirectConfig?.suffix}
+          showStepper={field.numberDirectConfig?.showStepper}
+          placeholder={field.placeholder}
+        />
+      );
+    case "Slider":
+      return (
+        <FormikSlider
+          {...commonProps}
+          responsive={responsive}
+          min={field.sliderConfig?.min ?? 0}
+          max={field.sliderConfig?.max ?? 100}
+          step={field.sliderConfig?.step ?? 1}
+          unit={field.sliderConfig?.unit}
+          showTooltip={field.sliderConfig?.showTooltip}
+          marks={field.sliderConfig?.marks}
+        />
+      );
+    case "Array":
+      // console.log("📦 Config fields para array", name, field);
+      return (
+        <FormikArrayTable
+          name={field.name}
+          label={field.label}
+          fields={field.arrayConfig?.fields || []}
+          allowAdd={field.arrayConfig?.allowAdd}
+          allowRemove={field.arrayConfig?.allowRemove}
+          addButtonLabel={field.arrayConfig?.addButtonLabel}
+          itemLabel={field.arrayConfig?.itemLabel}
+          disabled={field.disabled}
+
+          responsive={responsive}
         />
       );
     default:
@@ -1060,6 +1445,7 @@ const FieldWrapper = ({
         <FormikInput
           {...commonProps}
           type="text"
+          responsive={responsive}
           caseTransform={caseTransform}
           onChange={handleChange}
           onInput={handleInput}
@@ -1068,401 +1454,525 @@ const FieldWrapper = ({
   }
 };
 
-// ─── StepperFormLocal — diseño mejorado + soporte para boxes ───────────────────
+// ─── StepperFormLocal — diseño mejorado + soporte para boxes (con theme) ───────
 interface StepperFormLocalProps {
   sections: Array<{
     title: string;
-    fields?: FieldItem[]; // modo simple (sin boxes)
+    fields?: FieldItem[];
     boxes?: Array<{
-      // modo con boxes
       title: string;
       fields: FieldItem[];
     }>;
   }>;
   activeStep: number;
+  hideNavButtons?: boolean; // ← nuevo
+
   onStepChange: (idx: number) => void;
   renderField: (field: FieldItem) => React.ReactNode;
 }
-
-const StepperFormLocal = ({
-  sections,
-  activeStep,
-  onStepChange,
-  renderField,
-}: StepperFormLocalProps) => {
-  const formik = useFormikContext();
-  const currentSection = sections[activeStep];
-  const isLast = activeStep === sections.length - 1;
-
-  const handleNext = async () => {
-    // Obtener todos los nombres de campos del paso actual (ya sea con boxes o sin ellos)
-    let currentFieldNames: string[] = [];
-    if (currentSection.boxes) {
-      currentFieldNames = currentSection.boxes.flatMap((box) =>
-        box.fields.map((f) => f.name),
-      );
-    } else if (currentSection.fields) {
-      currentFieldNames = currentSection.fields.map((f) => f.name);
-    }
-    const touchedPatch = currentFieldNames.reduce(
-      (acc: any, name) => ({ ...acc, [name]: true }),
-      {},
-    );
-    await formik.setTouched({ ...formik.touched, ...touchedPatch });
-    const errors = await formik.validateForm();
-    const hasErrors = currentFieldNames.some((name) => errors[name]);
-    if (!hasErrors) onStepChange(activeStep + 1);
-  };
-
-  const handleSave = async () => {
-    // Obtener todos los campos de todas las secciones
-    let allFields: FieldItem[] = [];
-    sections.forEach((section) => {
-      if (section.boxes) {
-        section.boxes.forEach((box) => allFields.push(...box.fields));
-      } else if (section.fields) {
-        allFields.push(...section.fields);
-      }
-    });
-    const allTouched = allFields.reduce(
-      (acc: any, f: FieldItem) => ({ ...acc, [f.name]: true }),
-      {},
-    );
-    await formik.setTouched(allTouched);
-    await formik.submitForm();
-  };
-
-  return (
-    <div className="flex flex-col w-full">
-      {/* Progress header */}
-      <div className="relative px-2 pt-2">
-        <div
-          className="absolute h-0.5 bg-gray-200"
-          style={{
-            top: "calc(1.25rem + 0.5rem)",
-            left: `calc(${100 / (sections.length * 2)}% + 0.5rem)`,
-            right: `calc(${100 / (sections.length * 2)}% + 0.5rem)`,
-            zIndex: 0,
-          }}
-        />
-        <div
-          className="absolute h-0.5 bg-indigo-500 transition-all duration-500 ease-in-out"
-          style={{
-            top: "calc(1.25rem + 0.5rem)",
-            left: `calc(${100 / (sections.length * 2)}% + 0.5rem)`,
-            width:
-              sections.length <= 1
-                ? "0%"
-                : `calc(${
-                    (activeStep / (sections.length - 1)) *
-                    (100 - 100 / sections.length)
-                  }% - 1rem)`,
-            zIndex: 1,
-          }}
-        />
-        <div className="relative flex justify-between" style={{ zIndex: 2 }}>
-          {sections.map((s, idx) => {
-            const isDone = idx < activeStep;
-            const isCurrent = idx === activeStep;
-            return (
-              <button
-                key={s.title}
-                type="button"
-                onClick={() => isDone && onStepChange(idx)}
-                className="flex flex-col items-center gap-1.5 flex-1"
-                style={{
-                  cursor: isDone ? "pointer" : "default",
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                }}
-              >
-                <div
-                  className={`
-                    relative flex items-center justify-center
-                    w-10 h-10 rounded-full border-2 font-semibold text-sm
-                    transition-all duration-300
-                    ${
-                      isDone
-                        ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-200"
-                        : isCurrent
-                          ? "bg-white border-indigo-600 text-indigo-600 shadow-lg shadow-indigo-100 ring-4 ring-indigo-50 scale-110"
-                          : "bg-white border-gray-200 text-gray-400"
-                    }
-                  `}
-                >
-                  {isDone ? (
-                    <svg
-                      className="w-5 h-5"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 11.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  ) : (
-                    <span>{idx + 1}</span>
-                  )}
-                </div>
-                <span
-                  className={`
-                    text-xs font-medium text-center leading-tight max-w-[72px]
-                    transition-colors duration-200 select-none
-                    ${isCurrent ? "text-indigo-700 font-semibold" : isDone ? "text-indigo-400" : "text-gray-400"}
-                  `}
-                >
-                  {s.title}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Step content */}
-      <div className="rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden mt-4">
-        <div className="flex items-center gap-3 px-5 py-3 bg-gradient-to-r from-indigo-50 to-white border-b border-gray-100">
-          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold shrink-0">
-            {activeStep + 1}
-          </div>
-          <span className="text-sm font-semibold text-gray-700">
-            {currentSection.title}
-          </span>
-          <span className="ml-auto text-xs text-gray-400 shrink-0">
-            {activeStep + 1} / {sections.length}
-          </span>
-        </div>
-
-        <div className="p-5">
-          {currentSection.boxes ? (
-            // Modo con boxes: diseño mejorado (sin gris apagado)
-            currentSection.boxes.map((box, idx) => (
-              <div
-                key={idx}
-                className="mb-6 last:mb-0 bg-white rounded-lg border border-indigo-100 shadow-sm hover:shadow transition-all duration-200 overflow-hidden"
-              >
-                <div className="px-5 pt-4 pb-2">
-                  <h4 className="text-sm font-semibold text-indigo-600 uppercase tracking-wide flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>
-                    {box.title}
-                  </h4>
-                </div>
-                <div className="px-5 pb-5">
-                  <RowComponent>{box.fields.map(renderField)}</RowComponent>
-                </div>
-              </div>
-            ))
-          ) : (
-            // Modo simple (sin boxes)
-            <RowComponent>
-              {currentSection.fields?.map(renderField)}
-            </RowComponent>
-          )}
-        </div>
-      </div>
-
-      {/* Navigation buttons */}
-      <div className="flex items-center justify-between mt-4">
-        <button
-          type="button"
-          disabled={activeStep === 0}
-          onClick={() => onStepChange(activeStep - 1)}
-          className={`
-            inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
-            border transition-all duration-150
-            ${
-              activeStep === 0
-                ? "border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50"
-                : "border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400 active:scale-95"
-            }
-          `}
-        >
-          <svg
-            className="w-4 h-4"
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 5l-7 5 7 5"
-            />
-          </svg>
-          Atrás
-        </button>
-
-        <div className="flex items-center gap-1.5">
-          {sections.map((_, idx) => (
-            <div
-              key={idx}
-              className={`rounded-full transition-all duration-300 ${
-                idx === activeStep
-                  ? "w-5 h-2 bg-indigo-600"
-                  : idx < activeStep
-                    ? "w-2 h-2 bg-indigo-400"
-                    : "w-2 h-2 bg-gray-200"
-              }`}
-            />
-          ))}
-        </div>
-
-        {isLast ? (
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={formik.isSubmitting}
-            className="
-              inline-flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold
-              bg-indigo-600 text-white shadow-md shadow-indigo-200
-              hover:bg-indigo-700 active:scale-95 transition-all duration-150
-              disabled:opacity-60 disabled:cursor-not-allowed
-            "
-          >
-            {formik.isSubmitting ? (
-              <>
-                <svg
-                  className="w-4 h-4 animate-spin"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-                </svg>
-                Guardando…
-              </>
-            ) : (
-              <>
-                Guardar
-                <svg
-                  className="w-4 h-4"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 11.586l7.293-7.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </>
-            )}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={handleNext}
-            className="
-              inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
-              bg-indigo-600 text-white shadow-sm shadow-indigo-200
-              hover:bg-indigo-700 active:scale-95 transition-all duration-150
-            "
-          >
-            Siguiente
-            <svg
-              className="w-4 h-4"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M8 5l7 5-7 5"
-              />
-            </svg>
-          </button>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ─── BoxFormLocal (sin cambios, se mantiene igual) ─────────────────────────────
-interface BoxFormLocalProps {
-  sections: { title: string; fields: FieldItem[] }[];
-  renderField: (field: FieldItem) => React.ReactNode;
+// ─── Stepper / Box nav handles (para footer del modal) ────────────────────────
+export interface StepperNavHandle {
+  tryNext: () => Promise<void>;
+  trySave: () => Promise<void>;
 }
+export interface BoxNavHandle {
+  trySave: () => Promise<void>;
+}
+const StepperFormLocal = React.forwardRef<
+  StepperNavHandle,
+  StepperFormLocalProps
+>(
+  (
+    { sections, activeStep, onStepChange, renderField, hideNavButtons = false },
+    ref,
+  ) => {
+    const formik = useFormikContext();
+    const currentSection = sections[activeStep];
+    const isLast = activeStep === sections.length - 1;
 
-const BoxFormLocal = ({ sections, renderField }: BoxFormLocalProps) => {
-  const formik = useFormikContext();
+    const handleNext = useCallback(async () => {
+      let currentFieldNames: string[] = [];
+      if (currentSection.boxes) {
+        currentFieldNames = currentSection.boxes.flatMap((box) =>
+          box.fields.map((f) => f.name),
+        );
+      } else if (currentSection.fields) {
+        currentFieldNames = currentSection.fields.map((f) => f.name);
+      }
+      const touchedPatch = currentFieldNames.reduce(
+        (acc: any, name) => ({ ...acc, [name]: true }),
+        {},
+      );
+      await formik.setTouched({ ...formik.touched, ...touchedPatch });
+      const errors = await formik.validateForm();
+      const hasErrors = currentFieldNames.some((name) => errors[name]);
+      if (!hasErrors) onStepChange(activeStep + 1);
+    }, [activeStep, currentSection, formik, onStepChange]);
 
-  const handleSave = async () => {
-    const allFields = sections.flatMap((s) => s.fields);
-    const allTouched = allFields.reduce(
-      (acc: any, f: FieldItem) => ({ ...acc, [f.name]: true }),
-      {},
-    );
-    await formik.setTouched({ ...formik.touched, ...allTouched });
-    const errors = await formik.validateForm();
-    if (Object.keys(errors).length === 0) {
+    const handleSave = useCallback(async () => {
+      let allFields: FieldItem[] = [];
+      sections.forEach((section) => {
+        if (section.boxes) {
+          section.boxes.forEach((box) => allFields.push(...box.fields));
+        } else if (section.fields) {
+          allFields.push(...section.fields);
+        }
+      });
+      const allTouched = allFields.reduce(
+        (acc: any, f: FieldItem) => ({ ...acc, [f.name]: true }),
+        {},
+      );
+      await formik.setTouched(allTouched);
       await formik.submitForm();
-    }
-  };
+    }, [sections, formik]);
 
-  return (
-    <div>
-      {sections.map((section) => (
+    // Expone los handlers al footer del modal (viven dentro del contexto Formik)
+    useImperativeHandle(
+      ref,
+      () => ({ tryNext: handleNext, trySave: handleSave }),
+      [handleNext, handleSave],
+    );
+
+    const primaryColor = theme.colors.primary.DEFAULT;
+    const primaryLight = theme.colors.feedback.primaryLight;
+    const borderColor = theme.colors.border.DEFAULT;
+
+    return (
+      <div className="flex flex-col w-full">
+        {/* Progress header */}
+        <div className="relative px-2 pt-2">
+          <div
+            className="absolute h-0.5 bg-gray-200"
+            style={{
+              top: "calc(1.25rem + 0.5rem)",
+              left: `calc(${100 / (sections.length * 2)}% + 0.5rem)`,
+              right: `calc(${100 / (sections.length * 2)}% + 0.5rem)`,
+              zIndex: 0,
+            }}
+          />
+          <div
+            className="absolute h-0.5 transition-all duration-500 ease-in-out"
+            style={{
+              top: "calc(1.25rem + 0.5rem)",
+              left: `calc(${100 / (sections.length * 2)}% + 0.5rem)`,
+              width:
+                sections.length <= 1
+                  ? "0%"
+                  : `calc(${
+                      (activeStep / (sections.length - 1)) *
+                      (100 - 100 / sections.length)
+                    }% - 1rem)`,
+              zIndex: 1,
+              background: primaryColor,
+            }}
+          />
+          <div className="relative flex justify-between" style={{ zIndex: 2 }}>
+            {sections.map((s, idx) => {
+              const isDone = idx < activeStep;
+              const isCurrent = idx === activeStep;
+              return (
+                <button
+                  key={s.title}
+                  type="button"
+                  onClick={() => isDone && onStepChange(idx)}
+                  className="flex flex-col items-center gap-1.5 flex-1"
+                  style={{
+                    cursor: isDone ? "pointer" : "default",
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                  }}
+                >
+                  <div
+                    className={`
+                      relative flex items-center justify-center
+                      w-10 h-10 rounded-full border-2 font-semibold text-sm
+                      transition-all duration-300
+                    `}
+                    style={{
+                      background: isDone
+                        ? primaryColor
+                        : isCurrent
+                          ? theme.colors.background.card
+                          : theme.colors.background.card,
+                      borderColor: isDone
+                        ? primaryColor
+                        : isCurrent
+                          ? primaryColor
+                          : borderColor,
+                      color: isDone
+                        ? theme.colors.text.inverse
+                        : isCurrent
+                          ? primaryColor
+                          : theme.colors.text.disabled,
+                      boxShadow: isCurrent
+                        ? `0 0 0 4px ${primaryLight}`
+                        : "none",
+                      transform: isCurrent ? "scale(1.1)" : "scale(1)",
+                    }}
+                  >
+                    {isDone ? (
+                      <svg
+                        className="w-5 h-5"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 11.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    ) : (
+                      <span>{idx + 1}</span>
+                    )}
+                  </div>
+                  <span
+                    className="text-xs font-medium text-center leading-tight max-w-[72px] transition-colors duration-200 select-none"
+                    style={{
+                      color: isCurrent
+                        ? primaryColor
+                        : isDone
+                          ? primaryColor
+                          : theme.colors.text.disabled,
+                    }}
+                  >
+                    {s.title}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Step content */}
         <div
-          key={section.title}
           style={{
-            border: `1px solid ${DS.border}`,
-            borderRadius: DS.r8,
-            background: DS.white,
-            padding: "16px",
-            marginBottom: "24px",
+            borderRadius: theme.radius.lg,
+            border: `1px solid ${borderColor}`,
+            background: theme.colors.background.card,
+            boxShadow: theme.shadows.sm,
+            overflow: "hidden",
+            marginTop: "16px",
           }}
         >
           <div
             style={{
-              fontSize: "14px",
-              fontWeight: 600,
-              color: DS.accent,
-              marginBottom: "16px",
-              borderBottom: `2px solid ${DS.accentLight}`,
-              paddingBottom: "6px",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              padding: "12px 20px",
+              background: `linear-gradient(to right, ${primaryLight}, ${theme.colors.background.card})`,
+              borderBottom: `1px solid ${borderColor}`,
             }}
           >
-            {section.title}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "24px",
+                height: "24px",
+                borderRadius: "50%",
+                background: primaryLight,
+                color: primaryColor,
+                fontSize: theme.typography.fontSize.xs,
+                fontWeight: "bold",
+                flexShrink: 0,
+              }}
+            >
+              {activeStep + 1}
+            </div>
+            <span
+              style={{
+                fontSize: theme.typography.fontSize.sm,
+                fontWeight: 600,
+                color: theme.colors.text.primary,
+              }}
+            >
+              {currentSection.title}
+            </span>
+            <span
+              style={{
+                marginLeft: "auto",
+                fontSize: theme.typography.fontSize.xs,
+                color: theme.colors.text.disabled,
+              }}
+            >
+              {activeStep + 1} / {sections.length}
+            </span>
           </div>
-          <RowComponent>{section.fields.map(renderField)}</RowComponent>
-        </div>
-      ))}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginTop: "16px",
-        }}
-      >
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={formik.isSubmitting}
-          style={{
-            padding: "8px 24px",
-            background: DS.accent,
-            color: DS.white,
-            border: "none",
-            borderRadius: DS.r6,
-            cursor: formik.isSubmitting ? "not-allowed" : "pointer",
-            fontWeight: 600,
-          }}
-        >
-          {formik.isSubmitting ? "Guardando…" : "Guardar"}
-        </button>
-      </div>
-    </div>
-  );
-};
 
-// ─── RenderFormContent (adaptado para pasar la nueva estructura de secciones) ───
+          <div className="p-5">
+            {currentSection.boxes ? (
+              currentSection.boxes.map((box, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    marginBottom: "24px",
+                    background: theme.colors.background.card,
+                    borderRadius: theme.radius.lg,
+                    border: `1px solid ${theme.colors.border.light}`,
+                    boxShadow: theme.shadows.sm,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div className="px-5 pt-4 pb-2">
+                    <h4
+                      style={{
+                        fontSize: theme.typography.fontSize.sm,
+                        fontWeight: 600,
+                        color: primaryColor,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: "6px",
+                          height: "6px",
+                          background: primaryColor,
+                          borderRadius: "50%",
+                        }}
+                      ></span>
+                      {box.title}
+                    </h4>
+                  </div>
+                  <div className="px-5 pb-5">
+                    <RowComponent>{box.fields.map(renderField)}</RowComponent>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <RowComponent>
+                {currentSection.fields?.map(renderField)}
+              </RowComponent>
+            )}
+          </div>
+        </div>
+
+        {/* Navigation buttons */}
+        {!hideNavButtons && (
+          <div className="flex items-center justify-between mt-4">
+            <button
+              type="button"
+              disabled={activeStep === 0}
+              onClick={() => onStepChange(activeStep - 1)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 16px",
+                borderRadius: theme.radius.md,
+                fontSize: theme.typography.fontSize.sm,
+                fontWeight: 500,
+                border: `1px solid ${borderColor}`,
+                background:
+                  activeStep === 0
+                    ? theme.colors.background.surface
+                    : theme.colors.background.card,
+                color:
+                  activeStep === 0
+                    ? theme.colors.text.disabled
+                    : theme.colors.text.secondary,
+                cursor: activeStep === 0 ? "not-allowed" : "pointer",
+                transition: theme.transitions.DEFAULT,
+              }}
+            >
+              <svg
+                className="w-4 h-4"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 5l-7 5 7 5"
+                />
+              </svg>
+              Atrás
+            </button>
+
+            <div className="flex items-center gap-1.5">
+              {sections.map((_, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    borderRadius: "9999px",
+                    transition: theme.transitions.DEFAULT,
+                    width: idx === activeStep ? "20px" : "8px",
+                    height: "8px",
+                    background:
+                      idx === activeStep
+                        ? primaryColor
+                        : idx < activeStep
+                          ? primaryColor
+                          : theme.colors.border.DEFAULT,
+                  }}
+                />
+              ))}
+            </div>
+
+            {isLast ? (
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={formik.isSubmitting}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "8px 20px",
+                  borderRadius: theme.radius.md,
+                  fontSize: theme.typography.fontSize.sm,
+                  fontWeight: 600,
+                  background: primaryColor,
+                  color: theme.colors.text.inverse,
+                  border: "none",
+                  cursor: formik.isSubmitting ? "not-allowed" : "pointer",
+                  transition: theme.transitions.DEFAULT,
+                  opacity: formik.isSubmitting ? 0.6 : 1,
+                }}
+              >
+                {formik.isSubmitting ? "Guardando…" : "Guardar"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleNext}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "8px 16px",
+                  borderRadius: theme.radius.md,
+                  fontSize: theme.typography.fontSize.sm,
+                  fontWeight: 500,
+                  background: primaryColor,
+                  color: theme.colors.text.inverse,
+                  border: "none",
+                  cursor: "pointer",
+                  transition: theme.transitions.DEFAULT,
+                }}
+              >
+                Siguiente
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M8 5l7 5-7 5"
+                  />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  },
+);
+
+// ─── BoxFormLocal (con theme) ─────────────────────────────────────────────────
+interface BoxFormLocalProps {
+  sections: { title: string; fields: FieldItem[] }[];
+  renderField: (field: FieldItem) => React.ReactNode;
+  hideSubmitButton?: boolean; // ← nuevo
+}
+
+const BoxFormLocal = React.forwardRef<BoxNavHandle, BoxFormLocalProps>(
+  ({ sections, renderField, hideSubmitButton = false }, ref) => {
+    const formik = useFormikContext();
+
+    const handleSave = useCallback(async () => {
+      const allFields = sections.flatMap((s) => s.fields);
+      const allTouched = allFields.reduce(
+        (acc: any, f: FieldItem) => ({ ...acc, [f.name]: true }),
+        {},
+      );
+      await formik.setTouched({ ...formik.touched, ...allTouched });
+      const errors = await formik.validateForm();
+      if (Object.keys(errors).length === 0) {
+        await formik.submitForm();
+      }
+    }, [sections, formik]);
+
+    useImperativeHandle(ref, () => ({ trySave: handleSave }), [handleSave]);
+
+    const primaryColor = theme.colors.primary.DEFAULT;
+    const primaryLight = theme.colors.feedback.primaryLight;
+
+    return (
+      <div>
+        {sections.map((section) => (
+          <div
+            key={section.title}
+            style={{
+              border: `1px solid ${theme.colors.border.DEFAULT}`,
+              borderRadius: theme.radius.md,
+              background: theme.colors.background.card,
+              padding: "16px",
+              marginBottom: "24px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: theme.typography.fontSize.base,
+                fontWeight: 600,
+                color: primaryColor,
+                marginBottom: "16px",
+                borderBottom: `2px solid ${primaryLight}`,
+                paddingBottom: "6px",
+              }}
+            >
+              {section.title}
+            </div>
+            <RowComponent>{section.fields.map(renderField)}</RowComponent>
+          </div>
+        ))}
+        {/* Botón interno: sólo si NO lo gestiona el footer del modal */}
+        {!hideSubmitButton && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginTop: "16px",
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={formik.isSubmitting}
+              style={{
+                padding: "8px 24px",
+                background: primaryColor,
+                color: theme.colors.text.inverse,
+                border: "none",
+                borderRadius: theme.radius.md,
+                cursor: formik.isSubmitting ? "not-allowed" : "pointer",
+                fontWeight: 600,
+              }}
+            >
+              {formik.isSubmitting ? "Guardando…" : "Guardar"}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  },
+);
+
+// ─── RenderFormContent (adaptado) ──────────────────────────────────────────────
 interface RenderFormContentProps {
   computedFields: FieldItem[];
   sectioned: {
@@ -1477,6 +1987,9 @@ interface RenderFormContentProps {
   activeStep: number;
   setActiveStep: (step: number) => void;
   renderField: (field: FieldItem) => React.ReactNode;
+  stepperRef?: React.RefObject<StepperNavHandle>; // ← nuevo
+  boxRef?: React.RefObject<BoxNavHandle>; // ← nuevo
+  hideNavButtons?: boolean;
 }
 
 const RenderFormContent = ({
@@ -1485,6 +1998,9 @@ const RenderFormContent = ({
   activeStep,
   setActiveStep,
   renderField,
+  stepperRef,
+  boxRef,
+  hideNavButtons = false,
 }: RenderFormContentProps) => {
   if (!sectioned.hasSections) {
     return <RowComponent>{computedFields.map(renderField)}</RowComponent>;
@@ -1492,20 +2008,27 @@ const RenderFormContent = ({
   if (sectioned.sectionType === "stepper") {
     return (
       <StepperFormLocal
+        ref={stepperRef}
         sections={sectioned.sections}
         activeStep={activeStep}
         onStepChange={setActiveStep}
         renderField={renderField}
+        hideNavButtons={hideNavButtons}
       />
     );
   }
-  // Modo "box" tradicional (sin soporte de sub-boxes, pero se podría extender)
-  // Convertir sections al formato esperado por BoxFormLocal (cada sección con fields)
   const boxSections = sectioned.sections.map((s) => ({
     title: s.title,
     fields: s.fields || (s.boxes ? s.boxes.flatMap((b) => b.fields) : []),
   }));
-  return <BoxFormLocal sections={boxSections} renderField={renderField} />;
+  return (
+    <BoxFormLocal
+      ref={boxRef}
+      sections={boxSections}
+      renderField={renderField}
+      hideSubmitButton={hideNavButtons}
+    />
+  );
 };
 
 // =============================================================================
@@ -1533,7 +2056,8 @@ const SuperCrud = <
   const [showDashboard, setShowDashboard] = useState(false);
   const [showAudit, setShowAudit] = useState(false);
   const [activeFilterCount, setActiveFilterCount] = useState(0);
-
+  const stepperRef = useRef<StepperNavHandle>(null);
+  const boxRef = useRef<BoxNavHandle>(null);
   const isAdvanced = !!(hook as any).search !== undefined;
   const advancedHook = hook as any;
 
@@ -1577,6 +2101,16 @@ const SuperCrud = <
         toggleConfigs,
         checkboxConfigs,
         uiLayout,
+        dateFields, // ← nuevo
+        dateRangeFields, // ← nuevo
+        numberDirectFields, // ← nuevo
+        sliderFields, // ← nuevo
+        dateConfigs, // ← nuevo
+        dateRangeConfigs, // ← nuevo
+        numberDirectConfigs, // ← nuevo
+        sliderConfigs, // ← nuevo
+        arrayFields, // ← NUEVO
+        arrayConfigs, // ← NUEVO
       } = crudConfig;
 
       const fieldsMap = new Map<string, FieldItem>();
@@ -1610,6 +2144,7 @@ const SuperCrud = <
           transform: config.transform,
           onChange: config.onChange,
           onInput: config.onInput,
+          hidden: config.hidden, // 👈 NUEVO
         };
         switch (typeField) {
           case "Text":
@@ -1618,7 +2153,6 @@ const SuperCrud = <
           case "Select":
             baseField.selectOptions = config.options;
             baseField.multiple = config.multiple;
-
             baseField.selectIdKey = config.keyId;
             baseField.selectLabelKey = config.keyLabel;
             baseField.selectOptionsHook = config.selectOptionsHook;
@@ -1642,7 +2176,18 @@ const SuperCrud = <
             baseField.numberConfig = config;
             break;
           case "Radio":
+            baseField.selectIdKey = config.keyId;
+            baseField.selectLabelKey = config.keyLabel;
             baseField.radioConfig = config;
+            break;
+          case "Array": // ← AGREGAR case para Array
+            baseField.arrayConfig = {
+              fields: config.fields || [],
+              allowAdd: config.allowAdd,
+              allowRemove: config.allowRemove,
+              addButtonLabel: config.addButtonLabel,
+              itemLabel: config.itemLabel,
+            };
             break;
           default:
             break;
@@ -1676,7 +2221,22 @@ const SuperCrud = <
       checkboxFields?.forEach((f) =>
         addField(f, "Checkbox", checkboxConfigs?.[f] || {}),
       );
-
+      dateFields?.forEach((f) => addField(f, "Date", dateConfigs?.[f] || {}));
+      dateRangeFields?.forEach((f) =>
+        addField(f, "DateRange", dateRangeConfigs?.[f] || {}),
+      );
+      numberDirectFields?.forEach((f) =>
+        addField(f, "NumberDirect", numberDirectConfigs?.[f] || {}),
+      );
+      sliderFields?.forEach((f) =>
+        addField(f, "Slider", sliderConfigs?.[f] || {}),
+      );
+      arrayFields?.forEach((f) => {
+        const config = arrayConfigs?.[f];
+        if (config) {
+          addField(f, "Array", config);
+        }
+      });
       let allFields = Array.from(fieldsMap.values());
 
       if (uiLayout?.fieldsPerSection) {
@@ -1752,7 +2312,6 @@ const SuperCrud = <
       const sectionsList = sections.map((name: string) => {
         const definition = fieldsPerSection?.[name];
         if (!definition) return { title: name, fields: [] };
-        // Si es un array de strings → forma simple
         if (
           Array.isArray(definition) &&
           definition.every((item) => typeof item === "string")
@@ -1762,7 +2321,6 @@ const SuperCrud = <
           );
           return { title: name, fields: fieldsList };
         }
-        // Si es un array de objetos BoxGroup
         if (
           Array.isArray(definition) &&
           definition.every(
@@ -1773,10 +2331,10 @@ const SuperCrud = <
               "fields" in item,
           )
         ) {
-          const boxes = (definition as BoxGroup[]).map((box) => ({
+          const boxes = (definition as BoxGroup<TForm>[]).map((box) => ({
             title: box.title,
             fields: computedFields.filter((field) =>
-              box.fields.includes(field.name),
+              box.fields.includes(field.name as keyof TForm),
             ),
           }));
           return { title: name, boxes };
@@ -1811,7 +2369,7 @@ const SuperCrud = <
       text: "Esta acción no se puede deshacer.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#9B2242",
+      confirmButtonColor: theme.colors.primary.DEFAULT,
       cancelButtonColor: "#6B7280",
       confirmButtonText: "Sí, eliminar",
       cancelButtonText: "Cancelar",
@@ -2130,6 +2688,10 @@ const SuperCrud = <
       radio: FormikRadioAdapter,
       toggle: FormikToggleAdapter,
       checkbox: FormikCheckboxAdapter,
+      date: FormikDateAdapter,
+      daterange: FormikDateRangeAdapter,
+      numberdirect: FormikNumberDirectAdapter,
+      slider: FormikSliderAdapter,
     };
 
     const userWrappedOverrides: OverrideComponents = {};
@@ -2178,6 +2740,10 @@ const SuperCrud = <
         radio: [],
         toggle: [],
         checkbox: [],
+        date: [],
+        daterange: [],
+        numberdirect: [],
+        slider: [],
       };
       const fieldTypes = [
         "text",
@@ -2190,6 +2756,10 @@ const SuperCrud = <
         "radio",
         "toggle",
         "checkbox",
+        "date",
+        "daterange",
+        "numberdirect",
+        "slider",
       ] as const;
       fieldTypes.forEach((type) => {
         const fieldList = crudConfig[`${type}Fields`] as string[] | undefined;
@@ -2246,9 +2816,235 @@ const SuperCrud = <
 
   // ─── Default render ──────────────────────────────────────────────────────────
   const mobileConfigValue = buildMobileConfig();
+  // ── Footer dinámico para modal con stepper/box ────────────────────────────────
+  const buildSectionedModalFooter = useCallback((): React.ReactNode => {
+    if (!sectioned.hasSections) return undefined;
 
+    const primaryColor = theme.colors.primary.DEFAULT;
+    const borderColor = theme.colors.border.DEFAULT;
+
+    if (sectioned.sectionType === "stepper") {
+      const isFirst = activeStep === 0;
+      const isLast = activeStep === sectioned.sections.length - 1;
+
+      return (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "12px 20px",
+            borderTop: `1px solid ${borderColor}`,
+            background: theme.colors.background.surface,
+            gap: "12px",
+          }}
+        >
+          {/* Atrás */}
+          <button
+            type="button"
+            disabled={isFirst}
+            onClick={() => setActiveStep(activeStep - 1)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "8px 16px",
+              borderRadius: theme.radius.md,
+              fontSize: theme.typography.fontSize.sm,
+              fontWeight: 500,
+              border: `1px solid ${borderColor}`,
+              background: isFirst
+                ? theme.colors.background.surface
+                : theme.colors.background.card,
+              color: isFirst
+                ? theme.colors.text.disabled
+                : theme.colors.text.secondary,
+              cursor: isFirst ? "not-allowed" : "pointer",
+              transition: theme.transitions.DEFAULT,
+            }}
+          >
+            <svg
+              className="w-4 h-4"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 5l-7 5 7 5"
+              />
+            </svg>
+            Atrás
+          </button>
+
+          {/* Dots de progreso */}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            {sectioned.sections.map((_, idx) => (
+              <div
+                key={idx}
+                style={{
+                  borderRadius: "9999px",
+                  transition: theme.transitions.DEFAULT,
+                  width: idx === activeStep ? "20px" : "8px",
+                  height: "8px",
+                  background:
+                    idx === activeStep
+                      ? primaryColor
+                      : idx < activeStep
+                        ? primaryColor
+                        : borderColor,
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Siguiente / Guardar */}
+          {isLast ? (
+            <button
+              type="button"
+              disabled={hook.loading}
+              onClick={() => stepperRef.current?.trySave()}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 20px",
+                borderRadius: theme.radius.md,
+                fontSize: theme.typography.fontSize.sm,
+                fontWeight: 600,
+                background: primaryColor,
+                color: theme.colors.text.inverse,
+                border: "none",
+                cursor: hook.loading ? "not-allowed" : "pointer",
+                opacity: hook.loading ? 0.6 : 1,
+                transition: theme.transitions.DEFAULT,
+              }}
+            >
+              {hook.loading ? (
+                <>
+                  <svg
+                    className="w-4 h-4 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                  </svg>
+                  Guardando…
+                </>
+              ) : (
+                <>
+                  Guardar
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 11.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => stepperRef.current?.tryNext()}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 16px",
+                borderRadius: theme.radius.md,
+                fontSize: theme.typography.fontSize.sm,
+                fontWeight: 500,
+                background: primaryColor,
+                color: theme.colors.text.inverse,
+                border: "none",
+                cursor: "pointer",
+                transition: theme.transitions.DEFAULT,
+              }}
+            >
+              Siguiente
+              <svg
+                className="w-4 h-4"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 5l7 5-7 5"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    // Modo "box": footer simple con Cancelar + Guardar
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: "12px",
+          padding: "12px 20px",
+          borderTop: `1px solid ${borderColor}`,
+          background: theme.colors.background.surface,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => hook.setOpen(false)}
+          style={{
+            padding: "8px 16px",
+            borderRadius: theme.radius.md,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: 500,
+            border: `1px solid ${borderColor}`,
+            background: theme.colors.background.card,
+            color: theme.colors.text.secondary,
+            cursor: "pointer",
+          }}
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          disabled={hook.loading}
+          onClick={() => boxRef.current?.trySave()}
+          style={{
+            padding: "8px 20px",
+            borderRadius: theme.radius.md,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: 600,
+            background: primaryColor,
+            color: theme.colors.text.inverse,
+            border: "none",
+            cursor: hook.loading ? "not-allowed" : "pointer",
+            opacity: hook.loading ? 0.6 : 1,
+          }}
+        >
+          {hook.loading ? "Guardando…" : "Guardar"}
+        </button>
+      </div>
+    );
+  }, [sectioned, activeStep, hook.loading, hook.setOpen]);
   return (
-    <div className="space-y-4">
+    <div
+      className="space-y-4"
+      style={{ background: theme.colors.background.page }}
+    >
       {/* Header */}
       <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         {crudConfig?.tableHeader && (
@@ -2259,7 +3055,10 @@ const SuperCrud = <
                   {typeof crudConfig.tableHeader.icon === "string" ? (
                     <i className={`${crudConfig.tableHeader.icon} text-2xl`} />
                   ) : (
-                    <div className="p-3 rounded-xl text-white bg-red-950">
+                    <div
+                      className="p-3 rounded-xl text-white"
+                      style={{ background: theme.colors.primary.DEFAULT }}
+                    >
                       {crudConfig.tableHeader.icon}
                     </div>
                   )}
@@ -2339,12 +3138,22 @@ const SuperCrud = <
             </button>
           )}
           <Tooltip content="Agregar Registro">
-            <CustomButton
-              className="w-4 h-4"
+            <button
               onClick={() => hook.setOpen(true)}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "none",
+                cursor: "pointer",
+                background: theme.colors.primary[600],
+              }}
             >
-              <icons.Pi.PiListPlus size={25} />
-            </CustomButton>
+              <icons.Pi.PiListPlus size={22} color="white" />
+            </button>
           </Tooltip>
         </div>
       </div>
@@ -2472,6 +3281,7 @@ const SuperCrud = <
       )}
 
       {/* Modal Form */}
+      {/* Modal Form - Versión mejorada con Footer propio */}
       <CompositePage
         isOpen={hook.open}
         onClose={() => hook.setOpen(false)}
@@ -2482,20 +3292,56 @@ const SuperCrud = <
             ? formTitles.modalTitleUpdate
             : formTitles.modalTitleAdd
         }
+        // ↓ Cuando hay secciones, el footer lo gestiona buildSectionedModalFooter
+        hideDefaultFooter={sectioned.hasSections}
+        modalFooter={
+          sectioned.hasSections ? buildSectionedModalFooter() : undefined
+        }
+        // ↓ Sólo mostramos estos cuando NO hay secciones (form simple)
+        saveButtonText={sectioned.hasSections ? undefined : "Guardar"}
+        cancelButtonText={sectioned.hasSections ? undefined : "Cancelar"}
+        onSave={
+          sectioned.hasSections
+            ? undefined
+            : () => {
+                const formElement = document.querySelector("form");
+                formElement?.dispatchEvent(
+                  new Event("submit", { bubbles: true }),
+                );
+              }
+        }
+        onCancel={sectioned.hasSections ? undefined : () => hook.setOpen(false)}
+        isSaving={hook.loading}
+        modalBodyClassName="pb-4"
         form={() => {
           const hasFileFields = computedFields.some(
-            (field) => field.typeField === "File",
+            (f) => f.typeField === "File",
           );
           return (
             <FormikForm
               initialValues={hook.initialValues as TForm}
               onSubmit={async (values) => {
-                if (hasFileFields) await hook.postItem(values as TForm, true);
-                else await hook.postItem(values as TForm);
-                hook.setOpen(false);
+                try {
+                  if (hasFileFields) await hook.postItem(values as TForm, true);
+                  else await hook.postItem(values as TForm);
+                  hook.setOpen(false);
+                  Swal.fire({
+                    icon: "success",
+                    title: "Guardado",
+                    text: "Registro guardado correctamente",
+                    timer: 2000,
+                    showConfirmButton: false,
+                  });
+                } catch {
+                  Swal.fire({
+                    icon: "error",
+                    title: "Error",
+                    text: "No se pudo guardar el registro",
+                  });
+                }
               }}
               validationSchema={validationSchema}
-              buttonMessage={!sectioned.hasSections ? "Guardar" : undefined}
+              buttonMessage={undefined}
               buttonLoading={hook.loading}
             >
               {() => (
@@ -2505,6 +3351,9 @@ const SuperCrud = <
                   activeStep={activeStep}
                   setActiveStep={setActiveStep}
                   renderField={renderField}
+                  stepperRef={stepperRef} // ← nuevo
+                  boxRef={boxRef} // ← nuevo
+                  hideNavButtons={sectioned.hasSections} // ← suprime botones internos
                 />
               )}
             </FormikForm>

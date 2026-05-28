@@ -19,6 +19,8 @@ export const usersBuilderCrud = ConfigCrud<UsersForm, UsersTable>()
       label: "Nombre Completo",
       caseTransform: "uppercase",
       placeholder: "INGE",
+      validation: ({ yup }) => yup.string().required("Nombre Requerido"),
+
       onChange: (value, formik) => {
         // Limpiar y normalizar el nombre completo
         const nombreLimpio = value
@@ -58,8 +60,8 @@ export const usersBuilderCrud = ConfigCrud<UsersForm, UsersTable>()
       label: "Usuario",
       disabled: true,
       placeholder: "INGE",
+      validation: ({ yup }) => yup.string().required("Usuario Requerido"),
     },
- 
   })
   .select({
     id_rol: {
@@ -67,6 +69,7 @@ export const usersBuilderCrud = ConfigCrud<UsersForm, UsersTable>()
       keyId: "id",
       keyLabel: "nombre_rol",
       selectOptionsHook: () => UseRoles().items,
+      validation: ({ yup }) => yup.number().required("Rol Requerido"),
     },
   })
   .tableHeader({
@@ -110,7 +113,6 @@ export const usersBuilderCrud = ConfigCrud<UsersForm, UsersTable>()
       height: 500,
       showCloseButton: true,
       builder: (row, onClose) => (
-        
         <CustomDataDisplay
           data={row}
           config={userMovilView}

@@ -2,13 +2,14 @@
 import React, { useState } from "react";
 import { FiPlus, FiEdit2, FiTrash2, FiClock } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
+import { theme } from "../../../config/themes";
 
 interface KanbanCard {
   id: string | number;
   title: string;
   description?: string;
   status: string;
-  priority?: 'low' | 'medium' | 'high';
+  priority?: "low" | "medium" | "high";
   assignee?: string;
   dueDate?: string;
   [key: string]: any;
@@ -25,41 +26,61 @@ interface KanbanViewProps<T = any> {
   renderCard?: (item: T) => React.ReactNode;
 }
 
-const priorityColors: Record<string, string> = {
-  low: "bg-green-100 text-green-800",
-  medium: "bg-yellow-100 text-yellow-800",
-  high: "bg-red-100 text-red-800",
+const priorityColorsRecord: Record<string, { bg: string; text: string }> = {
+  low: {
+    bg: theme.colors.feedback.successLight,
+    text: theme.colors.status.success,
+  },
+  medium: {
+    bg: `${theme.colors.status.warning}15`,
+    text: theme.colors.status.warning,
+  },
+  high: {
+    bg: theme.colors.feedback.errorLight,
+    text: theme.colors.status.error,
+  },
 };
 
 const defaultStatuses = [
-  { id: 'pending', name: 'Pendiente', color: 'bg-gray-100' },
-  { id: 'in_progress', name: 'En Progreso', color: 'bg-blue-100' },
-  { id: 'completed', name: 'Completado', color: 'bg-green-100' },
+  { id: "pending", name: "Pendiente", color: theme.colors.background.surface },
+  {
+    id: "in_progress",
+    name: "En Progreso",
+    color: `${theme.colors.primary.DEFAULT}15`,
+  },
+  {
+    id: "completed",
+    name: "Completado",
+    color: `${theme.colors.status.success}15`,
+  },
 ];
 
 const KanbanView = <T extends { id?: number }>({
   items,
   onEdit,
   onDelete,
-  statusField = 'status',
+  statusField = "status",
   statusOptions = defaultStatuses,
-  titleField = 'name',
-  descriptionField = 'description',
+  titleField = "name",
+  descriptionField = "description",
   renderCard,
 }: KanbanViewProps<T>) => {
   const [draggedItem, setDraggedItem] = useState<T | null>(null);
 
   const getStatusName = (statusId: string) => {
-    return statusOptions.find(s => s.id === statusId)?.name || statusId;
+    return statusOptions.find((s) => s.id === statusId)?.name || statusId;
   };
 
   const getStatusColor = (statusId: string) => {
-    return statusOptions.find(s => s.id === statusId)?.color || 'bg-gray-100';
+    return (
+      statusOptions.find((s) => s.id === statusId)?.color ||
+      theme.colors.background.surface
+    );
   };
 
-  const groupedItems = statusOptions.map(status => ({
+  const groupedItems = statusOptions.map((status) => ({
     ...status,
-    items: (items as any[]).filter(item => item[statusField] === status.id),
+    items: (items as any[]).filter((item) => item[statusField] === status.id),
   }));
 
   const handleDragStart = (item: T) => {
@@ -83,16 +104,36 @@ const KanbanView = <T extends { id?: number }>({
           onDragOver={(e) => e.preventDefault()}
           onDrop={() => handleDrop(column.id)}
         >
-          <div className={`rounded-t-lg p-3 ${column.color} border-b-2 border-gray-300`}>
+          <div
+            className="rounded-t-lg p-3 border-b-2"
+            style={{
+              background: column.color,
+              borderBottomColor: theme.colors.border.DEFAULT,
+            }}
+          >
             <div className="flex items-center justify-between">
-              <h4 className="font-semibold text-gray-800">{column.name}</h4>
-              <span className="text-xs bg-white px-2 py-1 rounded-full font-medium">
+              <h4
+                className="font-semibold"
+                style={{ color: theme.colors.text.primary }}
+              >
+                {column.name}
+              </h4>
+              <span
+                className="text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{
+                  background: theme.colors.background.card,
+                  color: theme.colors.text.secondary,
+                }}
+              >
                 {column.items.length}
               </span>
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-b-lg p-3 space-y-3 min-h-[200px]">
+          <div
+            className="rounded-b-lg p-3 space-y-3 min-h-[200px]"
+            style={{ background: theme.colors.background.surface }}
+          >
             <AnimatePresence>
               {column.items.map((item: any) => (
                 <motion.div
@@ -100,16 +141,27 @@ const KanbanView = <T extends { id?: number }>({
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
+                  className="rounded-lg p-4 shadow-sm transition-all cursor-pointer"
+                  style={{
+                    background: theme.colors.background.card,
+                    border: `1px solid ${theme.colors.border.DEFAULT}`,
+                    boxShadow: theme.shadows.sm,
+                  }}
                   draggable
                   onDragStart={() => handleDragStart(item)}
+                  whileHover={{
+                    boxShadow: theme.shadows.md,
+                  }}
                 >
                   {renderCard ? (
                     renderCard(item)
                   ) : (
                     <>
                       <div className="flex items-start justify-between mb-2">
-                        <h5 className="font-medium text-gray-900 text-sm">
+                        <h5
+                          className="font-medium text-sm"
+                          style={{ color: theme.colors.text.primary }}
+                        >
                           {item[titleField]}
                         </h5>
                         <div className="flex space-x-1">
@@ -118,7 +170,16 @@ const KanbanView = <T extends { id?: number }>({
                               e.stopPropagation();
                               onEdit(item);
                             }}
-                            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                            className="p-1 transition-colors rounded"
+                            style={{ color: theme.colors.text.disabled }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color =
+                                theme.colors.primary.DEFAULT;
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color =
+                                theme.colors.text.disabled;
+                            }}
                           >
                             <FiEdit2 className="h-3.5 w-3.5" />
                           </button>
@@ -127,7 +188,16 @@ const KanbanView = <T extends { id?: number }>({
                               e.stopPropagation();
                               onDelete(item);
                             }}
-                            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                            className="p-1 transition-colors rounded"
+                            style={{ color: theme.colors.text.disabled }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color =
+                                theme.colors.status.error;
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color =
+                                theme.colors.text.disabled;
+                            }}
                           >
                             <FiTrash2 className="h-3.5 w-3.5" />
                           </button>
@@ -135,19 +205,32 @@ const KanbanView = <T extends { id?: number }>({
                       </div>
 
                       {item[descriptionField] && (
-                        <p className="text-xs text-gray-600 mb-2 line-clamp-2">
+                        <p
+                          className="text-xs mb-2 line-clamp-2"
+                          style={{ color: theme.colors.text.secondary }}
+                        >
                           {item[descriptionField]}
                         </p>
                       )}
 
                       <div className="flex items-center justify-between mt-3">
                         {item.priority && (
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${priorityColors[item.priority] || 'bg-gray-100'}`}>
+                          <span
+                            className="text-xs px-2 py-0.5 rounded-full"
+                            style={{
+                              background:
+                                priorityColorsRecord[item.priority]?.bg,
+                              color: priorityColorsRecord[item.priority]?.text,
+                            }}
+                          >
                             {item.priority}
                           </span>
                         )}
                         {item.dueDate && (
-                          <span className="text-xs text-gray-500 flex items-center">
+                          <span
+                            className="text-xs flex items-center"
+                            style={{ color: theme.colors.text.disabled }}
+                          >
                             <FiClock className="h-3 w-3 mr-1" />
                             {new Date(item.dueDate).toLocaleDateString()}
                           </span>
@@ -155,7 +238,10 @@ const KanbanView = <T extends { id?: number }>({
                       </div>
 
                       {item.assignee && (
-                        <div className="mt-2 text-xs text-gray-500">
+                        <div
+                          className="mt-2 text-xs"
+                          style={{ color: theme.colors.text.disabled }}
+                        >
                           Asignado a: {item.assignee}
                         </div>
                       )}
@@ -165,7 +251,22 @@ const KanbanView = <T extends { id?: number }>({
               ))}
             </AnimatePresence>
 
-            <button className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-xs text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors">
+            <button
+              className="w-full py-2 border-2 border-dashed rounded-lg text-xs transition-colors"
+              style={{
+                borderColor: theme.colors.border.DEFAULT,
+                color: theme.colors.text.disabled,
+                background: "transparent",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = theme.colors.border.hover;
+                e.currentTarget.style.color = theme.colors.text.secondary;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = theme.colors.border.DEFAULT;
+                e.currentTarget.style.color = theme.colors.text.disabled;
+              }}
+            >
               <FiPlus className="inline mr-1" />
               Agregar tarjeta
             </button>
