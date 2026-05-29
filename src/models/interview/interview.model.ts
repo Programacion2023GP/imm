@@ -118,22 +118,44 @@ export interface InterviewForm {
   // 6 PERSONA AGRESORA
   conoce_agresor: boolean;
   nombre_agresor: string;
-  
+
   edad_agresor: string;
   sexo_agresor: string;
+  id_vinculo_agresor: number;
   id_identidad_genero_agresor: number;
   id_orientacion_sexual_agresor: number;
   vive_domicilio_victima: boolean;
+
   codigo_postal_agresor: number;
   colonia_agresor: string;
   estado_agresor: string;
   municipio_agresor: string;
-  localidad_agresor: string;
   calle_agresor: string;
   num_ext_agresor: number;
   num_int_agresor: number;
   entre_calles_agresor: string;
   referencias_agresor: string;
   zona_agresor: string;
+  id_ultimo_grado_estudios_agresor: number;
+  id_ingreso_promedio_mensual_agresor: number;
+  id_ocupacion_agresor: number;
+  acceso_armas_agresor: boolean;
+  id_armas_agresor: number;
+  acceso_drogas_agresor: boolean;
+
+  id_drogas_agresor: number[];
+  //Ruta de antencion
+
+  id_servicios_trabajo_social: number[];
+  id_servicios_juridicos: number[];
+  id_servicios_psicologicos: number[];
+
+  //CANALIZACION
+  id_dependencia:number,
+  especifica_dependencia:string,
+  id_canalizacion:number,
+  fecha_canalizacion:string,
+  responsable:string,
+  observaciones:string,
 }
 export interface InterviewTable extends InterviewForm {}

@@ -29,6 +29,13 @@ import UseMainActivityData from "../../ui/hooks/mainactivity/usemainactivitydata
 import UseHealtInsuranceData from "../../ui/hooks/healtinsurance/usehealtinsurancedata";
 import UseDisabilitiesData from "../../ui/hooks/disabilities/usedisabilitiesdata";
 import UseRelationShipData from "../../ui/hooks/relationship/userelationshipdata";
+import UseOcupationsData from "../../ui/hooks/ocupations/useocupationsdata";
+import UseWeapons from "../../ui/hooks/weapons/useweaponsdata";
+import UseSocialWorkData from "../../ui/hooks/socialwork/usesocialworkdata";
+import UseLegalServiceData from "../../ui/hooks/legalservices/uselegalservicedata";
+import UsePsYchologicalServicesData from "../../ui/hooks/psychologicalservices/usepsychologicalservicesdata";
+import UseDependencesData from "../../ui/hooks/dependences/usedependencesdata";
+import UseCanalizationData from "../../ui/hooks/canalization/usecanalizationdata";
 
 // 📱 Responsive presets
 const ResponsiveToogle = {
@@ -77,8 +84,15 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       "zona",
 
       "nombre_agresor",
+
+      "calle_agresor",
+      "estado_agresor",
+      "municipio_agresor",
+      "zona_agresor",
+      "responsable",
+      "especifica_dependencia",
     ],
-    textarea: ["entre_calles", "referencias"],
+    textarea: ["entre_calles", "referencias", "observaciones"],
     number: [
       "edad",
       "telefono",
@@ -87,6 +101,9 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       "num_int",
       "semananas_embarazo",
       "edad_agresor",
+      "codigo_postal_agresor",
+      "num_ext_agresor",
+      "num_int_agresor",
     ],
     // 🔽 Campos de selección (dropdowns)
     select: [
@@ -113,6 +130,20 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       "id_actividad",
       "id_servicio_medico",
       "id_discapacidad",
+      "id_vinculo_agresor",
+      "id_identidad_genero_agresor",
+      "id_orientacion_sexual_agresor",
+      "colonia_agresor",
+      "id_ultimo_grado_estudios_agresor",
+      "id_ingreso_promedio_mensual_agresor",
+      "id_ocupacion_agresor",
+      "id_armas_agresor",
+      "id_drogas_agresor",
+      "id_servicios_trabajo_social",
+      "id_servicios_juridicos",
+      "id_servicios_psicologicos",
+      "id_dependencia",
+      "id_canalizacion",
     ],
 
     // 🔘 Campos toggle (switch on/off)
@@ -139,14 +170,18 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       "vive_situacion_calle",
       "tiene_adiccion",
       "conoce_agresor",
+      "vive_domicilio_victima",
+      "acceso_armas_agresor",
+      "acceso_drogas_agresor",
     ],
     // ⭕ Campos radio (selección única)
-    radio: ["sector", "autoidentificacion_etnica", "conducta"], // Sector: Rural / Urbano
+    radio: ["sector", "autoidentificacion_etnica", "conducta", "sexo_agresor"], // Sector: Rural / Urbano
     // 📅 Campos de fecha
     date: [
       "fecha_hecho", // Fecha en que ocurrió el hecho
       "hora_hecho", // Hora en que ocurrió el hecho
       "fecha_nacimiento",
+      "fecha_canalizacion",
     ],
     array: ["dependientes", "redapoyo"],
   })
@@ -180,7 +215,25 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
     edad_agresor: {
       label: "Edad",
       responsive: ResponsiveSelectAndDate,
-      hidden: (values) => values.conoce_agresor,
+      hidden: (values) => !values.conoce_agresor,
+    },
+    codigo_postal_agresor: {
+      label: "codigo postal",
+      onChange: async (val, formik, hook) => {
+        hook.UseInterview.getCpAgresor(val);
+      },
+      responsive: ResponsiveSelectAndDate,
+      hidden: (values) => !values.conoce_agresor,
+    },
+    num_ext_agresor: {
+      label: "Número exterior",
+      responsive: ResponsiveSelectAndDate,
+      hidden: (values) => !values.conoce_agresor,
+    },
+    num_int_agresor: {
+      label: "Número interior",
+      responsive: ResponsiveSelectAndDate,
+      hidden: (values) => !values.conoce_agresor,
     },
   })
 
@@ -200,6 +253,10 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
     // 🟢 Datos de la victima
     fecha_nacimiento: {
       label: "Fecha de Nacimiento",
+      responsive: ResponsiveSelectAndDate,
+    },
+    fecha_canalizacion: {
+      label: "Fecha de canalización",
       responsive: ResponsiveSelectAndDate,
     },
   })
@@ -301,8 +358,41 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
     nombre_agresor: {
       label: "Nombre del agresor",
       responsive: ResponsiveSelectAndDate,
-      hidden: (values) => values.conoce_agresor,
+      hidden: (values) => !values.conoce_agresor,
     },
+    estado_agresor: {
+      label: "Estado",
+      disabled: true,
+      responsive: ResponsiveSelectAndDate,
+      hidden: (values) => !values.conoce_agresor,
+    },
+    zona_agresor: {
+      label: "Zona",
+      disabled: true,
+      responsive: ResponsiveSelectAndDate,
+      hidden: (values) => !values.conoce_agresor,
+    },
+    calle_agresor: {
+      label: "Calle",
+      responsive: ResponsiveSelectAndDate,
+      hidden: (values) => !values.conoce_agresor,
+    },
+
+    municipio_agresor: {
+      label: "Municipio",
+      disabled: true,
+      responsive: ResponsiveSelectAndDate,
+      hidden: (values) => !values.conoce_agresor,
+    },
+    responsable: {
+      label: "Responsable",
+      responsive: ResponsiveSelectAndDate,
+    },
+    especifica_dependencia: {
+      label: "Especifica la dependencia",
+      hidden: (values) => values.id_dependencia!=8,
+    },
+ 
   })
 
   // ==========================================================================
@@ -462,7 +552,7 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       selectOptionsHook: () => UseInterview().colonias,
       onChange: async (val, formik, hook) => {
         const colonias = hook.UseInterview.colonias;
-        console.log("esto es", val, colonias);
+
         formik.setFieldValue(
           "estado",
           colonias.find((it) => it.nombre == val?.nombre).estado,
@@ -561,7 +651,159 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       loadingHook: () => UseDisabilitiesData().loading,
       // responsive: ResponsiveSelectAndDate,
     },
-    
+    id_vinculo_agresor: {
+      label: "Vinculo",
+      keyId: "id",
+      keyLabel: "nombre",
+      selectOptionsHook: () => UseRelationShipData().items,
+      refreshActionHook: () => UseRelationShipData().refresh,
+      loadingHook: () => UseRelationShipData().loading,
+      hidden: (values) => !values.conoce_agresor,
+      responsive: ResponsiveSelectAndDate,
+    },
+    id_identidad_genero_agresor: {
+      label: "Identidad de género",
+      keyId: "id",
+      keyLabel: "nombre",
+
+      selectOptionsHook: () => UseGenderIndentityData().items,
+      refreshActionHook: () => UseGenderIndentityData().refresh,
+      loadingHook: () => UseGenderIndentityData().loading,
+      responsive: ResponsiveSelectAndDate,
+      hidden: (values) => !values.conoce_agresor,
+    },
+    id_orientacion_sexual_agresor: {
+      label: "Orientaciòn sexual",
+      keyId: "id",
+      keyLabel: "nombre",
+
+      selectOptionsHook: () => UseSexualOrientationData().items,
+      refreshActionHook: () => UseSexualOrientationData().refresh,
+      loadingHook: () => UseSexualOrientationData().loading,
+      responsive: ResponsiveSelectAndDate,
+      hidden: (values) => !values.conoce_agresor,
+    },
+    colonia_agresor: {
+      label: "Colonia",
+      keyId: "nombre",
+      keyLabel: "nombre",
+      // multiple: true,
+      selectOptionsHook: () => UseInterview().colonias_agresor,
+      onChange: async (val, formik, hook) => {
+        const colonias = hook.UseInterview.colonias_agresor;
+
+        formik.setFieldValue(
+          "estado_agresor",
+          colonias.find((it) => it.nombre == val?.nombre).estado,
+        );
+        formik.setFieldValue(
+          "municipio_agresor",
+          colonias.find((it) => it.nombre == val?.nombre).municipio,
+        );
+        formik.setFieldValue(
+          "zona_agresor",
+          colonias.find((it) => it.nombre == val?.nombre).zona,
+        );
+      },
+      loadingHook: () => UseInterview().loadingCp_agresor,
+      responsive: ResponsiveSelectAndDate,
+      hidden: (values) => !values.conoce_agresor,
+    },
+    id_ultimo_grado_estudios_agresor: {
+      label: "Ultimo grado de estudios",
+      keyId: "id",
+      keyLabel: "nombre",
+
+      selectOptionsHook: () => UseEducationLevelData().items,
+      refreshActionHook: () => UseEducationLevelData().refresh,
+      loadingHook: () => UseEducationLevelData().loading,
+      responsive: ResponsiveSelectAndDate,
+      hidden: (values) => !values.conoce_agresor,
+    },
+    id_ingreso_promedio_mensual_agresor: {
+      label: "Ingresos promedios mensuales",
+      keyId: "id",
+      keyLabel: "nombre",
+
+      selectOptionsHook: () => UseAverageIncomeData().items,
+      refreshActionHook: () => UseAverageIncomeData().refresh,
+      loadingHook: () => UseAverageIncomeData().loading,
+      responsive: ResponsiveSelectAndDate,
+      hidden: (values) => !values.conoce_agresor,
+    },
+    id_ocupacion_agresor: {
+      label: "Ocupación",
+      keyId: "id",
+      keyLabel: "nombre",
+
+      selectOptionsHook: () => UseOcupationsData().items,
+      refreshActionHook: () => UseOcupationsData().refresh,
+      loadingHook: () => UseOcupationsData().loading,
+      hidden: (values) => !values.conoce_agresor,
+    },
+    id_armas_agresor: {
+      label: "Arma",
+      keyId: "id",
+      keyLabel: "nombre",
+
+      selectOptionsHook: () => UseWeapons().items,
+      refreshActionHook: () => UseWeapons().refresh,
+      loadingHook: () => UseWeapons().loading,
+      hidden: (values) => !values.acceso_armas_agresor,
+    },
+    id_drogas_agresor: {
+      label: "Sustancias",
+      keyId: "id",
+      keyLabel: "nombre",
+      multiple: true,
+      selectOptionsHook: () => UseAverageIncomeData().items,
+      refreshActionHook: () => UseAverageIncomeData().refresh,
+      loadingHook: () => UseAverageIncomeData().loading,
+      hidden: (values) => !values.acceso_drogas_agresor,
+    },
+    id_servicios_trabajo_social: {
+      label: "Trabajo social",
+      keyId: "id",
+      keyLabel: "nombre",
+      multiple: true,
+      selectOptionsHook: () => UseSocialWorkData().items,
+      refreshActionHook: () => UseSocialWorkData().refresh,
+      loadingHook: () => UseSocialWorkData().loading,
+    },
+    id_servicios_juridicos: {
+      label: "Servicio Juridico",
+      keyId: "id",
+      keyLabel: "nombre",
+      multiple: true,
+      selectOptionsHook: () => UseLegalServiceData().items,
+      refreshActionHook: () => UseLegalServiceData().refresh,
+      loadingHook: () => UseLegalServiceData().loading,
+    },
+    id_servicios_psicologicos: {
+      label: "Servicios Piscológicos",
+      keyId: "id",
+      keyLabel: "nombre",
+      multiple: true,
+      selectOptionsHook: () => UsePsYchologicalServicesData().items,
+      refreshActionHook: () => UsePsYchologicalServicesData().refresh,
+      loadingHook: () => UsePsYchologicalServicesData().loading,
+    },
+    id_dependencia: {
+      label: "Dependencia / Institucion",
+      keyId: "id",
+      keyLabel: "nombre",
+      selectOptionsHook: () => UseDependencesData().items,
+      refreshActionHook: () => UseDependencesData().refresh,
+      loadingHook: () => UseDependencesData().loading,
+    },
+    id_canalizacion: {
+      label: "Canalización",
+      keyId: "id",
+      keyLabel: "nombre",
+      selectOptionsHook: () => UseCanalizationData().items,
+      refreshActionHook: () => UseCanalizationData().refresh,
+      loadingHook: () => UseCanalizationData().loading,
+    },
   })
 
   // ==========================================================================
@@ -656,6 +898,18 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
     conoce_agresor: {
       label: "¿Conoce al agresor?",
     },
+    vive_domicilio_victima: {
+      label: "¿Vive en el mismo domicilio que la victima?",
+      hidden: (values) => !values.conoce_agresor,
+    },
+    acceso_armas_agresor: {
+      label: "Tiene accesso a armas",
+      hidden: (values) => !values.conoce_agresor,
+    },
+    acceso_drogas_agresor: {
+      label: "¿Consume drogas?",
+      hidden: (values) => !values.conoce_agresor,
+    },
   })
 
   // ==========================================================================
@@ -692,11 +946,105 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       ],
       hidden: (values) => !values.tiene_adiccion,
     },
+    sexo_agresor: {
+      label: "Sexo",
+      optionIdKey: "nombre",
+      optionLabelKey: "nombre",
+      options: [
+        { id: 1, nombre: "Hombre" },
+        { id: 2, nombre: "Mujer" },
+        { id: 3, nombre: "No binario" },
+      ],
+      responsive: ResponsiveSelectAndDate,
+
+      hidden: (values) => !values.conoce_agresor,
+    },
   })
 
   // ==========================================================================
   // 7. CONFIGURACIÓN DEL LAYOUT (STEpper - MULTI-PASOS)
   // ==========================================================================
+
+  .textarea({
+    entre_calles: {
+      label: "Entre las calles",
+    },
+    referencias: {
+      label: "Referencias",
+    },
+  })
+  .array({
+    dependientes: {
+      label: "Hijas, hijos y dependientes",
+      fields: [
+        {
+          name: "nombre",
+          label: "Nombre",
+          type: "text",
+        },
+        {
+          name: "apellido_paterno",
+          label: "Apellido Paterno",
+          type: "text",
+        },
+        {
+          name: "apellido_materno",
+          label: "Apellido Materno",
+          type: "text",
+        },
+        {
+          name: "id_vinculo",
+          label: "Vinculo",
+          type: "select",
+          selectIdKey: "id",
+          selectLabelKey: "nombre",
+          selectOptionsHook: () => UseRelationShipData().items,
+          refreshActionHook: () => UseRelationShipData().refresh,
+          loadingHook: () => UseRelationShipData().loading,
+        },
+        {
+          name: "esta_riesgo",
+          label: "¿Esta en riesgo?",
+          type: "toggle",
+        },
+      ],
+    },
+    redapoyo: {
+      label: "Red de apoyo",
+      fields: [
+        {
+          name: "nombre",
+          label: "Nombre",
+          type: "text",
+        },
+        {
+          name: "apellido_paterno",
+          label: "Apellido Paterno",
+          type: "text",
+        },
+        {
+          name: "apellido_materno",
+          label: "Apellido Materno",
+          type: "text",
+        },
+        {
+          name: "id_vinculo",
+          label: "Vinculo",
+          type: "select",
+          selectIdKey: "id",
+          selectLabelKey: "nombre",
+          selectOptionsHook: () => UseRelationShipData().items,
+          refreshActionHook: () => UseRelationShipData().refresh,
+          loadingHook: () => UseRelationShipData().loading,
+        },
+        {
+          name: "cuenta_apoyo",
+          label: "¿Cuenta con red de apoyo?",
+          type: "toggle",
+        },
+      ],
+    },
+  })
   .layout(
     "stepper", // Modo: stepper (pasos) o box (cajas)
     "Apertura del caso", // Paso 1
@@ -705,6 +1053,8 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
     "Efectos de la violencia", // Paso 4
     "Datos de la victima", // paso 5
     "Persona agresora",
+    "Ruta de antencion",
+    "Canalización",
   )({
     // 📌 PASO 1: APERTURA DEL CASO
     "Apertura del caso": ["curp"],
@@ -823,6 +1173,8 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
           "num_int",
           "entre_calles",
           "referencias",
+          "entre_calles_agresor",
+          "referencias_agresor",
         ],
       },
       {
@@ -856,87 +1208,55 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
         fields: ["vive_situacion_calle", "tiene_adiccion", "conducta"],
       },
     ],
-    "Persona agresora": ["conoce_agresor", "nombre_agresor", "edad_agresor"],
+    "Persona agresora": [
+      {
+        title: "Información",
+        fields: [
+          "conoce_agresor",
+          "nombre_agresor",
+          "edad_agresor",
+          "sexo_agresor",
+          "id_vinculo_agresor",
+          "id_identidad_genero_agresor",
+          "id_orientacion_sexual_agresor",
+          "id_ultimo_grado_estudios_agresor",
+          "id_ingreso_promedio_mensual_agresor",
+          "id_ocupacion_agresor",
+          "acceso_armas_agresor",
+          "id_armas_agresor",
+          "acceso_drogas_agresor",
+          "id_drogas_agresor",
+          "vive_domicilio_victima",
+        ],
+      },
+      {
+        title: "Domicilio",
+        fields: [
+          "codigo_postal_agresor",
+          "colonia_agresor",
+          "estado_agresor",
+          "municipio_agresor",
+          "calle_agresor",
+          "num_ext_agresor",
+          "num_int_agresor",
+          "entre_calles_agresor",
+          "referencias_agresor",
+          "zona_agresor",
+        ],
+      },
+    ],
+    "Ruta de antencion": [
+      "id_servicios_trabajo_social",
+      "id_servicios_juridicos",
+      "id_servicios_psicologicos",
+    ],
+    Canalización: [
+      "id_dependencia",
+      "especifica_dependencia",
+      "id_canalizacion",
+      "fecha_canalizacion",
+      "responsable",
+      "observaciones",
+    ],
   })
-  .textarea({
-    entre_calles: {
-      label: "Entre las calles",
-    },
-    referencias: {
-      label: "Referencias",
-    },
-  })
-  .array({
-    dependientes: {
-      label: "Hijas, hijos y dependientes",
-      fields: [
-        {
-          name: "nombre",
-          label: "Nombre",
-          type: "text",
-        },
-        {
-          name: "apellido_paterno",
-          label: "Apellido Paterno",
-          type: "text",
-        },
-        {
-          name: "apellido_materno",
-          label: "Apellido Materno",
-          type: "text",
-        },
-        {
-          name: "id_vinculo",
-          label: "Vinculo",
-          type: "select",
-          selectIdKey: "id",
-          selectLabelKey: "nombre",
-          selectOptionsHook: () => UseRelationShipData().items,
-          refreshActionHook: () => UseRelationShipData().refresh,
-          loadingHook: () => UseRelationShipData().loading,
-        },
-        {
-          name: "esta_riesgo",
-          label: "¿Esta en riesgo?",
-          type: "toggle",
-        },
-      ],
-    },
-    redapoyo: {
-      label: "Red de apoyo",
-      fields: [
-        {
-          name: "nombre",
-          label: "Nombre",
-          type: "text",
-        },
-        {
-          name: "apellido_paterno",
-          label: "Apellido Paterno",
-          type: "text",
-        },
-        {
-          name: "apellido_materno",
-          label: "Apellido Materno",
-          type: "text",
-        },
-        {
-          name: "id_vinculo",
-          label: "Vinculo",
-          type: "select",
-          selectIdKey: "id",
-          selectLabelKey: "nombre",
-          selectOptionsHook: () => UseRelationShipData().items,
-          refreshActionHook: () => UseRelationShipData().refresh,
-          loadingHook: () => UseRelationShipData().loading,
-        },
-        {
-          name: "cuenta_apoyo",
-          label: "¿Cuenta con red de apoyo?",
-          type: "toggle",
-        },
-      ],
-    },
-  })
-
   .build();

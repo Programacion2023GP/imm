@@ -25,10 +25,16 @@ export interface ExtraStateInterview {
   municipio: string;
   zona: string;
   loadingCp: boolean;
+  colonias_agresor: Colonia[];
+  estado_agresor: string;
+  municipio_agresor: string;
+  zona_agresor: string;
+  loadingCp_agresor: boolean;
 }
 
 export interface Methods {
   getCp: (cp: number) => Promise<void>;
+  getCpAgresor: (cp: number) => Promise<void>;
 }
 
 export type InterviewDataReturn = GenericDataReturn<
@@ -161,6 +167,11 @@ const UseInterview = (): InterviewDataReturn => {
       municipio: "",
       zona: "",
       loadingCp: false,
+      colonias_agresor: [],
+      estado_agresor: "",
+      municipio_agresor: "",
+      zona_agresor: "",
+      loadingCp_agresor: false
     },
 
     hooks: {
@@ -196,6 +207,36 @@ const UseInterview = (): InterviewDataReturn => {
         } catch (error) {
           console.error("❌ Error en getCp:", error);
           set({ loadingCp: false });
+        }
+      },
+      getCpAgresor: async (cp) => {
+        set({ loadingCp_agresor: true });
+
+        try {
+          const response = await fetch(
+            `https://cp.atc.gomezpalacio.gob.mx/api/cp/${cp}`,
+          );
+          const res = await response.json();
+
+          // Según la estructura de tu respuesta, los resultados están en res.result
+          const resultados = res.data.result; // ← esto ya es el array de resultados
+
+          const colonias = resultados.map((item) => ({
+            id: item.id,
+            nombre: item.Colonia,
+            codigoPostal: item.CodigoPostal,
+            tipo: item.Tipo,
+            zona: item.Zona,
+            municipio: item.Municipio,
+            estado: item.Estado,
+          }));
+          console.log("cargando inf",colonias)
+          set({ colonias_agresor: colonias, loadingCp_agresor: false });
+
+          return res;
+        } catch (error) {
+          console.error("❌ Error en getCp:", error);
+          set({ loadingCp_agresor: false });
         }
       },
     }),
