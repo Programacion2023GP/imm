@@ -3090,15 +3090,67 @@ export function FormikDatePicker(props: FormikDatePickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const rawValue = formik.values?.[name] ?? "";
-  const error =
-    formik.touched[name] && formik.errors[name]
-      ? String(formik.errors[name])
-      : null;
 
-  const selectedDate = rawValue ? new Date(rawValue) : null;
+  // === FUNCIÓN SEGURA PARA OBTENER LA FECHA ===
+  const getSafeDate = (value: any): Date | null => {
+    // Si no hay valor, retornar null
+    if (!value) return null;
+
+    // Si ya es un Date válido
+    if (value instanceof Date && !isNaN(value.getTime())) {
+      return value;
+    }
+
+    // Si es string
+    if (typeof value === "string") {
+      // Valores inválidos conocidos
+      if (value === "" || value === "null" || value === "undefined") {
+        return null;
+      }
+
+      // Intentar parsear la fecha
+      const parsed = new Date(value);
+      if (!isNaN(parsed.getTime())) {
+        return parsed;
+      }
+    }
+
+    // Si es número (timestamp)
+    if (typeof value === "number" && !isNaN(value)) {
+      const parsed = new Date(value);
+      if (!isNaN(parsed.getTime())) {
+        return parsed;
+      }
+    }
+
+    return null;
+  };
+
+  // Obtener fecha segura
+  const selectedDate = getSafeDate(rawValue);
+
+  // === LIMPIAR VALORES INVÁLIDOS EN formik ===
+  // Si el valor actual es inválido pero selectedDate es null, limpiar formik
+  React.useEffect(() => {
+    if (rawValue && !selectedDate) {
+      // El valor es inválido, limpiarlo en formik
+      formik.setFieldValue(name, "");
+    }
+  }, [rawValue, selectedDate, name, formik]);
 
   const handleChange = (date: Date | null) => {
-    const value = date ? date.toISOString().split("T")[0] : "";
+    let value = "";
+
+    if (date && !isNaN(date.getTime())) {
+      if (type === "time") {
+        value = date.toTimeString().split(" ")[0]; // HH:MM:SS
+      } else if (type === "datetime-local") {
+        value = date.toISOString().slice(0, 16);
+      } else {
+        value = date.toISOString().split("T")[0];
+      }
+    }
+
     formik.setFieldValue(name, value);
     onChange?.(value, formik);
   };
@@ -3125,6 +3177,15 @@ export function FormikDatePicker(props: FormikDatePickerProps) {
   const showTimeSelectOnly = type === "time";
   const showMonthYearPicker = type === "month";
   const showWeekPicker = type === "week";
+
+  // Determinar el formato de fecha según el tipo
+  const getDateFormat = (): string => {
+    if (type === "time") return "HH:mm";
+    if (type === "datetime-local") return "dd/MM/yyyy HH:mm";
+    if (type === "month") return "MM/yyyy";
+    if (type === "week") return "'Semana' w";
+    return "dd/MM/yyyy";
+  };
 
   const customStyles = `
     .react-datepicker-wrapper {
@@ -3193,7 +3254,10 @@ export function FormikDatePicker(props: FormikDatePickerProps) {
       color: ${theme.colors.text.disabled};
     }
   `;
-
+  const error =
+    formik.touched[name] && formik.errors[name]
+      ? String(formik.errors[name])
+      : null;
   if (disabled) {
     return (
       <ColComponent responsive={responsive} autoPadding={padding}>
@@ -3240,6 +3304,8 @@ export function FormikDatePicker(props: FormikDatePickerProps) {
       </ColComponent>
     );
   }
+
+
 
   return (
     <ColComponent responsive={responsive} autoPadding={padding}>
@@ -3312,19 +3378,11 @@ export function FormikDatePicker(props: FormikDatePickerProps) {
             showTimeSelect={type === "time" || type === "datetime-local"}
             showTimeSelectOnly={type === "time"}
             timeFormat="HH:mm"
-            dateFormat={
-              type === "time"
-                ? "HH:mm"
-                : type === "month"
-                  ? "MM/yyyy"
-                  : type === "week"
-                    ? "dd/MM/yyyy"
-                    : "dd/MM/yyyy"
-            }
+            dateFormat={getDateFormat()}
             showMonthYearPicker={type === "month"}
             showWeekPicker={type === "week"}
-            minDate={min ? new Date(min) : undefined}
-            maxDate={max ? new Date(max) : undefined}
+            minDate={min ? getSafeDate(min) : undefined}
+            maxDate={max ? getSafeDate(max) : undefined}
             customInput={
               <input
                 ref={inputRef}

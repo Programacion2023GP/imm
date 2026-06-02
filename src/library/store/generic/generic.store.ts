@@ -354,11 +354,12 @@ export function createGenericStore<
             hooks?.afterPost?.(item);
             if (fetchAfter) await get().fetchData(hooks);
             log("postItem", "success", { response: data.data }, duration);
+            console.log("es aqui carnal")
+            set({ open: false });
           } else {
             showToast(data.message, "error");
             log("postItem", "error", { message: data.message }, duration);
           }
-          set({ open: true });
         } catch (error: any) {
           const duration = performance.now() - start;
           const msg = error?.message ?? cfg.messages.unknownError;

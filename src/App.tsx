@@ -35,6 +35,9 @@ import useAuthData from "./ui/hooks/auth/useauthdata";
 const PageInterview = lazy(
   () => import("./ui/pages/interview/pageinterview.page"),
 );
+const Loby = lazy(
+  () => import("./ui/pages/loby/loby.page"),
+);
 const PageUsers = lazy(
   () => import("./ui/pages/catalogues/users/pageusers.page"),
 );
@@ -154,41 +157,42 @@ const MainLayout = () => {
   const sidebarItems = useMemo(() => {
     const items: SidebarItem[] = [
       createRouteItem(
+        5,
+        "LOBY_PSICOLOGO",
+        "/loby",
+        <RiFileList3Line />,
+        "LOBY",
+      ),
+      createRouteItem(
         6,
-        "EXPEDIENTE_1",
+        "ENTREVISTA",
         "/expedienteuno",
         <RiFileList3Line />,
         "Expediente 1",
       ),
-      createChildrenItem(
-        7,
-        "EXPEDIENTE_1",
-        "Catálogos",
-        <FaBuildingColumns />,
-        [
-          createRouteItem(
-            71,
-            "EXPEDIENTE_1",
-            "/catalogos/usuarios",
-            <FaUserDoctor />,
-            "Usuarios",
-          ),
-          createRouteItem(
-            72,
-            "EXPEDIENTE_1",
-            "/catalogos/permisos",
-            <FaUserDoctor />,
-            "Permisos",
-          ),
-          createRouteItem(
-            73,
-            null,
-            "/catalogos/roles",
-            <FaUserDoctor />,
-            "Roles",
-          ),
-        ],
-      ),
+      createChildrenItem(7, "CATALOGOS", "Catálogos", <FaBuildingColumns />, [
+        createRouteItem(
+          71,
+          "CATALOGOS",
+          "/catalogos/usuarios",
+          <FaUserDoctor />,
+          "Usuarios",
+        ),
+        createRouteItem(
+          72,
+          "CATALOGOS",
+          "/catalogos/permisos",
+          <FaUserDoctor />,
+          "Permisos",
+        ),
+        createRouteItem(
+          73,
+          "CATALOGOS",
+          "/catalogos/roles",
+          <FaUserDoctor />,
+          "Roles",
+        ),
+      ]),
     ];
     return filterItemsByPermissions(items);
   }, [filterItemsByPermissions]);
@@ -302,47 +306,72 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const { persist, hasPermissionPrefix } = useAuthData();
 
+  console.log("🟢 [PROTECTED_ROUTE] Path:", location.pathname);
+  console.log("🟢 [PROTECTED_ROUTE] Token:", persist?.token);
+  console.log("🟢 [PROTECTED_ROUTE] Permisos:", persist.permisos);
+
   if (!persist?.token) {
+    console.log("🟢 [PROTECTED_ROUTE] No token, redirigiendo a login");
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Verificar permisos para rutas específicas
   const routePermissions: Record<string, string> = {
-    "/expedienteuno": "EXPEDIENTE_1",
-    "/catalogos/usuarios": "EXPEDIENTE_1",
-    "/catalogos/permisos": null, // null = sin restricción
-    "/catalogos/roles": null,
+    "/expedienteuno": "ENTREVISTA",
+    "/loby": "LOBY_PSICOLOGO",
+    "/catalogos/usuarios": "CATALOGOS",
+    "/catalogos/permisos": "CATALOGOS",
+    "/catalogos/roles": "CATALOGOS",
   };
 
   const requiredPrefix = routePermissions[location.pathname];
-  if (requiredPrefix && !hasPermissionPrefix(requiredPrefix)) {
-    return <Navigate to="/403" replace />;
+  if (requiredPrefix) {
+    const hasAccess = hasPermissionPrefix(requiredPrefix);
+    console.log(
+      `🟢 [PROTECTED_ROUTE] Ruta ${location.pathname} requiere ${requiredPrefix}, tiene acceso: ${hasAccess}`,
+    );
+    if (!hasAccess) {
+      return <Navigate to="/403" replace />;
+    }
   }
 
   return <>{children}</>;
 };
-
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { persist } = useAuthData();
   if (persist?.token) {
-    return <Navigate to="/dashboard" replace />;
+    return <DefaultRedirect />;
   }
   return <>{children}</>;
 };
 
 // ✅ Redirección inicial según permisos (similar al login)
+// ✅ Redirección inicial según permisos (corregido)
 const DefaultRedirect = () => {
   const { persist, getRedirectRouteByPrefix } = useAuthData();
   const navigate = useNavigate();
 
   useEffect(() => {
+    const permisos = persist?.permisos;
+
+    console.log("🔵 [DEFAULT_REDIRECT] Permisos:", permisos);
+    console.log("🔵 [DEFAULT_REDIRECT] Token:", persist?.token);
+
+    // ✅ Esperar a que los permisos estén disponibles
+    if (!permisos || permisos.length === 0) {
+      console.log("🔵 [DEFAULT_REDIRECT] No hay permisos, esperando...");
+      return;
+    }
+
     const routesByPrefix = {
-      EXPEDIENTE_1: "/expedienteuno",
-      USUARIOS_: "/catalogos/usuarios",
+      ENTREVISTA: "/expedienteuno",
+      LOBY_PSICOLOGO: "/loby",
+      CATALOGOS: "/catalogos/usuarios",
     };
+
     const redirectUrl = getRedirectRouteByPrefix(routesByPrefix, "/dashboard");
+    console.log("🔵 [DEFAULT_REDIRECT] Redirigiendo a:", redirectUrl);
     navigate(redirectUrl, { replace: true });
-  }, [getRedirectRouteByPrefix, navigate]);
+  }, [persist?.permisos, getRedirectRouteByPrefix, navigate]);
 
   return <Spinner />;
 };
@@ -363,13 +392,7 @@ function App() {
       />
 
       {/* Rutas de error */}
-      <Route
-        path="403"
-        element={
-          <PageNotFound
-          />
-        }
-      />
+      <Route path="403" element={<PageNotFound />} />
       <Route path="404" element={<PageNotFound />} />
 
       {/* Rutas protegidas */}
@@ -396,7 +419,14 @@ function App() {
             </Suspense>
           }
         />
-
+        <Route
+          path="loby"
+          element={
+            <Suspense fallback={<Spinner />}>
+              <Loby loby="psicologo" />
+            </Suspense>
+          }
+        />
         <Route
           path="expedienteuno"
           element={

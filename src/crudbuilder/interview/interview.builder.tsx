@@ -19,7 +19,9 @@ import UseEconomicProperyEffects from "../../ui/hooks/economicproperyeffects/use
 import UseInruringAgent from "../../ui/hooks/inruringagent/useinruringagentdata";
 import UseInjuredAnatomicAlarea from "../../ui/hooks/injuredanatomicalarea/useinjuredanatomicalareadata";
 import { GenericDataReturn } from "../../library/reactztore/hook/usegenericdata";
-import UseInterview, { InterviewDataReturn } from "../../ui/hooks/interview/interviewdata";
+import UseInterview, {
+  InterviewDataReturn,
+} from "../../ui/hooks/interview/interviewdata";
 import UseSexualOrientationData from "../../ui/hooks/sexualorientation/usesexualorientationdata";
 import UseGenderIndentityData from "../../ui/hooks/genderidentity/usegenderidentitydata";
 import UseMaritalStatusData from "../../ui/hooks/maritalstatus/usemaritalstatusdata";
@@ -36,6 +38,11 @@ import UseLegalServiceData from "../../ui/hooks/legalservices/uselegalservicedat
 import UsePsYchologicalServicesData from "../../ui/hooks/psychologicalservices/usepsychologicalservicesdata";
 import UseDependencesData from "../../ui/hooks/dependences/usedependencesdata";
 import UseCanalizationData from "../../ui/hooks/canalization/usecanalizationdata";
+import * as yup from "yup";
+import { DateFormat, formatDatetime } from "../../utils/helpers";
+import UseSubstancesData from "../../ui/hooks/substance/usesubstancesdata";
+import { FaRegFilePdf } from "react-icons/fa6";
+import CustomBadge from "../../ui/components/badge/custombadge";
 
 // 📱 Responsive presets
 const ResponsiveToogle = {
@@ -51,9 +58,18 @@ const ResponsiveSelectAndDate = {
   md: 12,
   sm: 12,
 };
+
 interface Hooks {
   UseInterview: ReturnType<typeof UseInterview>;
 }
+
+// ============================================================================
+// VALIDACIONES GLOBALES
+// ============================================================================
+const curpRegex = /^[A-Z]{4}\d{6}[A-Z]{6}\d{2}$/;
+const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+const telefonoRegex = /^\d{10}$/;
+const codigoPostalRegex = /^\d{5}$/;
 
 // ============================================================================
 // CONFIGURACIÓN PRINCIPAL DEL CRUD
@@ -65,10 +81,9 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
   .fields({
     // 📝 Campos de texto
     text: [
-      "curp", // CURP del usuario
-      "hechos", // Narración de los hechos
-      "especifica_domicilio", // Especificación del domicilio
-      "especifique_tipo_violencia", // Especificación de tipo de violencia
+      "curp",
+      "especifica_domicilio",
+      "especifique_tipo_violencia",
       "especifique_efecto_fisico",
       "especifique_consecuencia_sexual",
       "especifique_efecto_psicologico",
@@ -76,23 +91,21 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       "especifique_agente_lesion",
       "especifique_aerea_anatomica_lesionada",
       "correo",
-
       "localidad",
       "calle",
       "estado",
       "municipio",
       "zona",
-
       "nombre_agresor",
-
       "calle_agresor",
       "estado_agresor",
       "municipio_agresor",
       "zona_agresor",
       "responsable",
       "especifica_dependencia",
+      "hora_hecho",
     ],
-    textarea: ["entre_calles", "referencias", "observaciones"],
+    textarea: ["hechos", "entre_calles", "referencias", "observaciones"],
     number: [
       "edad",
       "telefono",
@@ -105,16 +118,15 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       "num_ext_agresor",
       "num_int_agresor",
     ],
-    // 🔽 Campos de selección (dropdowns)
     select: [
-      "id_espacio_digital", // Espacio digital (redes sociales, internet)
-      "id_espacio_particular", // Espacio particular (casa particular)
-      "id_espacio_publico", // Espacio público (calle, parque)
-      "id_transporte_foraneo", // Transporte foráneo (autobús, avión)
-      "id_transporte_urbano", // Transporte urbano (metro, camión)
-      "id_transporte_privado", // Transporte privado (auto particular)
-      "id_tipos_violencia", // Tipos de violencia ejercida
-      "id_ambitos_violencia", // Ámbitos donde ocurrió la violencia
+      "id_espacio_digital",
+      "id_espacio_particular",
+      "id_espacio_publico",
+      "id_transporte_foraneo",
+      "id_transporte_urbano",
+      "id_transporte_privado",
+      "id_tipos_violencia",
+      "id_ambitos_violencia",
       "id_efectos_fisicos",
       "id_consecuencias_sexuales",
       "id_efectos_psicologicos",
@@ -145,17 +157,15 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       "id_dependencia",
       "id_canalizacion",
     ],
-
-    // 🔘 Campos toggle (switch on/off)
     toggle: [
-      "ocurrio_domicilio_victima", // ¿Ocurrió en domicilio de la víctima?
-      "ocurrio_extranjero", // ¿Ocurrió en el extranjero?
-      "dia_festivo", // ¿Fue día festivo?
-      "conoce_autoridad_asunto", // ¿Conoce alguna autoridad del asunto?
-      "canalizado_cabi", // ¿El caso fue canalizado por CABI?
-      "victima_delicuencia_organizada", // ¿Víctima de delincuencia organizada?
-      "relacion_denuncia", // ¿Está relacionado con alguna denuncia?
-      "relacionado_orientacion_indetidad_genero", // ¿Relacionado con orientación sexual o identidad de género?
+      "ocurrio_domicilio_victima",
+      "ocurrio_extranjero",
+      "dia_festivo",
+      "conoce_autoridad_asunto",
+      "canalizado_cabi",
+      "victima_delicuencia_organizada",
+      "relacion_denuncia",
+      "relacionado_orientacion_indetidad_genero",
       "vive_extrajero",
       "realiza_mas_actividades",
       "migrante",
@@ -174,28 +184,55 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       "acceso_armas_agresor",
       "acceso_drogas_agresor",
     ],
-    // ⭕ Campos radio (selección única)
-    radio: ["sector", "autoidentificacion_etnica", "conducta", "sexo_agresor"], // Sector: Rural / Urbano
-    // 📅 Campos de fecha
-    date: [
-      "fecha_hecho", // Fecha en que ocurrió el hecho
-      "hora_hecho", // Hora en que ocurrió el hecho
-      "fecha_nacimiento",
-      "fecha_canalizacion",
-    ],
+    radio: ["sector", "autoidentificacion_etnica", "conducta", "sexo_agresor"],
+    date: ["fecha_hecho", "fecha_nacimiento", "fecha_canalizacion"],
     array: ["dependientes", "redapoyo"],
   })
+
+  // ==========================================================================
+  // 2. CONFIGURACIÓN DE CAMPOS NÚMERO
+  // ==========================================================================
   .number({
     edad: {
       label: "Edad",
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup
+          .number()
+          .min(1, "La edad es requerida")
+          .required("La edad es requerida"),
+    },
+    telefono: {
+      label: "Teléfono",
+      responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup
+          .number()
+          .required("El telefono es obligatorio")
+          .typeError("El teléfono debe ser un número")
+          .test("len", "El teléfono debe tener 10 dígitos", (val) => {
+            if (!val) return true;
+            return val.toString().length === 10;
+          }),
     },
     codigo_postal: {
-      label: "codigo postal",
+      label: "Código postal",
       onChange: async (val, formik, hook) => {
-        hook.UseInterview.getCp(val);
+        if (val && val.toString().length === 5) {
+          hook.UseInterview.getCp(val);
+        }
       },
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup
+          .number()
+          .min(1, "Codigo postal es requerido")
+          .required("El codigo postal es obligatorio")
+          .typeError("El código postal debe ser un número")
+          .test("len", "El código postal debe tener 5 dígitos", (val) => {
+            if (!val) return true;
+            return val.toString().length === 5;
+          }),
     },
     num_ext: {
       label: "Número exterior",
@@ -204,182 +241,356 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
     num_int: {
       label: "Número interior",
     },
-    telefono: {
-      label: "Telefono",
-      responsive: ResponsiveSelectAndDate,
-    },
     semananas_embarazo: {
       label: "Semanas de embarazo",
       hidden: (values) => !values.embarazo,
+      validation: ({ yup }) =>
+        yup.number().when("embarazo", {
+          is: true,
+          then: (schema) =>
+            schema
+              .typeError("Las semanas de embarazo deben ser un número")
+
+              .required("Las semanas de embarazo son requeridas"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     edad_agresor: {
-      label: "Edad",
+      label: "Edad del agresor",
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
+      validation: ({ yup }) =>
+        yup.number().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema
+              .typeError("La edad debe ser un número")
+              .min(0, "La edad no puede ser negativa")
+              .max(120, "Edad inválida")
+              .required("La edad del agresor es requerida"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     codigo_postal_agresor: {
-      label: "codigo postal",
+      label: "Código postal del agresor",
       onChange: async (val, formik, hook) => {
-        hook.UseInterview.getCpAgresor(val);
+        if (val && val.toString().length === 5) {
+          hook.UseInterview.getCpAgresor(val);
+        }
       },
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
+      validation: ({ yup }) =>
+        yup.number().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema
+              .required("el codigo postal es obligatorio")
+              .typeError("El código postal debe ser un número")
+              .test("len", "El código postal debe tener 5 dígitos", (val) => {
+                if (!val) return true;
+                return val.toString().length === 5;
+              }),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     num_ext_agresor: {
-      label: "Número exterior",
+      label: "Número exterior del agresor",
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
     },
     num_int_agresor: {
-      label: "Número interior",
+      label: "Número interior del agresor",
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
     },
   })
 
   // ==========================================================================
-  // 2. CONFIGURACIÓN DE CAMPOS DE FECHA
+  // 3. CONFIGURACIÓN DE CAMPOS DE FECHA
   // ==========================================================================
   .date({
     fecha_hecho: {
       label: "Fecha del hecho",
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup
+          .date()
+          .required("La fecha del hecho es obligatoria")
+          .typeError("Fecha inválida")
+
+          .required("La fecha del hecho es requerida"),
     },
-    hora_hecho: {
-      label: "Hora del Hecho",
-      type: "time", // Usa input tipo "time"
-      responsive: ResponsiveSelectAndDate,
-    },
-    // 🟢 Datos de la victima
+
     fecha_nacimiento: {
-      label: "Fecha de Nacimiento",
+      label: "Fecha de nacimiento",
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup
+          .date()
+          .required("La fecha es requerida")
+          .typeError("Fecha inválida"),
     },
     fecha_canalizacion: {
       label: "Fecha de canalización",
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup
+          .date()
+          .required("La fecha es requerida")
+          .typeError("Fecha inválida"),
     },
   })
 
   // ==========================================================================
-  // 3. CONFIGURACIÓN DE CAMPOS DE TEXTO
+  // 4. CONFIGURACIÓN DE CAMPOS DE TEXTO
   // ==========================================================================
   .text({
-    // 🟢 Apertura del caso
     curp: {
       label: "CURP",
-      caseTransform: "uppercase", // Convertir a mayúsculas automáticamente
+      caseTransform: "uppercase",
       placeholder: "CURP (18 caracteres)",
+      uppercase: true,
+      validation: ({ yup, hooks }) =>
+        yup
+          .string()
+          .length(18, "La CURP debe tener exactamente 18 caracteres")
+          .matches(
+            /^[A-Z]{4}\d{6}[HM][A-Z]{5}[0-9A-Z]{2}$/,
+            "Formato de CURP inválido. Ejemplo: HEAF880101HDFRRN09",
+          )
+          .test(
+            "curp-unica",
+            "Esta CURP ya está registrada en el sistema",
+            async (value, context) => {
+              if (!value) return true;
+
+              try {
+                // Obtener todas las entrevistas
+                const entrevistas = hooks.UseInterview.dataAll;
+
+                // Obtener el ID actual (si estamos editando)
+                const currentId = context.parent?.id || 0;
+                // Buscar si existe otra entrevista con la misma CURP
+                const existe = entrevistas.some(
+                  (item: any) => item.curp === value && currentId == 0,
+                );
+
+                return !existe;
+              } catch (error) {
+                console.error("Error verificando CURP:", error);
+                return true;
+              }
+            },
+          )
+          .required("La CURP es requerida"),
     },
-    // 🟡 Narración de los hechos - Hechos
-    hechos: {
-      label: "Narración de los hechos",
-      // caseTransform: "lowercase",       // Opcional: convertir a minúsculas
+    hora_hecho: {
+      label: "Hora del hecho",
+      type: "time",
+      responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) => yup.string().required("La hora es obligatoria"),
     },
-    // 🟡 Narración de los hechos - Lugar de hechos
     especifica_domicilio: {
       label: "Especifica domicilio",
       hidden: (values) => values.ocurrio_domicilio_victima,
-
       caseTransform: "uppercase",
+      uppercase: true,
     },
     especifique_tipo_violencia: {
       label: "Especifique tipo de violencia",
       placeholder: "Describa el tipo de violencia...",
       caseTransform: "uppercase",
-      hidden: (values) => !values.id_tipos_violencia?.includes(8), // Se muestra SOLO si NO ocurrió en domicilio de la víctima
+      uppercase: true,
+      hidden: (values) => !values.id_tipos_violencia?.includes(8),
+      validation: ({ yup }) =>
+        yup.string().when("id_tipos_violencia", {
+          is: (val: number[]) => val?.includes(8),
+          then: (schema) =>
+            schema
+              .required("Especifique el tipo de violencia")
+              .min(3, "Debe describir el tipo de violencia"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
-    // 🟡EFECTOS DE LA VIOLENCIA
-
     especifique_efecto_fisico: {
       label: "Especifique efecto físico",
       placeholder: "Describa el efecto físico...",
       caseTransform: "uppercase",
+      uppercase: true,
       hidden: (values) => !values.id_efectos_fisicos?.includes(14),
+      validation: ({ yup }) =>
+        yup.string().when("id_efectos_fisicos", {
+          is: (val: number[]) => val?.includes(14),
+          then: (schema) => schema.required("Especifique el efecto físico"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     especifique_consecuencia_sexual: {
       label: "Especifique consecuencia sexual",
-      placeholder: "Describa el consecuencia sexual...",
+      placeholder: "Describa la consecuencia sexual...",
       caseTransform: "uppercase",
+      uppercase: true,
       hidden: (values) => !values.id_consecuencias_sexuales?.includes(8),
+      validation: ({ yup }) =>
+        yup.string().when("id_consecuencias_sexuales", {
+          is: (val: number[]) => val?.includes(8),
+          then: (schema) =>
+            schema.required("Especifique la consecuencia sexual"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     especifique_efecto_psicologico: {
-      label: "Especifique efecto psicologico",
-      placeholder: "Describa el efecto psicologico...",
+      label: "Especifique efecto psicológico",
+      placeholder: "Describa el efecto psicológico...",
       caseTransform: "uppercase",
+      uppercase: true,
       hidden: (values) => !values.id_efectos_psicologicos?.includes(14),
+      validation: ({ yup }) =>
+        yup.string().when("id_efectos_psicologicos", {
+          is: (val: number[]) => val?.includes(14),
+          then: (schema) =>
+            schema.required("Especifique el efecto psicológico"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     especifique_economicos_patrimonial: {
-      label: "Especifique Efectos económicos y patrimoniales",
-      placeholder: "Describe el efecto economico y patrimoniales...",
+      label: "Especifique efectos económicos y patrimoniales",
+      placeholder: "Describe el efecto económico y patrimonial...",
       caseTransform: "uppercase",
+      uppercase: true,
       hidden: (values) =>
         !values.id_efectos_economicos_patrimoniales?.includes(8),
+      validation: ({ yup }) =>
+        yup.string().when("id_efectos_economicos_patrimoniales", {
+          is: (val: number[]) => val?.includes(8),
+          then: (schema) =>
+            schema.required("Especifique los efectos económicos"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     especifique_agente_lesion: {
-      label: "Especifique Agente de lesión",
-      placeholder: "Describe el Agente de lesión...",
+      label: "Especifique agente de lesión",
+      placeholder: "Describe el agente de lesión...",
       caseTransform: "uppercase",
+      uppercase: true,
       hidden: (values) => !values.id_agente_lesion?.includes(8),
+      validation: ({ yup }) =>
+        yup.string().when("id_agente_lesion", {
+          is: (val: number[]) => val?.includes(8),
+          then: (schema) => schema.required("Especifique el agente de lesión"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     especifique_aerea_anatomica_lesionada: {
-      label: "Especifique Aerea anatómica lesionada",
-      placeholder: "Describe el Aerea anatómica lesionada...",
+      label: "Especifique área anatómica lesionada",
+      placeholder: "Describe el área anatómica lesionada...",
       caseTransform: "uppercase",
+      uppercase: true,
       hidden: (values) => !values.id_aerea_anatomica_lesionada?.includes(16),
+      validation: ({ yup }) =>
+        yup.string().when("id_aerea_anatomica_lesionada", {
+          is: (val: number[]) => val?.includes(16),
+          then: (schema) =>
+            schema.required("Especifique el área anatómica lesionada"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
-    municipio: {
-      label: "Municipio",
-      disabled: true,
+    correo: {
+      label: "Correo electrónico",
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup
+          .string()
+          .required("El correo es obligatorio")
+          .email("Correo electrónico inválido")
+          .matches(emailRegex, "Formato de correo inválido"),
+    },
+    localidad: {
+      label: "Localidad",
+      responsive: ResponsiveSelectAndDate,
+      uppercase: true,
+    },
+    calle: {
+      label: "Calle",
+      responsive: ResponsiveSelectAndDate,
+      uppercase: true,
+      validation: ({ yup }) => yup.string().required("La calle es obligatoria"),
     },
     estado: {
       label: "Estado",
       disabled: true,
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup.string().required("El estado es obligatorio"),
+    },
+    municipio: {
+      label: "Municipio",
+      disabled: true,
+      responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup.string().required("El Municipio es obligatorio"),
     },
     zona: {
       label: "Zona",
       disabled: true,
       responsive: ResponsiveSelectAndDate,
-    },
-    calle: {
-      label: "Calle",
-      responsive: ResponsiveSelectAndDate,
-    },
-    localidad: {
-      label: "Localidad",
-      responsive: ResponsiveSelectAndDate,
-    },
-    correo: {
-      label: "Correo",
-      responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) => yup.string().required("Lazona es obligatoria"),
     },
     nombre_agresor: {
       label: "Nombre del agresor",
       responsive: ResponsiveSelectAndDate,
+      uppercase: true,
       hidden: (values) => !values.conoce_agresor,
-    },
-    estado_agresor: {
-      label: "Estado",
-      disabled: true,
-      responsive: ResponsiveSelectAndDate,
-      hidden: (values) => !values.conoce_agresor,
-    },
-    zona_agresor: {
-      label: "Zona",
-      disabled: true,
-      responsive: ResponsiveSelectAndDate,
-      hidden: (values) => !values.conoce_agresor,
+      validation: ({ yup }) =>
+        yup.string().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema.required("El nombre del agresor es requerido"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     calle_agresor: {
-      label: "Calle",
+      label: "Calle del agresor",
+      responsive: ResponsiveSelectAndDate,
+      uppercase: true,
+      hidden: (values) => !values.conoce_agresor,
+      validation: ({ yup }) =>
+        yup.string().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema.required("La calle del agresor es requerido"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
+    },
+    estado_agresor: {
+      label: "Estado del agresor",
+      disabled: true,
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
+      validation: ({ yup }) =>
+        yup.string().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema.required("El estado del agresor es requerido"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
-
     municipio_agresor: {
-      label: "Municipio",
+      label: "Municipio del agresor",
+      disabled: true,
+      responsive: ResponsiveSelectAndDate,
+      hidden: (values) => !values.conoce_agresor,
+      validation: ({ yup }) =>
+        yup.string().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema.required("El municipio del agresor es requerido"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
+    },
+    zona_agresor: {
+      label: "Zona del agresor",
       disabled: true,
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
@@ -387,19 +598,50 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
     responsable: {
       label: "Responsable",
       responsive: ResponsiveSelectAndDate,
+      uppercase: true,
+      validation: ({ yup }) =>
+        yup.string().required("Es necesario el responsable"),
     },
     especifica_dependencia: {
       label: "Especifica la dependencia",
-      hidden: (values) => values.id_dependencia!=8,
+      uppercase: true,
+      hidden: (values) => values.id_dependencia !== 8,
+      validation: ({ yup }) =>
+        yup.string().when("id_dependencia", {
+          is: 8,
+          then: (schema) => schema.required("Especifique la dependencia"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
- 
   })
 
   // ==========================================================================
-  // 4. CONFIGURACIÓN DE CAMPOS DE SELECCIÓN (SELECTS)
+  // 5. CONFIGURACIÓN DE TEXTAREA
+  // ==========================================================================
+  .textarea({
+    hechos: {
+      label: "Narración de los hechos",
+      validation: ({ yup }) =>
+        yup.string().required("La narración de los hechos es requerida"),
+    },
+    entre_calles: {
+      label: "Entre las calles",
+      uppercase: true,
+    },
+    referencias: {
+      label: "Referencias",
+      uppercase: true,
+    },
+    observaciones: {
+      label: "Observaciones",
+      uppercase: true,
+    },
+  })
+
+  // ==========================================================================
+  // 6. CONFIGURACIÓN DE SELECTS
   // ==========================================================================
   .select({
-    // 🟡 Narración de los hechos - Lugar de hechos (Espacios)
     id_espacio_digital: {
       label: "Espacio Digital",
       keyId: "id",
@@ -407,8 +649,10 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       selectOptionsHook: () => UseDigitalSpace().items,
       refreshActionHook: () => UseDigitalSpace().refresh,
       loadingHook: () => UseDigitalSpace().loading,
-      multiple: true, // Permite selección múltiple
+      multiple: true,
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
     },
     id_espacio_particular: {
       label: "Espacio Particular",
@@ -417,31 +661,32 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       selectOptionsHook: () => UseParticleSpace().items,
       refreshActionHook: () => UseParticleSpace().refresh,
       loadingHook: () => UseParticleSpace().loading,
-
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
       multiple: true,
       responsive: ResponsiveSelectAndDate,
     },
     id_espacio_publico: {
-      label: "Espacio Publico",
+      label: "Espacio Público",
       keyId: "id",
       keyLabel: "nombre",
       selectOptionsHook: () => UsePublicSpace().items,
       refreshActionHook: () => UsePublicSpace().refresh,
       loadingHook: () => UsePublicSpace().loading,
-
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
       multiple: true,
       responsive: ResponsiveSelectAndDate,
     },
-
-    // 🟡 Narración de los hechos - Lugar de hechos (Transportes)
     id_transporte_foraneo: {
-      label: "Transporte Foraneo",
+      label: "Transporte Foráneo",
       keyId: "id",
       keyLabel: "nombre",
       selectOptionsHook: () => UseForeignTransportation().items,
       refreshActionHook: () => UseForeignTransportation().refresh,
       loadingHook: () => UseForeignTransportation().loading,
-
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
       multiple: true,
       responsive: ResponsiveSelectAndDate,
     },
@@ -452,7 +697,8 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       selectOptionsHook: () => UsePrivateTransportation().items,
       refreshActionHook: () => UsePrivateTransportation().refresh,
       loadingHook: () => UsePrivateTransportation().loading,
-
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
       multiple: true,
       responsive: ResponsiveSelectAndDate,
     },
@@ -463,12 +709,11 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       selectOptionsHook: () => UseUrbanTransportation().items,
       refreshActionHook: () => UseUrbanTransportation().refresh,
       loadingHook: () => UseUrbanTransportation().loading,
-
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
       multiple: true,
       responsive: ResponsiveSelectAndDate,
     },
-
-    // 🟣 Clasificación de la violencia
     id_tipos_violencia: {
       label: "Tipos de violencia",
       keyId: "id",
@@ -478,6 +723,8 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       refreshActionHook: () => UseViolenceType().refresh,
       loadingHook: () => UseViolenceType().loading,
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
     },
     id_ambitos_violencia: {
       label: "Ámbitos de violencia",
@@ -488,16 +735,19 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       refreshActionHook: () => UseViolenceAerea().refresh,
       loadingHook: () => UseViolenceAerea().loading,
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
     },
-    // 🟣 EFECTOS DE LA VIOLENCIA
     id_efectos_fisicos: {
-      label: "Efectos fisicos",
+      label: "Efectos físicos",
       keyId: "id",
       keyLabel: "nombre",
       multiple: true,
       selectOptionsHook: () => UsePhysicalEffects().items,
       refreshActionHook: () => UsePhysicalEffects().refresh,
       loadingHook: () => UsePhysicalEffects().loading,
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
     },
     id_consecuencias_sexuales: {
       label: "Consecuencias Sexuales",
@@ -507,24 +757,30 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       selectOptionsHook: () => UseSexualConsequences().items,
       refreshActionHook: () => UseSexualConsequences().refresh,
       loadingHook: () => UseSexualConsequences().loading,
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
     },
     id_efectos_psicologicos: {
-      label: "Efectos Psicologicos",
+      label: "Efectos Psicológicos",
       keyId: "id",
       keyLabel: "nombre",
       multiple: true,
       selectOptionsHook: () => UsePsychologicalEffects().items,
       refreshActionHook: () => UsePsychologicalEffects().refresh,
       loadingHook: () => UsePsychologicalEffects().loading,
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
     },
     id_efectos_economicos_patrimoniales: {
-      label: "Efectos Economicos Patrimoniales",
+      label: "Efectos Económicos Patrimoniales",
       keyId: "id",
       keyLabel: "nombre",
       multiple: true,
       selectOptionsHook: () => UseEconomicProperyEffects().items,
       refreshActionHook: () => UseEconomicProperyEffects().refresh,
       loadingHook: () => UseEconomicProperyEffects().loading,
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
     },
     id_agente_lesion: {
       label: "Agente de lesión",
@@ -534,125 +790,156 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       selectOptionsHook: () => UseInruringAgent().items,
       refreshActionHook: () => UseInruringAgent().refresh,
       loadingHook: () => UseInruringAgent().loading,
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
     },
     id_aerea_anatomica_lesionada: {
-      label: "Áerea anatómica lesionada",
+      label: "Área anatómica lesionada",
       keyId: "id",
       keyLabel: "nombre",
       multiple: true,
       selectOptionsHook: () => UseInjuredAnatomicAlarea().items,
       refreshActionHook: () => UseInjuredAnatomicAlarea().refresh,
       loadingHook: () => UseInjuredAnatomicAlarea().loading,
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
     },
     colonia: {
       label: "Colonia",
       keyId: "nombre",
       keyLabel: "nombre",
-      // multiple: true,
       selectOptionsHook: () => UseInterview().colonias,
       onChange: async (val, formik, hook) => {
         const colonias = hook.UseInterview.colonias;
-
-        formik.setFieldValue(
-          "estado",
-          colonias.find((it) => it.nombre == val?.nombre).estado,
-        );
-        formik.setFieldValue(
-          "municipio",
-          colonias.find((it) => it.nombre == val?.nombre).municipio,
-        );
-        formik.setFieldValue(
-          "zona",
-          colonias.find((it) => it.nombre == val?.nombre).zona,
-        );
+        const colonia = colonias.find((it) => it.nombre === val?.nombre);
+        if (colonia) {
+          formik.setFieldValue("estado", colonia.estado);
+          formik.setFieldValue("municipio", colonia.municipio);
+          formik.setFieldValue("zona", colonia.zona);
+        }
       },
       loadingHook: () => UseInterview().loadingCp,
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) => yup.string().required("Seleccione una colonia"),
     },
     id_orientacion_sexual: {
-      label: "Orientaciòn sexual",
+      label: "Orientación sexual",
       keyId: "id",
       keyLabel: "nombre",
-
       selectOptionsHook: () => UseSexualOrientationData().items,
       refreshActionHook: () => UseSexualOrientationData().refresh,
       loadingHook: () => UseSexualOrientationData().loading,
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup
+          .number()
+          .min(1, "seleccione una opción")
+          .required("Seleccione una orientación sexual"),
     },
     id_identidad_genero: {
       label: "Identidad de género",
       keyId: "id",
       keyLabel: "nombre",
-
       selectOptionsHook: () => UseGenderIndentityData().items,
       refreshActionHook: () => UseGenderIndentityData().refresh,
       loadingHook: () => UseGenderIndentityData().loading,
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup
+          .number()
+          .min(1, "seleccione una opción")
+          .required("Seleccione una identidad de género"),
     },
     id_estado_civil: {
       label: "Estado civil",
       keyId: "id",
       keyLabel: "nombre",
-
       selectOptionsHook: () => UseMaritalStatusData().items,
       refreshActionHook: () => UseMaritalStatusData().refresh,
       loadingHook: () => UseMaritalStatusData().loading,
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup
+          .number()
+          .min(1, "seleccione una opción")
+          .required("Seleccione un estado civil"),
     },
     id_ultimo_grado_estudios: {
-      label: "Ultimo grado de estudios",
+      label: "Último grado de estudios",
       keyId: "id",
       keyLabel: "nombre",
-
       selectOptionsHook: () => UseEducationLevelData().items,
       refreshActionHook: () => UseEducationLevelData().refresh,
       loadingHook: () => UseEducationLevelData().loading,
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup
+          .number()
+          .min(1, "seleccione una opción")
+          .required("Seleccione un grado de estudios"),
     },
     id_ingreso_promedio_mensual: {
       label: "Ingresos promedios mensuales",
       keyId: "id",
       keyLabel: "nombre",
-
       selectOptionsHook: () => UseAverageIncomeData().items,
       refreshActionHook: () => UseAverageIncomeData().refresh,
       loadingHook: () => UseAverageIncomeData().loading,
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup
+          .number()
+          .min(1, "seleccione una opción")
+          .required("Seleccione un ingreso de promedios"),
     },
     id_actividad: {
       label: "Actividad principal",
       keyId: "id",
       keyLabel: "nombre",
-
       selectOptionsHook: () => UseMainActivityData().items,
       refreshActionHook: () => UseMainActivityData().refresh,
       loadingHook: () => UseMainActivityData().loading,
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup
+          .number()
+          .min(1, "seleccione una opción")
+          .required("Seleccione una actividad principal"),
     },
     id_servicio_medico: {
-      label: "Servicio medico",
+      label: "Servicio médico",
       keyId: "id",
       keyLabel: "nombre",
-
       selectOptionsHook: () => UseHealtInsuranceData().items,
       refreshActionHook: () => UseHealtInsuranceData().refresh,
       loadingHook: () => UseHealtInsuranceData().loading,
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup
+          .number()
+          .min(1, "seleccione una opción")
+          .required("Seleccione un servicio medico"),
     },
-
     id_discapacidad: {
       label: "Discapacidad",
       keyId: "id",
       keyLabel: "nombre",
       hidden: (values) => !values.tiene_discapacidad,
-
       selectOptionsHook: () => UseDisabilitiesData().items,
       refreshActionHook: () => UseDisabilitiesData().refresh,
       loadingHook: () => UseDisabilitiesData().loading,
-      // responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup.number().when("tiene_discapacidad", {
+          is: true,
+          then: (schema) =>
+            schema
+              .min(1, "seleccione una opción")
+              .required("Seleccione el tipo de discapacidad"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     id_vinculo_agresor: {
-      label: "Vinculo",
+      label: "Vínculo con el agresor",
       keyId: "id",
       keyLabel: "nombre",
       selectOptionsHook: () => UseRelationShipData().items,
@@ -660,159 +947,226 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       loadingHook: () => UseRelationShipData().loading,
       hidden: (values) => !values.conoce_agresor,
       responsive: ResponsiveSelectAndDate,
+      validation: ({ yup }) =>
+        yup.number().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema
+              .min(1, "seleccione una opción")
+              .required("Seleccione el vínculo con el agresor"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     id_identidad_genero_agresor: {
-      label: "Identidad de género",
+      label: "Identidad de género del agresor",
       keyId: "id",
       keyLabel: "nombre",
-
       selectOptionsHook: () => UseGenderIndentityData().items,
       refreshActionHook: () => UseGenderIndentityData().refresh,
       loadingHook: () => UseGenderIndentityData().loading,
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
+      validation: ({ yup }) =>
+        yup.number().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema
+              .min(1, "seleccione una opción")
+              .required("Seleccione la identidad del agresor"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     id_orientacion_sexual_agresor: {
-      label: "Orientaciòn sexual",
+      label: "Orientación sexual del agresor",
       keyId: "id",
       keyLabel: "nombre",
-
       selectOptionsHook: () => UseSexualOrientationData().items,
       refreshActionHook: () => UseSexualOrientationData().refresh,
       loadingHook: () => UseSexualOrientationData().loading,
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
+      validation: ({ yup }) =>
+        yup.number().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema
+              .min(1, "seleccione una opción")
+              .required("Seleccione la orientacion sexual del agresor"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     colonia_agresor: {
-      label: "Colonia",
+      label: "Colonia del agresor",
       keyId: "nombre",
       keyLabel: "nombre",
-      // multiple: true,
       selectOptionsHook: () => UseInterview().colonias_agresor,
       onChange: async (val, formik, hook) => {
         const colonias = hook.UseInterview.colonias_agresor;
-
-        formik.setFieldValue(
-          "estado_agresor",
-          colonias.find((it) => it.nombre == val?.nombre).estado,
-        );
-        formik.setFieldValue(
-          "municipio_agresor",
-          colonias.find((it) => it.nombre == val?.nombre).municipio,
-        );
-        formik.setFieldValue(
-          "zona_agresor",
-          colonias.find((it) => it.nombre == val?.nombre).zona,
-        );
+        const colonia = colonias.find((it) => it.nombre === val?.nombre);
+        if (colonia) {
+          formik.setFieldValue("estado_agresor", colonia.estado);
+          formik.setFieldValue("municipio_agresor", colonia.municipio);
+          formik.setFieldValue("zona_agresor", colonia.zona);
+        }
       },
       loadingHook: () => UseInterview().loadingCp_agresor,
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
     },
     id_ultimo_grado_estudios_agresor: {
-      label: "Ultimo grado de estudios",
+      label: "Último grado de estudios del agresor",
       keyId: "id",
       keyLabel: "nombre",
-
       selectOptionsHook: () => UseEducationLevelData().items,
       refreshActionHook: () => UseEducationLevelData().refresh,
       loadingHook: () => UseEducationLevelData().loading,
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
+      validation: ({ yup }) =>
+        yup.number().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema
+              .min(1, "seleccione una opción")
+              .required("Seleccione el ultimo grado de estudios del agresor"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     id_ingreso_promedio_mensual_agresor: {
-      label: "Ingresos promedios mensuales",
+      label: "Ingresos promedios mensuales del agresor",
       keyId: "id",
       keyLabel: "nombre",
-
       selectOptionsHook: () => UseAverageIncomeData().items,
       refreshActionHook: () => UseAverageIncomeData().refresh,
       loadingHook: () => UseAverageIncomeData().loading,
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
+      validation: ({ yup }) =>
+        yup.number().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema
+              .min(1, "seleccione una opción")
+              .required("Seleccione el ultimo grado de estudios del agresor"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     id_ocupacion_agresor: {
-      label: "Ocupación",
+      label: "Ocupación del agresor",
       keyId: "id",
       keyLabel: "nombre",
-
       selectOptionsHook: () => UseOcupationsData().items,
       refreshActionHook: () => UseOcupationsData().refresh,
       loadingHook: () => UseOcupationsData().loading,
       hidden: (values) => !values.conoce_agresor,
+      validation: ({ yup }) =>
+        yup.number().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema
+              .min(1, "seleccione una opción")
+              .required("Seleccione la ocupación del agresor"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     id_armas_agresor: {
-      label: "Arma",
+      label: "Arma del agresor",
       keyId: "id",
       keyLabel: "nombre",
-
       selectOptionsHook: () => UseWeapons().items,
       refreshActionHook: () => UseWeapons().refresh,
       loadingHook: () => UseWeapons().loading,
       hidden: (values) => !values.acceso_armas_agresor,
+      validation: ({ yup }) =>
+        yup.number().when("acceso_armas_agresor", {
+          is: true,
+          then: (schema) => schema.required("Seleccione el tipo de arma"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     id_drogas_agresor: {
-      label: "Sustancias",
+      label: "Sustancias que consume el agresor",
       keyId: "id",
       keyLabel: "nombre",
       multiple: true,
-      selectOptionsHook: () => UseAverageIncomeData().items,
-      refreshActionHook: () => UseAverageIncomeData().refresh,
-      loadingHook: () => UseAverageIncomeData().loading,
+      selectOptionsHook: () => UseSubstancesData().items,
+      refreshActionHook: () => UseSubstancesData().refresh,
+      loadingHook: () => UseSubstancesData().loading,
       hidden: (values) => !values.acceso_drogas_agresor,
+      validation: ({ yup }) =>
+        yup.array().when("acceso_drogas_agresor", {
+          is: true,
+          then: (schema) => schema.min(1, "Seleccione al menos una sustancia"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     id_servicios_trabajo_social: {
-      label: "Trabajo social",
+      label: "Servicios de Trabajo Social",
       keyId: "id",
       keyLabel: "nombre",
       multiple: true,
       selectOptionsHook: () => UseSocialWorkData().items,
       refreshActionHook: () => UseSocialWorkData().refresh,
       loadingHook: () => UseSocialWorkData().loading,
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
     },
     id_servicios_juridicos: {
-      label: "Servicio Juridico",
+      label: "Servicios Jurídicos",
       keyId: "id",
       keyLabel: "nombre",
       multiple: true,
       selectOptionsHook: () => UseLegalServiceData().items,
       refreshActionHook: () => UseLegalServiceData().refresh,
       loadingHook: () => UseLegalServiceData().loading,
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
     },
     id_servicios_psicologicos: {
-      label: "Servicios Piscológicos",
+      label: "Servicios Psicológicos",
       keyId: "id",
       keyLabel: "nombre",
       multiple: true,
       selectOptionsHook: () => UsePsYchologicalServicesData().items,
       refreshActionHook: () => UsePsYchologicalServicesData().refresh,
       loadingHook: () => UsePsYchologicalServicesData().loading,
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
     },
     id_dependencia: {
-      label: "Dependencia / Institucion",
+      label: "Dependencia / Institución",
       keyId: "id",
       keyLabel: "nombre",
       selectOptionsHook: () => UseDependencesData().items,
       refreshActionHook: () => UseDependencesData().refresh,
       loadingHook: () => UseDependencesData().loading,
+      validation: ({ yup }) =>
+        yup
+          .number()
+          .min(1, "Seleccione una dependencia")
+          .required("Seleccione una dependencia"),
     },
     id_canalizacion: {
-      label: "Canalización",
+      label: "Tipo de Canalización",
       keyId: "id",
       keyLabel: "nombre",
       selectOptionsHook: () => UseCanalizationData().items,
       refreshActionHook: () => UseCanalizationData().refresh,
       loadingHook: () => UseCanalizationData().loading,
+      validation: ({ yup }) =>
+        yup
+          .number()
+          .min(1, "Seleccione un tipo de canalización")
+          .required("Seleccione un tipo de canalización"),
     },
   })
 
   // ==========================================================================
-  // 5. CONFIGURACIÓN DE TOGGLES (SWITCHES)
+  // 7. CONFIGURACIÓN DE TOGGLES
   // ==========================================================================
   .toggle({
-    // 🟡 Narración de los hechos - Lugar de hechos
     ocurrio_domicilio_victima: {
-      label: "¿Ocurrio en el domicilio de la victima?",
+      label: "¿Ocurrió en el domicilio de la víctima?",
       responsive: ResponsiveToogle,
     },
     conoce_autoridad_asunto: {
@@ -820,28 +1174,26 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       responsive: ResponsiveToogle,
     },
     dia_festivo: {
-      label: "¿Fue dia festivo?",
+      label: "¿Fue día festivo?",
       responsive: ResponsiveToogle,
     },
     ocurrio_extranjero: {
-      label: "¿Ocurrio en el extranjero?",
+      label: "¿Ocurrió en el extranjero?",
       responsive: ResponsiveToogle,
     },
     canalizado_cabi: {
-      label: "¿El dia fue canalizado por el CABI?",
+      label: "¿El caso fue canalizado por el CABI?",
       responsive: ResponsiveToogle,
     },
-
-    // 🟣 Clasificación de la violencia
     relacion_denuncia: {
       label: "¿Relacionado con denuncia?",
     },
     victima_delicuencia_organizada: {
-      label: "¿Victima de delicuencia organizada?",
+      label: "¿Víctima de delincuencia organizada?",
       responsive: ResponsiveToogle,
     },
     relacionado_orientacion_indetidad_genero: {
-      label: "¿Relacionado con orientación sexual o indentidad de genero?",
+      label: "¿Relacionado con orientación sexual o identidad de género?",
       responsive: ResponsiveToogle,
     },
     vive_extrajero: {
@@ -849,7 +1201,7 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       responsive: ResponsiveSelectAndDate,
     },
     realiza_mas_actividades: {
-      label: "¿Realiza mas de una actividad?",
+      label: "¿Realiza más de una actividad?",
       responsive: ResponsiveSelectAndDate,
     },
     migrante: {
@@ -857,7 +1209,7 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       responsive: ResponsiveToogle,
     },
     pertenece_pueblo_indigena: {
-      label: "¿Pertenece a un pueblo indigena?",
+      label: "¿Pertenece a un pueblo indígena?",
       responsive: ResponsiveToogle,
     },
     tiene_discapacidad: {
@@ -870,15 +1222,15 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       hidden: (values) => !values.tiene_discapacidad,
     },
     enfermedad_cronica_degenerativa: {
-      label: "¿Enfermedad cronico-degenerativa?",
+      label: "¿Enfermedad crónico-degenerativa?",
       responsive: ResponsiveToogle,
     },
     trastorno_neurologico_mental: {
-      label: "¿Trastorno neurologíco o de salud mental diagnosticado?",
+      label: "¿Trastorno neurológico o de salud mental diagnosticado?",
       responsive: ResponsiveToogle,
     },
     tratado_medicamente_actualmente: {
-      label: "¿Tratamiento medico actual?",
+      label: "¿Tratamiento médico actual?",
       responsive: ResponsiveToogle,
     },
     embarazo: {
@@ -890,20 +1242,20 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       responsive: ResponsiveToogle,
     },
     vive_situacion_calle: {
-      label: "¿Situación de la calle?",
+      label: "¿Vive en situación de calle?",
     },
     tiene_adiccion: {
-      label: "¿Adiccion?",
+      label: "¿Tiene adicción?",
     },
     conoce_agresor: {
       label: "¿Conoce al agresor?",
     },
     vive_domicilio_victima: {
-      label: "¿Vive en el mismo domicilio que la victima?",
+      label: "¿Vive en el mismo domicilio que la víctima?",
       hidden: (values) => !values.conoce_agresor,
     },
     acceso_armas_agresor: {
-      label: "Tiene accesso a armas",
+      label: "¿Tiene acceso a armas?",
       hidden: (values) => !values.conoce_agresor,
     },
     acceso_drogas_agresor: {
@@ -913,7 +1265,7 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
   })
 
   // ==========================================================================
-  // 6. CONFIGURACIÓN DE RADIO BUTTONS
+  // 8. CONFIGURACIÓN DE RADIO BUTTONS
   // ==========================================================================
   .radio({
     sector: {
@@ -924,30 +1276,38 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
         { id: 1, nombre: "Rural" },
         { id: 2, nombre: "Urbano" },
       ],
+      validation: ({ yup }) => yup.string().required("Seleccione un sector"),
     },
     autoidentificacion_etnica: {
       label: "¿Se considera afroamexicana/negra/afrodescendiente?",
       optionIdKey: "nombre",
       optionLabelKey: "nombre",
       options: [
-        { id: 1, nombre: "Si" },
+        { id: 1, nombre: "Sí" },
         { id: 2, nombre: "No" },
         { id: 3, nombre: "Se desconoce" },
       ],
+      validation: ({ yup }) => yup.string().required("Seleccione una opción"),
     },
     conducta: {
-      label: "Tipo",
+      label: "Tipo de conducta",
       optionIdKey: "nombre",
       optionLabelKey: "nombre",
       options: [
         { id: 1, nombre: "Conducta" },
-        { id: 2, nombre: "Ingestión - quimica" },
+        { id: 2, nombre: "Ingestión - química" },
         { id: 3, nombre: "Ingestión - comida" },
       ],
       hidden: (values) => !values.tiene_adiccion,
+      validation: ({ yup }) =>
+        yup.string().when("tiene_adiccion", {
+          is: true,
+          then: (schema) => schema.required("Seleccione el tipo de conducta"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     sexo_agresor: {
-      label: "Sexo",
+      label: "Sexo del agresor",
       optionIdKey: "nombre",
       optionLabelKey: "nombre",
       options: [
@@ -956,23 +1316,19 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
         { id: 3, nombre: "No binario" },
       ],
       responsive: ResponsiveSelectAndDate,
-
       hidden: (values) => !values.conoce_agresor,
+      validation: ({ yup }) =>
+        yup.string().when("conoce_agresor", {
+          is: true,
+          then: (schema) => schema.required("Seleccione el sexo del agresor"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
   })
 
   // ==========================================================================
-  // 7. CONFIGURACIÓN DEL LAYOUT (STEpper - MULTI-PASOS)
+  // 9. CONFIGURACIÓN DE ARRAYS (DEPENDIENTES Y RED DE APOYO)
   // ==========================================================================
-
-  .textarea({
-    entre_calles: {
-      label: "Entre las calles",
-    },
-    referencias: {
-      label: "Referencias",
-    },
-  })
   .array({
     dependientes: {
       label: "Hijas, hijos y dependientes",
@@ -994,7 +1350,7 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
         },
         {
           name: "id_vinculo",
-          label: "Vinculo",
+          label: "Vínculo",
           type: "select",
           selectIdKey: "id",
           selectLabelKey: "nombre",
@@ -1004,7 +1360,7 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
         },
         {
           name: "esta_riesgo",
-          label: "¿Esta en riesgo?",
+          label: "¿Está en riesgo?",
           type: "toggle",
         },
       ],
@@ -1029,7 +1385,7 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
         },
         {
           name: "id_vinculo",
-          label: "Vinculo",
+          label: "Vínculo",
           type: "select",
           selectIdKey: "id",
           selectLabelKey: "nombre",
@@ -1039,34 +1395,34 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
         },
         {
           name: "cuenta_apoyo",
-          label: "¿Cuenta con red de apoyo?",
+          label: "¿Cuenta con apoyo?",
           type: "toggle",
         },
       ],
     },
   })
+
+  // ==========================================================================
+  // 10. CONFIGURACIÓN DEL LAYOUT (STEPPER - MULTI-PASOS)
+  // ==========================================================================
   .layout(
-    "stepper", // Modo: stepper (pasos) o box (cajas)
-    "Apertura del caso", // Paso 1
-    "Narración de los hechos", // Paso 2
-    "Clasificación de la violencia", // Paso 3
-    "Efectos de la violencia", // Paso 4
-    "Datos de la victima", // paso 5
+    "stepper",
+    "Apertura del caso",
+    "Narración de los hechos",
+    "Clasificación de la violencia",
+    "Efectos de la violencia",
+    "Datos de la víctima",
     "Persona agresora",
-    "Ruta de antencion",
+    "Ruta de atención",
     "Canalización",
   )({
-    // 📌 PASO 1: APERTURA DEL CASO
     "Apertura del caso": ["curp"],
 
-    // 📌 PASO 2: NARRACIÓN DE LOS HECHOS
     "Narración de los hechos": [
-      // Box 1: Hechos
       {
         title: "Hechos",
         fields: ["hechos"],
       },
-      // Box 2: Lugar de hechos
       {
         title: "Lugar de hechos",
         fields: [
@@ -1089,9 +1445,7 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       },
     ],
 
-    // 📌 PASO 3: CLASIFICACIÓN DE LA VIOLENCIA
     "Clasificación de la violencia": [
-      // Box 1: Datos de violencia
       {
         title: "Datos de violencia",
         fields: [
@@ -1103,8 +1457,8 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
           "relacionado_orientacion_indetidad_genero",
         ],
       },
-      // Box 2: Tipos de violencia (pendiente)
     ],
+
     "Efectos de la violencia": [
       {
         title: "Efectos físicos",
@@ -1140,15 +1494,15 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
         ],
       },
     ],
-    "Datos de la victima": [
+
+    "Datos de la víctima": [
       {
-        title: "Informacion General",
+        title: "Información General",
         fields: [
           "fecha_nacimiento",
           "edad",
           "telefono",
           "correo",
-
           "id_orientacion_sexual",
           "id_identidad_genero",
           "id_estado_civil",
@@ -1173,19 +1527,16 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
           "num_int",
           "entre_calles",
           "referencias",
-          "entre_calles_agresor",
-          "referencias_agresor",
         ],
       },
       {
-        title: "Condiciones especificas",
+        title: "Condiciones específicas",
         fields: [
           "migrante",
           "pertenece_pueblo_indigena",
+          "autoidentificacion_etnica",
           "tiene_discapacidad",
           "id_discapacidad",
-          "discapacidad_causada_violencia",
-          "autoidentificacion_etnica",
           "discapacidad_causada_violencia",
           "enfermedad_cronica_degenerativa",
           "trastorno_neurologico_mental",
@@ -1196,7 +1547,7 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
         ],
       },
       {
-        title: "Hijas,hijos y dependientes",
+        title: "Hijas, hijos y dependientes",
         fields: ["dependientes"],
       },
       {
@@ -1208,6 +1559,7 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
         fields: ["vive_situacion_calle", "tiene_adiccion", "conducta"],
       },
     ],
+
     "Persona agresora": [
       {
         title: "Información",
@@ -1230,7 +1582,7 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
         ],
       },
       {
-        title: "Domicilio",
+        title: "Domicilio del agresor",
         fields: [
           "codigo_postal_agresor",
           "colonia_agresor",
@@ -1245,11 +1597,13 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
         ],
       },
     ],
-    "Ruta de antencion": [
+
+    "Ruta de atención": [
       "id_servicios_trabajo_social",
       "id_servicios_juridicos",
       "id_servicios_psicologicos",
     ],
+
     Canalización: [
       "id_dependencia",
       "especifica_dependencia",
@@ -1258,5 +1612,64 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
       "responsable",
       "observaciones",
     ],
+  })
+  .tableHeader({
+    icon: "",
+    title: "Entrevistas",
+    subtitle: "Modulo 1",
+  })
+  .tableColumns({
+    id: {
+      label: "Folio",
+    },
+    curp: {
+      label: "CURP",
+    },
+    fecha_nacimiento: {
+      label: "Fecha de nacimiento",
+      render: (value, record) => (
+        <>{formatDatetime(value, true, DateFormat.DDDD_DD_DE_MMMM_DE_YYYY)}</>
+      ),
+    },
+    telefono: {
+      label: "Telefono",
+    },
+
+    calle: {
+      label: "CALLE",
+    },
+    colonia: {
+      label: "Colonia",
+    },
+    municipio: {
+      label: "Municipio",
+    },
+    estado: {
+      label: "Estado",
+    },
+    creado_por: {
+      label: "Registrado",
+      
+    },
+  })
+  .tableActions<Hooks>({
+    isDelete: false,
+    moreButtons: [
+      {
+        label: "Pdf",
+        icon: <FaRegFilePdf />,
+        color: "red",
+        tooltip: "pdf",
+        actionHook: ({ row, hooks }) => {
+          // ✅ hooks.UseRoles tiene el resultado real del hook
+          hooks.UseInterview.getPdf(row.id);
+        },
+      },
+    ],
+  })
+  .mobile({
+    listTile: {
+      title: (row) => row.curp,
+    },
   })
   .build();

@@ -122,7 +122,7 @@ export default function PdfPreview({ name, children }: PdfPreviewProps) {
                       theme.colors.primary.DEFAULT;
                   }}
                 >
-                  <span>Doc.</span> Descargar Acta de Infracción
+                  <span>Doc.</span> Caratula
                 </a>
               </div>
 

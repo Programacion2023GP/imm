@@ -5,7 +5,7 @@ const env = {
    // VERSION: __APP_VERSION__, //import.meta.env.VITE_VERSION,
    API_URL: import.meta.env.VITE_API_URL,
    API_URL_IMG: import.meta.env.VITE_API_URL_IMG,
-   NAME_SYSTEM: "GP Central",
+   NAME_SYSTEM: "IMM",
    // API_CP: import.meta.env.VITE_API_CP,
    // API_KEY_ORC: import.meta.env.VITE_API_KEY_ORC
    TRANSITION_TIME: "0.3s",

@@ -7,6 +7,9 @@ import {
 import type {
   InterviewForm,
   Dependientes,
+  RedApoyo,
+  InterviewTable,
+  EntrevistaShowResponse,
 } from "../../../models/interview/interview.model";
 
 export interface Colonia {
@@ -30,11 +33,19 @@ export interface ExtraStateInterview {
   municipio_agresor: string;
   zona_agresor: string;
   loadingCp_agresor: boolean;
+  dataAll: InterviewTable[];
+  lobyData: any;
+  lobyLoading: boolean;
+  openCaratula: boolean;
+  selectInterview: EntrevistaShowResponse;
 }
 
 export interface Methods {
   getCp: (cp: number) => Promise<void>;
   getCpAgresor: (cp: number) => Promise<void>;
+  getLoby: (string: "psicologo" | "juridico") => void;
+  getAllData: () => void;
+  getPdf: (id: number) => void;
 }
 
 export type InterviewDataReturn = GenericDataReturn<
@@ -142,6 +153,60 @@ const datosVictimaInicial = {
 
   // DEPENDIENTES (ARRAY)
   dependientes: [] as Dependientes[],
+
+  // RED DE APOYO (ARRAY)
+  redapoyo: [] as RedApoyo[],
+
+  // OTRAS CONDICIONES
+  vive_situacion_calle: false,
+  tiene_adiccion: false,
+  conducta: "",
+};
+
+// PASO 6: PERSONA AGRESORA
+const agresorInicial = {
+  conoce_agresor: false,
+  nombre_agresor: "",
+  edad_agresor: "",
+  sexo_agresor: "",
+  id_vinculo_agresor: 0,
+  id_identidad_genero_agresor: 0,
+  id_orientacion_sexual_agresor: 0,
+  vive_domicilio_victima: false,
+  codigo_postal_agresor: 0,
+  colonia_agresor: "",
+  estado_agresor: "",
+  municipio_agresor: "",
+  calle_agresor: "",
+  num_ext_agresor: 0,
+  num_int_agresor: 0,
+  entre_calles_agresor: "",
+  referencias_agresor: "",
+  zona_agresor: "",
+  id_ultimo_grado_estudios_agresor: 0,
+  id_ingreso_promedio_mensual_agresor: 0,
+  id_ocupacion_agresor: 0,
+  acceso_armas_agresor: false,
+  id_armas_agresor: 0,
+  acceso_drogas_agresor: false,
+  id_drogas_agresor: [] as number[],
+};
+
+// PASO 7: RUTA DE ATENCIÓN
+const rutaAtencionInicial = {
+  id_servicios_trabajo_social: [] as number[],
+  id_servicios_juridicos: [] as number[],
+  id_servicios_psicologicos: [] as number[],
+};
+
+// PASO 8: CANALIZACIÓN
+const canalizacionInicial = {
+  id_dependencia: 0,
+  especifica_dependencia: "",
+  id_canalizacion: 0,
+  fecha_canalizacion: "",
+  responsable: "",
+  observaciones: "",
 };
 
 // ─── FORMULARIO COMPLETO ─────────────────────────────────────────────────────
@@ -151,6 +216,9 @@ export const initialInterviewForm: InterviewForm = {
   ...clasificacionInicial,
   ...efectosInicial,
   ...datosVictimaInicial,
+  ...agresorInicial,
+  ...rutaAtencionInicial,
+  ...canalizacionInicial,
 };
 
 // ─── HOOK PRINCIPAL ─────────────────────────────────────────────────────────
@@ -159,7 +227,7 @@ const UseInterview = (): InterviewDataReturn => {
 
   return useGenericData<InterviewForm, Methods, {}, ExtraStateInterview>({
     initialState: initialState,
-    prefix: "interview",
+    prefix: "entrevista",
     autoFetch: true,
     extraState: {
       colonias: [],
@@ -171,11 +239,16 @@ const UseInterview = (): InterviewDataReturn => {
       estado_agresor: "",
       municipio_agresor: "",
       zona_agresor: "",
-      loadingCp_agresor: false
+      loadingCp_agresor: false,
+      lobyData: [],
+      lobyLoading: false,
+      dataAll: [],
+      openCaratula: false,
+      selectInterview: null,
     },
 
     hooks: {
-      onError: (msg) => console.error("[Interview]", msg),
+      onError: (msg) => console.error("[entrevista]", msg),
     },
 
     extension: (set, get, prefix) => ({
@@ -188,10 +261,9 @@ const UseInterview = (): InterviewDataReturn => {
           );
           const res = await response.json();
 
-          // Según la estructura de tu respuesta, los resultados están en res.result
-          const resultados = res.data.result; // ← esto ya es el array de resultados
+          const resultados = res.data.result;
 
-          const colonias = resultados.map((item) => ({
+          const colonias = resultados.map((item: any) => ({
             id: item.id,
             nombre: item.Colonia,
             codigoPostal: item.CodigoPostal,
@@ -218,10 +290,9 @@ const UseInterview = (): InterviewDataReturn => {
           );
           const res = await response.json();
 
-          // Según la estructura de tu respuesta, los resultados están en res.result
-          const resultados = res.data.result; // ← esto ya es el array de resultados
+          const resultados = res.data.result;
 
-          const colonias = resultados.map((item) => ({
+          const colonias = resultados.map((item: any) => ({
             id: item.id,
             nombre: item.Colonia,
             codigoPostal: item.CodigoPostal,
@@ -230,13 +301,66 @@ const UseInterview = (): InterviewDataReturn => {
             municipio: item.Municipio,
             estado: item.Estado,
           }));
-          console.log("cargando inf",colonias)
+
+          console.log("cargando inf", colonias);
           set({ colonias_agresor: colonias, loadingCp_agresor: false });
 
           return res;
         } catch (error) {
-          console.error("❌ Error en getCp:", error);
+          console.error("❌ Error en getCpAgresor:", error);
           set({ loadingCp_agresor: false });
+        }
+      },
+      getLoby: async (option: "psicologo" | "juridico") => {
+        try {
+          set({ lobyLoading: true });
+          const res = await get().request({
+            method: "GET",
+            formData: false,
+            url: `${get().prefix}/${option}`,
+          });
+          set({ lobyData: res, lobyLoading: false });
+        } catch (error) {
+          set({ lobyData: [], lobyLoading: false });
+        }
+      },
+      getAllData: async () => {
+        try {
+          const res = await get().request({
+            method: "GET",
+            formData: false,
+            url: `${get().prefix}/all`,
+          });
+          set({ lobyData: res });
+        } catch (error) {
+          set({ lobyData: [] });
+        }
+      },
+      getPdf: async (id: number) => {
+        try {
+          const res = await get().request({
+            method: "GET",
+            formData: false,
+            url: `${get().prefix}/show/${id}`,
+          });
+
+          // Validar que sea un array y tenga al menos un elemento
+          if (Array.isArray(res) && res.length > 0 && res[0]) {
+            set({
+              selectInterview: res[0] as unknown as EntrevistaShowResponse,
+              openCaratula: true,
+            });
+          } else {
+            set({
+              selectInterview: null,
+              openCaratula: false,
+            });
+          }
+        } catch (error) {
+          set({
+            selectInterview: null,
+            openCaratula: false,
+          });
         }
       },
     }),

@@ -18,7 +18,7 @@ const UseHealtInsuranceData = (): DataReturn => {
 
    return useGenericData<Catalogues>({
      initialState: initialState,
-     prefix: "actividadprincipal",
+     prefix: "serviciomedico",
      autoFetch: true,
      // persistKey: "departments-persist",
      hooks: {

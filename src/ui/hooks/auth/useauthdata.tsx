@@ -77,55 +77,58 @@ const useAuthData = (): AuthDataReturn => {
     extension: (set, get, persist) => ({
       // useAuthData.ts (solo la parte del login)
       login: async (usuario, password, navigate) => {
-        try {
-          const res = await get().request({
-            url: `${get().prefix}/login`,
-            method: "POST",
-            data: { usuario, password },
-            getData: false,
-          });
-          const response = res as unknown as AuthResponse;
+  try {
+    const res = await get().request({
+      url: `${get().prefix}/login`,
+      method: "POST",
+      data: { usuario, password },
+      getData: false,
+    });
+    const response = res as unknown as AuthResponse;
 
-          if (response?.user) {
-            // Guardar en persistencia
-            persist?.set("auth", {
-              id: response.user.id,
-              usuario: response.user.usuario,
-              password: response.user.password,
-              nombre_completo: response.user.nombre_completo,
-              id_rol: response.user.id_rol,
-              activo: response.user.activo,
-            });
-            console.log("respuesta", response);
-            persist?.set("token", response.token);
-            persist?.set("permisos", response.permisos);
-            //   localStorage.setItem
-            // ✅ Redirigir usando los permisos de la respuesta (no los del persist)
-            if (navigate) {
-              const routesByPrefix = {
-                EXPEDIENTE_1: "/expedienteuno",
-                USUARIOS_: "/catalogos/usuarios",
-                EXPEDIENTE_2: "/expedientedos",
-                EXPEDIENTE_3: "/expedientetres",
-              };
-              let redirectUrl = "/dashboard";
-              for (const permiso of response.permisos) {
-                for (const [prefix, route] of Object.entries(routesByPrefix)) {
-                  if (permiso.startsWith(prefix)) {
-                    redirectUrl = route;
-                    break;
-                  }
-                }
-                if (redirectUrl !== "/dashboard") break;
-              }
-              navigate(redirectUrl);
-            }
-          }
-        } catch (error) {
-          console.error("Error en login:", error);
-          throw error;
-        }
-      },
+    if (response?.user) {
+      // Guardar en persistencia
+      persist?.set("auth", {
+        id: response.user.id,
+        usuario: response.user.usuario,
+        password: response.user.password,
+        nombre_completo: response.user.nombre_completo,
+        id_rol: response.user.id_rol,
+        activo: response.user.activo,
+      });
+      persist?.set("token", response.token);
+      persist?.set("permisos", response.permisos);
+      
+      if (navigate) {
+        const routesByPrefix: Record<string, string> = {
+          ENTREVISTA: "/expedienteuno",
+          LOBY_PSICOLOGO: "/loby",
+          CATALOGOS: "/catalogos/usuarios",
+        };
+
+        let redirectUrl = "/dashboard";
+
+        // ✅ Buscar el primer permiso que coincida y salir del bucle
+        // for (const permiso of response.permisos) {
+        //   for (const [prefix, route] of Object.entries(routesByPrefix)) {
+        //     if (permiso.startsWith(prefix)) {
+        //       redirectUrl = route;
+        //       break; // ✅ Salir del bucle interno
+        //     }
+        //   }
+        //   if (redirectUrl !== "/dashboard") break; // ✅ Salir del bucle externo si ya encontramos
+        // }
+
+        // // ✅ Redirigir UNA SOLA VEZ
+        // console.log("✅ Redirigiendo a:", redirectUrl);
+        // navigate(redirectUrl);
+      }
+    }
+  } catch (error) {
+    console.error("Error en login:", error);
+    throw error;
+  }
+},
 
       logout: async () => {
         try {

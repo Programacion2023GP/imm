@@ -13,7 +13,7 @@ import type { GenericDataReturn } from "../library/reactztore/hook/usegenericdat
 // RESPONSIVE SIZES / TAMAÑOS RESPONSIVOS
 // ====================================================================
 
-type ResponsiveSizes = {
+export type ResponsiveSizes = {
   sm?: number;
   md?: number;
   lg?: number;
@@ -22,12 +22,36 @@ type ResponsiveSizes = {
 };
 
 // ====================================================================
-// BASE FIELD CONFIG / CONFIGURACIÓN BASE DE CAMPOS
+// CASE TRANSFORM
 // ====================================================================
 
-type CaseTransform = "uppercase" | "lowercase" | "none";
+export type CaseTransform = "uppercase" | "lowercase" | "none";
 
-type FieldCallback<TFormValues = any, THooks = any> = (
+// ====================================================================
+// FIELD ACTIONS - DEFINIDO ANTES DE FieldCallback
+// ====================================================================
+
+export type FieldActions<TFormValues> = {
+  setHidden: <K extends keyof TFormValues>(field: K, hidden: boolean) => void;
+  setRequired: <K extends keyof TFormValues>(
+    field: K,
+    required: boolean,
+  ) => void;
+  setDisabled: <K extends keyof TFormValues>(
+    field: K,
+    disabled: boolean,
+  ) => void;
+  setValue: <K extends keyof TFormValues>(
+    field: K,
+    value: TFormValues[K],
+  ) => void;
+};
+
+// ====================================================================
+// FIELD CALLBACK - AHORA PUEDE USAR FieldActions
+// ====================================================================
+
+export type FieldCallback<TFormValues = any, THooks = any> = (
   value: any,
   formik: {
     values: TFormValues;
@@ -40,7 +64,22 @@ type FieldCallback<TFormValues = any, THooks = any> = (
   actions?: FieldActions<TFormValues>,
 ) => void;
 
-type BaseFieldConfig<TFormValues = any, THooks = any> = {
+// ====================================================================
+// VALIDATION CONTEXT (con hooks)
+// ====================================================================
+
+export type ValidationContext<TFormValues = any, THooks = any> = {
+  yup: typeof yup;
+  value: any;
+  formData: TFormValues;
+  hooks: THooks;
+};
+
+// ====================================================================
+// BASE FIELD CONFIG
+// ====================================================================
+
+export type BaseFieldConfig<TFormValues = any, THooks = any> = {
   label?: string;
   placeholder?: string;
   disabled?: boolean;
@@ -56,19 +95,38 @@ type BaseFieldConfig<TFormValues = any, THooks = any> = {
 };
 
 // ====================================================================
-// BOX GROUP TYPE / TIPO PARA AGRUPAR CAMPOS EN CAJAS
+// BOX GROUP TYPE
 // ====================================================================
 
-type BoxGroup<TForm> = {
+export type BoxGroup<TForm> = {
   title: string;
   fields: (keyof TForm)[];
 };
 
 // ====================================================================
-// FIELD CONFIGS EXISTENTES
+// ARRAY FIELD ITEM
 // ====================================================================
 
-type TextConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+export interface ArrayFieldItem {
+  name: string;
+  label: string;
+  type: "text" | "number" | "select" | "date" | "checkbox" | "toggle";
+  required?: boolean;
+  options?: Array<{ id: any; label: string }>;
+  selectIdKey?: string;
+  selectLabelKey?: string;
+  defaultValue?: any;
+  selectOptionsHook?: () => any[] | Promise<any[]>;
+  refreshActionHook?: () => () => void | Promise<void> | Promise<any>;
+  addActionHook?: () => () => void;
+  loadingHook?: () => boolean;
+}
+
+// ====================================================================
+// FIELD CONFIGS (todas usan ValidationContext correctamente)
+// ====================================================================
+
+export type TextConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
@@ -84,11 +142,11 @@ type TextConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
     | "time";
   readOnly?: boolean;
   validation?: (
-    ctx: ValidationContext<TFormValues>,
+    ctx: ValidationContext<TFormValues, THooks>,
   ) => yup.Schema<unknown> | undefined;
 };
 
-type SelectConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+export type SelectConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
@@ -102,11 +160,11 @@ type SelectConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   multiple?: boolean;
   searchable?: boolean;
   validation?: (
-    ctx: ValidationContext<TFormValues>,
+    ctx: ValidationContext<TFormValues, THooks>,
   ) => yup.Schema<unknown> | undefined;
 };
 
-type FileUploadConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+export type FileUploadConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
@@ -118,45 +176,41 @@ type FileUploadConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   compressImages?: boolean;
   hint?: string;
   validation?: (
-    ctx: ValidationContext<TFormValues>,
+    ctx: ValidationContext<TFormValues, THooks>,
   ) => yup.Schema<unknown> | undefined;
 };
 
-type ColorPickerConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
-  TFormValues,
-  THooks
-> & {
+export type ColorPickerConfig<
+  TFormValues = any,
+  THooks = any,
+> = BaseFieldConfig<TFormValues, THooks> & {
   palette?: string[];
   validation?: (
-    ctx: ValidationContext<TFormValues>,
+    ctx: ValidationContext<TFormValues, THooks>,
   ) => yup.Schema<unknown> | undefined;
 };
 
-type PasswordConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+export type PasswordConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
   validation?: (
-    ctx: ValidationContext<TFormValues>,
+    ctx: ValidationContext<TFormValues, THooks>,
   ) => yup.Schema<unknown> | undefined;
 };
 
-type TextareaConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+export type TextareaConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
   rows?: number;
   readOnly?: boolean;
   validation?: (
-    ctx: ValidationContext<TFormValues>,
+    ctx: ValidationContext<TFormValues, THooks>,
   ) => yup.Schema<unknown> | undefined;
 };
 
-// ====================================================================
-// ARRAY FIELD CONFIG (subformulario para listas)
-// ====================================================================
-
-type ArrayFieldConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+export type ArrayFieldConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
@@ -168,39 +222,20 @@ type ArrayFieldConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   itemLabel?: string;
   itemsLabel?: string;
   validation?: (
-    ctx: ValidationContext<TFormValues>,
+    ctx: ValidationContext<TFormValues, THooks>,
   ) => yup.Schema<unknown> | undefined;
 };
- type SelectKeyType = "id" | "label";
 
-// genericmodels.model.ts
-  interface ArrayFieldItem {
-    name: string;
-    label: string;
-    type: "text" | "number" | "select" | "date" | "checkbox" | "toggle";
-    required?: boolean;
-    options?: Array<{ id: any; label: string }>;
-    selectIdKey?: string;
-    selectLabelKey?: string;
-    defaultValue?: any;
-
-    // 🚀 NUEVAS PROPIEDADES PARA SELECT DINÁMICO
-    selectOptionsHook?: () => any[] | Promise<any[]>;
-    refreshActionHook?: () => () => void | Promise<void> | Promise<any>; // ← ampliado
-    addActionHook?: () => () => void;
-    loadingHook?: () => boolean;
-  }
-
-type NumberConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+export type NumberConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
   validation?: (
-    ctx: ValidationContext<TFormValues>,
+    ctx: ValidationContext<TFormValues, THooks>,
   ) => yup.Schema<unknown> | undefined;
 };
 
-type RadioGroupConfig<
+export type RadioGroupConfig<
   TOption = any,
   TFormValues = any,
   THooks = any,
@@ -209,33 +244,29 @@ type RadioGroupConfig<
   optionIdKey: keyof TOption;
   optionLabelKey: keyof TOption;
   validation?: (
-    ctx: ValidationContext<TFormValues>,
+    ctx: ValidationContext<TFormValues, THooks>,
   ) => yup.Schema<unknown> | undefined;
 };
 
-type ToggleConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+export type ToggleConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
   validation?: (
-    ctx: ValidationContext<TFormValues>,
+    ctx: ValidationContext<TFormValues, THooks>,
   ) => yup.Schema<unknown> | undefined;
 };
 
-type CheckboxConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+export type CheckboxConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
   validation?: (
-    ctx: ValidationContext<TFormValues>,
+    ctx: ValidationContext<TFormValues, THooks>,
   ) => yup.Schema<unknown> | undefined;
 };
 
-// ====================================================================
-// NUEVAS CONFIGURACIONES PARA COMPONENTES AGREGADOS
-// ====================================================================
-
-type DateConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+export type DateConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
@@ -243,11 +274,11 @@ type DateConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   min?: string;
   max?: string;
   validation?: (
-    ctx: ValidationContext<TFormValues>,
+    ctx: ValidationContext<TFormValues, THooks>,
   ) => yup.Schema<unknown> | undefined;
 };
 
-type DateRangeConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+export type DateRangeConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
@@ -258,14 +289,14 @@ type DateRangeConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   min?: string;
   max?: string;
   validation?: (
-    ctx: ValidationContext<TFormValues>,
+    ctx: ValidationContext<TFormValues, THooks>,
   ) => yup.Schema<unknown> | undefined;
 };
 
-type NumberDirectConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
-  TFormValues,
-  THooks
-> & {
+export type NumberDirectConfig<
+  TFormValues = any,
+  THooks = any,
+> = BaseFieldConfig<TFormValues, THooks> & {
   min?: number;
   max?: number;
   step?: number;
@@ -274,16 +305,16 @@ type NumberDirectConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   suffix?: string;
   showStepper?: boolean;
   validation?: (
-    ctx: ValidationContext<TFormValues>,
+    ctx: ValidationContext<TFormValues, THooks>,
   ) => yup.Schema<unknown> | undefined;
 };
 
-type SliderMark = {
+export type SliderMark = {
   value: number;
   label: string;
 };
 
-type SliderConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
+export type SliderConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   TFormValues,
   THooks
 > & {
@@ -294,7 +325,7 @@ type SliderConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
   showTooltip?: boolean;
   marks?: SliderMark[];
   validation?: (
-    ctx: ValidationContext<TFormValues>,
+    ctx: ValidationContext<TFormValues, THooks>,
   ) => yup.Schema<unknown> | undefined;
 };
 
@@ -302,7 +333,7 @@ type SliderConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
 // HELPERS / UTILIDADES
 // ====================================================================
 
-type NestedKeys<T> = T extends object
+export type NestedKeys<T> = T extends object
   ? {
       [K in keyof T]-?: K extends string | number
         ? T[K] extends any[]
@@ -314,13 +345,11 @@ type NestedKeys<T> = T extends object
     }[keyof T]
   : never;
 
-type ValidationContext<TFormValues = any> = {
-  yup: typeof yup;
-  value: any;
-  formData: TFormValues;
-};
+// ====================================================================
+// TABLE COLUMN CONFIG
+// ====================================================================
 
-type TableColumnConfig<TTable> = {
+export type TableColumnConfig<TTable> = {
   label: string;
   render?: (value: any, record: TTable) => React.ReactNode;
   getFilterValue?: (value: any, row?: TTable) => string;
@@ -358,13 +387,13 @@ type TableColumnConfig<TTable> = {
 // TABLE ACTIONS CONFIG
 // ====================================================================
 
-interface BottomSheetConfig<T = any> {
+export interface BottomSheetConfig<T = any> {
   height?: number | string;
   showCloseButton?: boolean;
   builder: (row: T, onClose: () => void) => React.ReactNode;
 }
 
-interface TableActionButton<
+export interface TableActionButton<
   TRecord = any,
   THooks extends Record<string, any> = Record<string, any>,
   TMainHook = any,
@@ -384,7 +413,7 @@ interface TableActionButton<
   multiple?: boolean | null;
 }
 
-interface TableActionsConfig<
+export interface TableActionsConfig<
   TRecord = any,
   THooks extends Record<string, any> = Record<string, any>,
   TMainHook = any,
@@ -394,7 +423,7 @@ interface TableActionsConfig<
   moreButtons?: TableActionButton<TRecord, THooks, TMainHook>[];
 }
 
-interface TableHeaderConfig {
+export interface TableHeaderConfig {
   title?: string;
   subtitle?: string;
   icon?: string | React.ReactNode;
@@ -404,28 +433,28 @@ interface TableHeaderConfig {
 // MOBILE CONFIGURATION
 // ====================================================================
 
-interface SwipeActionItem {
+export interface SwipeActionItem {
   icon: React.ReactNode;
   color: string;
   label?: string;
   action?: (row: any) => void;
 }
 
-interface SwipeActionsConfig {
+export interface SwipeActionsConfig {
   left?: SwipeActionItem[];
   right?: SwipeActionItem[];
 }
 
-interface MobileListTileConfig<T = any> {
+export interface MobileListTileConfig<T = any> {
   leading?: (row: T) => React.ReactNode;
   title?: (row: T) => React.ReactNode;
   subtitle?: (row: T) => React.ReactNode;
   trailing?: (row: T) => React.ReactNode;
 }
 
-type MobileQuickFilterType = "text" | "date" | "select" | "number";
+export type MobileQuickFilterType = "text" | "date" | "select" | "number";
 
-interface MobileQuickFilterItem<TTable = any> {
+export interface MobileQuickFilterItem<TTable = any> {
   dataField: keyof TTable;
   label: string;
   type?: MobileQuickFilterType;
@@ -433,12 +462,12 @@ interface MobileQuickFilterItem<TTable = any> {
   placeholder?: string;
 }
 
-interface MobileQuickFiltersConfig<TTable = any> {
+export interface MobileQuickFiltersConfig<TTable = any> {
   enabled?: boolean;
   filters?: MobileQuickFilterItem<TTable>[];
 }
 
-interface MobileConfig<T = any> {
+export interface MobileConfig<T = any> {
   enabled?: boolean;
   activeViews?: boolean;
   listTile?: MobileListTileConfig<T>;
@@ -451,26 +480,6 @@ interface MobileConfig<T = any> {
 // OVERRIDES COMPONENTS
 // ====================================================================
 
-export interface OverrideComponents {
-  text?: React.ComponentType<OverrideFieldProps>;
-  select?: React.ComponentType<OverrideSelectProps>;
-  file?: React.ComponentType<OverrideFieldProps>;
-  color?: React.ComponentType<OverrideFieldProps>;
-  password?: React.ComponentType<OverrideFieldProps>;
-  textarea?: React.ComponentType<OverrideFieldProps>;
-  number?: React.ComponentType<OverrideFieldProps>;
-  radio?: React.ComponentType<OverrideFieldProps>;
-  toggle?: React.ComponentType<OverrideFieldProps>;
-  checkbox?: React.ComponentType<OverrideFieldProps>;
-  date?: React.ComponentType<OverrideFieldProps>;
-  daterange?: React.ComponentType<OverrideFieldProps>;
-  numberdirect?: React.ComponentType<OverrideFieldProps>;
-  slider?: React.ComponentType<OverrideFieldProps>;
-  tableColumns?: React.ComponentType<OverrideTableProps>;
-  submitButton?: React.ComponentType<OverrideSubmitButtonProps>;
-  [fieldName: string]: React.ComponentType<any> | undefined;
-}
-
 export interface OverrideFieldProps {
   name: string;
   label?: string;
@@ -482,7 +491,7 @@ export interface OverrideFieldProps {
   required?: boolean;
   disabled?: boolean;
   placeholder?: string;
-  responsive:ResponsiveSizes
+  responsive: ResponsiveSizes;
   [key: string]: any;
 }
 
@@ -513,6 +522,26 @@ export interface OverrideSubmitButtonProps {
   onClick?: () => void;
 }
 
+export interface OverrideComponents {
+  text?: React.ComponentType<OverrideFieldProps>;
+  select?: React.ComponentType<OverrideSelectProps>;
+  file?: React.ComponentType<OverrideFieldProps>;
+  color?: React.ComponentType<OverrideFieldProps>;
+  password?: React.ComponentType<OverrideFieldProps>;
+  textarea?: React.ComponentType<OverrideFieldProps>;
+  number?: React.ComponentType<OverrideFieldProps>;
+  radio?: React.ComponentType<OverrideFieldProps>;
+  toggle?: React.ComponentType<OverrideFieldProps>;
+  checkbox?: React.ComponentType<OverrideFieldProps>;
+  date?: React.ComponentType<OverrideFieldProps>;
+  daterange?: React.ComponentType<OverrideFieldProps>;
+  numberdirect?: React.ComponentType<OverrideFieldProps>;
+  slider?: React.ComponentType<OverrideFieldProps>;
+  tableColumns?: React.ComponentType<OverrideTableProps>;
+  submitButton?: React.ComponentType<OverrideSubmitButtonProps>;
+  [fieldName: string]: React.ComponentType<any> | undefined;
+}
+
 // ====================================================================
 // BUILD RESULT
 // ====================================================================
@@ -533,7 +562,7 @@ export type BuildResult<TForm = any, TTable = any, THooks = any> = {
   numberDirectFields: string[];
   sliderFields: string[];
   arrayFields: string[];
-arrayConfigs: Record<string, ArrayFieldConfig<TForm, THooks>>;
+  arrayConfigs: Record<string, ArrayFieldConfig<TForm, THooks>>;
   textConfigs: Record<string, TextConfig<TForm, THooks>>;
   selectConfigs: Record<string, SelectConfig<TForm, THooks>>;
   fileConfigs: Record<string, FileUploadConfig<TForm, THooks>>;
@@ -557,7 +586,7 @@ arrayConfigs: Record<string, ArrayFieldConfig<TForm, THooks>>;
     sections: readonly string[];
     fieldsPerSection: Record<string, any>;
   };
-  validationSchema: any;
+  validationSchema: (hooks: THooks) => yup.ObjectSchema<any>;
   overrides: OverrideComponents;
   render: ((ctx: RenderContext<TForm, TTable>) => React.ReactNode) | null;
   getOptionLabel: (field: string, option: any) => string;
@@ -678,6 +707,7 @@ export const ConfigCrud = <
   TTable extends object = TForm,
   THooks = any,
 >() => {
+  // Listas de campos por tipo
   let textFieldsList: (NestedKeys<TForm> & string)[] = [];
   let selectFieldsList: (NestedKeys<TForm> & string)[] = [];
   let fileFieldsList: (NestedKeys<TForm> & string)[] = [];
@@ -692,8 +722,10 @@ export const ConfigCrud = <
   let dateRangeFieldsList: (NestedKeys<TForm> & string)[] = [];
   let numberDirectFieldsList: (NestedKeys<TForm> & string)[] = [];
   let sliderFieldsList: (NestedKeys<TForm> & string)[] = [];
-  let arrayFieldsList: (NestedKeys<TForm> & string)[] = []; // ← AGREGAR
-  let arrayConfigs: Record<string, ArrayFieldConfig<TForm, THooks>> = {}; // ← AGREGAR
+  let arrayFieldsList: (NestedKeys<TForm> & string)[] = [];
+
+  // Configuraciones
+  let arrayConfigs: Record<string, ArrayFieldConfig<TForm, THooks>> = {};
   let textConfigs: Record<string, TextConfig<TForm, THooks>> = {};
   let selectConfigs: Record<string, SelectConfig<TForm, THooks>> = {};
   let fileConfigs: Record<string, FileUploadConfig<TForm, THooks>> = {};
@@ -722,41 +754,50 @@ export const ConfigCrud = <
     | ((ctx: RenderContext<TForm, TTable>) => React.ReactNode)
     | null = null;
 
+  // Función que construye el esquema de validación (ahora devuelve una función que acepta hooks)
   const buildValidationSchema = () => {
-    const schema: Record<string, yup.Schema<unknown>> = {};
-    const addValidations = (configs: Record<string, any>) => {
-      Object.entries(configs).forEach(([field, cfg]) => {
-        if (cfg?.validation) {
-          const validation = cfg.validation({
-            yup,
-            value: undefined,
-            formData: {} as TForm,
-          });
-          if (validation) schema[field] = validation;
+    return (hooks: THooks): yup.ObjectSchema<any> => {
+      const schema: Record<string, yup.Schema<unknown>> = {};
+
+      const addValidations = (configs: Record<string, any>) => {
+        Object.entries(configs).forEach(([field, cfg]) => {
+          if (cfg?.validation) {
+            const validation = cfg.validation({
+              yup,
+              value: undefined,
+              formData: {} as TForm,
+              hooks,
+            });
+            if (validation) schema[field] = validation;
+          }
+        });
+      };
+
+      addValidations(textConfigs);
+      addValidations(selectConfigs);
+      addValidations(fileConfigs);
+      addValidations(colorConfigs);
+      addValidations(passwordConfigs);
+      addValidations(textareaConfigs);
+      addValidations(numberConfigs);
+      addValidations(radioConfigs);
+      addValidations(toggleConfigs);
+      addValidations(checkboxConfigs);
+      addValidations(dateConfigs);
+      addValidations(dateRangeConfigs);
+      addValidations(numberDirectConfigs);
+      addValidations(sliderConfigs);
+      addValidations(arrayConfigs);
+
+      // Base para arrays sin validación explícita
+      Object.entries(arrayConfigs).forEach(([field]) => {
+        if (!schema[field]) {
+          schema[field] = yup.array().of(yup.mixed());
         }
       });
+
+      return yup.object().shape(schema);
     };
-    addValidations(textConfigs);
-    addValidations(selectConfigs);
-    addValidations(fileConfigs);
-    addValidations(colorConfigs);
-    addValidations(passwordConfigs);
-    addValidations(textareaConfigs);
-    addValidations(numberConfigs);
-    addValidations(radioConfigs);
-    addValidations(toggleConfigs);
-    addValidations(checkboxConfigs);
-    addValidations(dateConfigs);
-    addValidations(dateRangeConfigs);
-    addValidations(numberDirectConfigs);
-    addValidations(sliderConfigs);
-    addValidations(arrayConfigs); // ← AGREGAR
-    Object.entries(arrayConfigs).forEach(([field, cfg]) => {
-      if (!cfg.validation && schema[field] === undefined) {
-        schema[field] = yup.array().of(yup.mixed());
-      }
-    });
-    return yup.object().shape(schema);
   };
 
   const api = {
@@ -792,12 +833,10 @@ export const ConfigCrud = <
       daterange?: TDateRange;
       numberdirect?: TNumberDirect;
       slider?: TSlider;
-      array?: TArray; // ← AGREGAR
+      array?: TArray;
     }) => {
-      // ============================================================
-      // VALIDACIÓN EN TIEMPO DE EJECUCIÓN: NO REPETIR CAMPOS
-      // ============================================================
-      const usedFields = new Map<string, string>(); // field -> tipo donde se declaró primero
+      // Validación para evitar duplicados
+      const usedFields = new Map<string, string>();
       const allTypes = [
         "text",
         "select",
@@ -813,7 +852,7 @@ export const ConfigCrud = <
         "daterange",
         "numberdirect",
         "slider",
-        "array", // ← AGREGAR
+        "array",
       ] as const;
 
       for (const type of allTypes) {
@@ -830,7 +869,6 @@ export const ConfigCrud = <
           }
         }
       }
-      // ============================================================
 
       if (config.text) textFieldsList = [...config.text];
       if (config.select) selectFieldsList = [...config.select];
@@ -848,21 +886,6 @@ export const ConfigCrud = <
         numberDirectFieldsList = [...config.numberdirect];
       if (config.slider) sliderFieldsList = [...config.slider];
       if (config.array) arrayFieldsList = [...config.array];
-      type AllAllowed =
-        | TText[number]
-        | TSelect[number]
-        | TFile[number]
-        | TColor[number]
-        | TPassword[number]
-        | TTextarea[number]
-        | TNumber[number]
-        | TRadio[number]
-        | TToggle[number]
-        | TCheckbox[number]
-        | TDate[number]
-        | TDateRange[number]
-        | TNumberDirect[number]
-        | TSlider[number];
 
       const methods = {
         text: (
@@ -1054,8 +1077,8 @@ export const ConfigCrud = <
           return methods;
         },
         build: (): BuildResult<TForm, TTable, THooks> => ({
-          arrayFields: arrayFieldsList, // ← AGREGAR
-          arrayConfigs: arrayConfigs,
+          arrayFields: arrayFieldsList,
+          arrayConfigs,
           textFields: textFieldsList,
           selectFields: selectFieldsList,
           fileFields: fileFieldsList,
@@ -1085,7 +1108,7 @@ export const ConfigCrud = <
           numberDirectConfigs,
           sliderConfigs,
           tableColumns: tableConfig,
-          tableConfig: tableConfig,
+          tableConfig,
           tableActions: tableActionsConfig,
           tableHeader: tableHeaderConfig,
           mobileConfig: mobileConfigValue,
@@ -1109,62 +1132,4 @@ export const ConfigCrud = <
     },
   };
   return api;
-};
-
-// ====================================================================
-// FIELD ACTIONS
-// ====================================================================
-
-type FieldActions<TFormValues> = {
-  setHidden: <K extends keyof TFormValues>(field: K, hidden: boolean) => void;
-  setRequired: <K extends keyof TFormValues>(
-    field: K,
-    required: boolean,
-  ) => void;
-  setDisabled: <K extends keyof TFormValues>(
-    field: K,
-    disabled: boolean,
-  ) => void;
-  setValue: <K extends keyof TFormValues>(
-    field: K,
-    value: TFormValues[K],
-  ) => void;
-};
-
-// ====================================================================
-// EXPORTED TYPES
-// ====================================================================
-
-export type {
-  ResponsiveSizes,
-  TextConfig,
-  SelectConfig,
-  FileUploadConfig,
-  ColorPickerConfig,
-  PasswordConfig,
-  TextareaConfig,
-  NumberConfig,
-  RadioGroupConfig,
-  ToggleConfig,
-  CheckboxConfig,
-  DateConfig,
-  DateRangeConfig,
-  NumberDirectConfig,
-  SliderConfig,
-  SliderMark,
-  TableActionButton,
-  TableActionsConfig,
-  TableHeaderConfig,
-  SwipeActionItem,
-  SwipeActionsConfig,
-  MobileListTileConfig,
-  MobileQuickFiltersConfig,
-  MobileConfig,
-  CaseTransform,
-  FieldCallback,
-  BoxGroup,
-  FieldActions,
-  BottomSheetConfig,
-  ArrayFieldConfig, // ← AGREGAR
-  ArrayFieldItem,
 };

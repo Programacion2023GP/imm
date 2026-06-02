@@ -464,9 +464,12 @@ const DEFAULT_RESPONSIVE: ResponsiveSizes = {
 // ─── Date helpers (se mantienen igual) ─────────────────────────────────────────
 const isISODateString = (value: any): boolean => {
   if (typeof value !== "string") return false;
+  if (!value || value === "null" || value === "undefined") return false;
+
   const isoDateRegex =
     /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[\+\-]\d{2}:\d{2})?)?$/;
   if (!isoDateRegex.test(value)) return false;
+
   const date = new Date(value);
   return !isNaN(date.getTime());
 };
@@ -477,72 +480,149 @@ const isDateObject = (value: any): value is Date => {
 
 const isTimestamp = (value: any): boolean => {
   if (typeof value !== "number") return false;
+  if (isNaN(value)) return false;
   return value > 946684800000 && value < 4102444800000;
 };
 
+
 const toDateInputFormat = (value: any): string | null => {
+  // Validación temprana
+  if (!isValidDate(value)) return null;
+
   let date: Date | null = null;
-  if (isDateObject(value)) date = value;
-  else if (isISODateString(value)) date = new Date(value);
-  else if (isTimestamp(value)) date = new Date(value);
-  if (date && !isNaN(date.getTime())) return date.toISOString().split("T")[0];
+
+  try {
+    if (isDateObject(value)) date = value;
+    else if (isISODateString(value)) date = new Date(value);
+    else if (isTimestamp(value)) date = new Date(value);
+    else {
+      // Intentar parsear otros formatos
+      const parsed = new Date(value);
+      if (!isNaN(parsed.getTime())) date = parsed;
+    }
+
+    if (date && !isNaN(date.getTime())) {
+      return date.toISOString().split("T")[0];
+    }
+  } catch (error) {
+    console.warn("Error converting date:", value, error);
+    return null;
+  }
+
   return null;
 };
 
 const toISOFullFormat = (value: any): string | null => {
+  // Validación temprana
+  if (!isValidDate(value)) return null;
+
   let date: Date | null = null;
-  if (isDateObject(value)) date = value;
-  else if (isISODateString(value)) date = new Date(value);
-  else if (isTimestamp(value)) date = new Date(value);
-  else if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    date = new Date(`${value}T00:00:00Z`);
+
+  try {
+    if (isDateObject(value)) date = value;
+    else if (isISODateString(value)) date = new Date(value);
+    else if (isTimestamp(value)) date = new Date(value);
+    else if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      // Fecha en formato YYYY-MM-DD, agregar hora UTC para evitar zona horaria
+      date = new Date(`${value}T00:00:00Z`);
+    } else {
+      // Intentar parsear otros formatos
+      const parsed = new Date(value);
+      if (!isNaN(parsed.getTime())) date = parsed;
+    }
+
+    if (date && !isNaN(date.getTime())) {
+      const iso = date.toISOString();
+      return iso.replace(/\.\d{3}Z$/, ".000000Z");
+    }
+  } catch (error) {
+    console.warn("Error converting date to ISO:", value, error);
+    return null;
   }
-  if (date && !isNaN(date.getTime())) {
-    const iso = date.toISOString();
-    return iso.replace(/\.\d{3}Z$/, ".000000Z");
-  }
+
   return null;
 };
+const isValidDate = (value: any): boolean => {
+  if (value === null || value === undefined) return false;
+  if (
+    typeof value === "string" &&
+    (value === "" || value === "null" || value === "undefined")
+  )
+    return false;
 
+  const date = new Date(value);
+  return !isNaN(date.getTime());
+};
 export const transformDatesInObject = <T = any,>(
   obj: T,
   transformFn: (value: any) => string | null = toDateInputFormat,
 ): T => {
   if (obj === null || obj === undefined) return obj;
+
+  // Manejo seguro para arrays
   if (Array.isArray(obj)) {
     return obj.map((item) => transformDatesInObject(item, transformFn)) as T;
   }
+
+  // Manejo seguro para objetos
   if (typeof obj === "object") {
     const result: any = {};
-    for (const key in obj) {
-      if (Object.prototype.hasOwnProperty.call(obj, key)) {
-        const value = obj[key];
-        if (
-          isISODateString(value) ||
-          isDateObject(value) ||
-          isTimestamp(value)
-        ) {
-          const transformed = transformFn(value);
-          result[key] = transformed !== null ? transformed : value;
-        } else if (typeof value === "object" && value !== null) {
-          result[key] = transformDatesInObject(value, transformFn);
-        } else {
-          result[key] = value;
+    try {
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          const value = obj[key];
+
+          // Solo transformar si es una fecha válida
+          if (
+            isValidDate(value) &&
+            (isISODateString(value) ||
+              isDateObject(value) ||
+              isTimestamp(value))
+          ) {
+            const transformed = transformFn(value);
+            result[key] = transformed !== null ? transformed : value;
+          }
+          // Si es null/undefined/string vacío, mantenerlo
+          else if (value === null || value === undefined || value === "") {
+            result[key] = value;
+          }
+          // Recursión para objetos anidados
+          else if (typeof value === "object" && value !== null) {
+            result[key] = transformDatesInObject(value, transformFn);
+          } else {
+            result[key] = value;
+          }
         }
       }
+    } catch (error) {
+      console.error("Error transforming dates in object:", error);
+      return obj;
     }
     return result;
   }
+
   return obj;
 };
 
 export const toFormDateFormat = toDateInputFormat;
 export const toBackendDateFormat = toISOFullFormat;
 export const prepareForForm = <T = any,>(obj: T): T => {
-  return transformDatesInObject(obj, toDateInputFormat);
+  if (!obj) return obj;
+  try {
+    return transformDatesInObject(obj, toDateInputFormat);
+  } catch (error) {
+    console.error("Error in prepareForForm:", error);
+    return obj;
+  }
 };
 export const prepareForBackend = <T = any,>(obj: T): T => {
-  return transformDatesInObject(obj, toISOFullFormat);
+  if (!obj) return obj;
+  try {
+    return transformDatesInObject(obj, toISOFullFormat);
+  } catch (error) {
+    console.error("Error in prepareForBackend:", error);
+    return obj;
+  }
 };
 
 // ─── Fallback UI Components adaptados al theme ────────────────────────────────
@@ -2264,7 +2344,18 @@ const SuperCrud = <
     }
     return manualFields || [];
   }, [crudConfig, manualFields]);
-
+  // Dentro de SuperCrud, después de computedFields
+  const originalRowRef = useRef<any>(null);
+ 
+  const displayOnlyFields = useMemo(() => {
+    if (!crudConfig?.tableColumns) return new Set<string>();
+    const formFields = new Set(computedFields.map((f) => f.name));
+    const extra = new Set<string>();
+    Object.keys(crudConfig.tableColumns).forEach((col) => {
+      if (!formFields.has(col)) extra.add(col);
+    });
+    return extra;
+  }, [crudConfig, computedFields]);
   const tableColumns = useMemo(() => {
     if (crudConfig?.tableColumns) {
       const cols = Object.entries(crudConfig.tableColumns).map(
@@ -2361,7 +2452,14 @@ const SuperCrud = <
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hook.isDirty]);
 
-  const validationSchema = crudConfig?.validationSchema;
+  const validationSchema = useMemo(() => {
+    if (!crudConfig?.validationSchema) return undefined;
+    // Si es una función, la ejecutamos con los hooks disponibles
+    if (typeof crudConfig.validationSchema === "function") {
+      return crudConfig.validationSchema(actionsDispatch || {});
+    }
+    return crudConfig.validationSchema;
+  }, [crudConfig?.validationSchema, actionsDispatch]);
 
   const showDeleteConfirmation = useCallback(async (): Promise<boolean> => {
     const result = await Swal.fire({
@@ -3324,20 +3422,19 @@ const SuperCrud = <
                 try {
                   if (hasFileFields) await hook.postItem(values as TForm, true);
                   else await hook.postItem(values as TForm);
-                  hook.setOpen(false);
-                  Swal.fire({
-                    icon: "success",
-                    title: "Guardado",
-                    text: "Registro guardado correctamente",
-                    timer: 2000,
-                    showConfirmButton: false,
-                  });
+                  // Swal.fire({
+                  //   icon: "success",
+                  //   title: "Guardado",
+                  //   text: "Registro guardado correctamente",
+                  //   timer: 2000,
+                  //   showConfirmButton: false,
+                  // });
                 } catch {
-                  Swal.fire({
-                    icon: "error",
-                    title: "Error",
-                    text: "No se pudo guardar el registro",
-                  });
+                  // Swal.fire({
+                  //   icon: "error",
+                  //   title: "Error",
+                  //   text: "No se pudo guardar el registro",
+                  // });
                 }
               }}
               validationSchema={validationSchema}
@@ -3411,6 +3508,6 @@ const SuperCrud = <
       )}
     </div>
   );
-};
+};;
 
 export default SuperCrud;

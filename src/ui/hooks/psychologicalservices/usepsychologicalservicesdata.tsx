@@ -18,7 +18,7 @@ const UsePsYchologicalServicesData = (): DataReturn => {
 
    return useGenericData<Catalogues>({
      initialState: initialState,
-     prefix: "serviciosjuridicos",
+     prefix: "serviciospsicologicos",
      autoFetch: true,
      // persistKey: "departments-persist",
      hooks: {
