@@ -11,6 +11,7 @@ import type {
   InterviewTable,
   EntrevistaShowResponse,
 } from "../../../models/interview/interview.model";
+import { Loby } from "../../../models/loby/loby.model";
 
 export interface Colonia {
   id: number;
@@ -34,7 +35,7 @@ export interface ExtraStateInterview {
   zona_agresor: string;
   loadingCp_agresor: boolean;
   dataAll: InterviewTable[];
-  lobyData: any;
+  lobyData: Loby[];
   lobyLoading: boolean;
   openCaratula: boolean;
   selectInterview: EntrevistaShowResponse;
@@ -111,6 +112,7 @@ const efectosInicial = {
 
 // PASO 5: DATOS DE LA VÍCTIMA
 const datosVictimaInicial = {
+  nombre:null,
   vive_extrajero: false,
   fecha_nacimiento: "",
   edad: 0,
@@ -252,6 +254,16 @@ const UseInterview = (): InterviewDataReturn => {
     },
 
     extension: (set, get, prefix) => ({
+      handleChangeItem: (item: InterviewForm) => {
+        set({initialValues:item})
+
+        if (item.codigo_postal) {
+          get().getCp(item.codigo_postal);
+        }
+        if (item.codigo_postal_agresor) {
+          get().getCpAgresor(item.codigo_postal_agresor);
+        }
+      },
       getCp: async (cp) => {
         set({ loadingCp: true });
 
@@ -319,7 +331,7 @@ const UseInterview = (): InterviewDataReturn => {
             formData: false,
             url: `${get().prefix}/${option}`,
           });
-          set({ lobyData: res, lobyLoading: false });
+          set({ lobyData: res as unknown as Loby[], lobyLoading: false });
         } catch (error) {
           set({ lobyData: [], lobyLoading: false });
         }
@@ -331,7 +343,7 @@ const UseInterview = (): InterviewDataReturn => {
             formData: false,
             url: `${get().prefix}/all`,
           });
-          set({ lobyData: res });
+          set({ lobyData: res as unknown as Loby[] });
         } catch (error) {
           set({ lobyData: [] });
         }

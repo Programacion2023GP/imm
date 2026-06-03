@@ -1,70 +1,3 @@
-// import { DateFormat, formatDatetime } from "../../utils/helpers";
-// import { FaRegFilePdf } from "react-icons/fa6";
-// import { aperturaDomain } from "./step1.apertura.builder";
-// import { hechosDomain } from "./step2.hechos";
-// import { violenciaDomain } from "./step3.violencia.domain";
-// import { efectosDomain } from "./step4.efectos.builder";
-// import { victimaDomain } from "./step5.victima.builder";
-// import { agresorDomain } from "./step6.agresor.builder";
-// import { rutaDomain } from "./step7.ruta.builder";
-// import { canalizacionDomain } from "./step8.canalizacion.builder";
-// import { buildCrudFromDomains } from "../../models/crud-domain";
-// import { HooksInterview, InterviewTable } from "../../models/interview/interview.model";
-
-// export const interviewBuilderCrud = buildCrudFromDomains<InterviewTable, HooksInterview>(
-//   [
-//     aperturaDomain,
-//     hechosDomain,
-//     violenciaDomain,
-//     efectosDomain,
-//     victimaDomain,
-//     agresorDomain,
-//     rutaDomain,
-//     canalizacionDomain,
-//   ],
-//  { layoutMode: "stepper" } // 👈 Aquí especificas el modo
-
-// )
-//   .tableHeader({
-//     icon: "",
-//     title: "Entrevistas",
-//     subtitle: "Módulo 1",
-//   })
-//   .tableColumns({
-//     id: { label: "Folio" },
-//     curp: { label: "CURP" },
-//     fecha_nacimiento: {
-//       label: "Fecha de nacimiento",
-//       render: (value) =>
-//         formatDatetime(value, true, DateFormat.DDDD_DD_DE_MMMM_DE_YYYY),
-//     },
-//     telefono: { label: "Teléfono" },
-//     calle: { label: "CALLE" },
-//     colonia: { label: "Colonia" },
-//     municipio: { label: "Municipio" },
-//     estado: { label: "Estado" },
-//     creado_por: { label: "Registrado" },
-//   })
-//   .tableActions<HooksInterview>({
-//     isDelete: false,
-//     moreButtons: [
-//       {
-//         label: "Pdf",
-//         icon: <FaRegFilePdf />,
-//         color: "red",
-//         tooltip: "pdf",
-//         actionHook: ({ row, hooks }) => {
-//           hooks.UseInterview.getPdf(row.id);
-//         },
-//       },
-//     ],
-//   })
-//   .mobile({
-//     listTile: {
-//       title: (row) => row.curp,
-//     },
-//   })
-//   .build();
 import { FaList } from "react-icons/fa";
 import { ConfigCrud } from "../../models/genericmodels.model";
 import type {
@@ -142,11 +75,7 @@ const codigoPostalRegex = /^\d{5}$/;
 // ============================================================================
 // CONFIGURACIÓN PRINCIPAL DEL CRUD
 // ============================================================================
-export const interviewBuilderCrud = ConfigCrud<
-  InterviewForm,
-  InterviewTable,
-  Hooks
->()
+export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Hooks>()
   // ==========================================================================
   // 1. DECLARACIÓN DE CAMPOS POR TIPO
   // ==========================================================================
@@ -162,7 +91,6 @@ export const interviewBuilderCrud = ConfigCrud<
       "especifique_economicos_patrimonial",
       "especifique_agente_lesion",
       "especifique_aerea_anatomica_lesionada",
-      "nombre",
       "correo",
       "localidad",
       "calle",
@@ -353,7 +281,19 @@ export const interviewBuilderCrud = ConfigCrud<
       },
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
-     
+      validation: ({ yup }) =>
+        yup.number().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema
+              .required("el codigo postal es obligatorio")
+              .typeError("El código postal debe ser un número")
+              .test("len", "El código postal debe tener 5 dígitos", (val) => {
+                if (!val) return true;
+                return val.toString().length === 5;
+              }),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     num_ext_agresor: {
       label: "Número exterior del agresor",
@@ -395,7 +335,11 @@ export const interviewBuilderCrud = ConfigCrud<
     fecha_canalizacion: {
       label: "Fecha de canalización",
       responsive: ResponsiveSelectAndDate,
-     
+      validation: ({ yup }) =>
+        yup
+          .date()
+          .required("La fecha es requerida")
+          .typeError("Fecha inválida"),
     },
   })
 
@@ -556,7 +500,12 @@ export const interviewBuilderCrud = ConfigCrud<
     correo: {
       label: "Correo electrónico",
       responsive: ResponsiveSelectAndDate,
-    
+      validation: ({ yup }) =>
+        yup
+          .string()
+          .required("El correo es obligatorio")
+          .email("Correo electrónico inválido")
+          .matches(emailRegex, "Formato de correo inválido"),
     },
     localidad: {
       label: "Localidad",
@@ -607,21 +556,39 @@ export const interviewBuilderCrud = ConfigCrud<
       responsive: ResponsiveSelectAndDate,
       uppercase: true,
       hidden: (values) => !values.conoce_agresor,
-     
+      validation: ({ yup }) =>
+        yup.string().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema.required("La calle del agresor es requerido"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     estado_agresor: {
       label: "Estado del agresor",
       disabled: true,
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
-     
+      validation: ({ yup }) =>
+        yup.string().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema.required("El estado del agresor es requerido"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     municipio_agresor: {
       label: "Municipio del agresor",
       disabled: true,
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
-      
+      validation: ({ yup }) =>
+        yup.string().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema.required("El municipio del agresor es requerido"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     zona_agresor: {
       label: "Zona del agresor",
@@ -633,7 +600,8 @@ export const interviewBuilderCrud = ConfigCrud<
       label: "Responsable",
       responsive: ResponsiveSelectAndDate,
       uppercase: true,
-     
+      validation: ({ yup }) =>
+        yup.string().required("Es necesario el responsable"),
     },
     especifica_dependencia: {
       label: "Especifica la dependencia",
@@ -645,9 +613,6 @@ export const interviewBuilderCrud = ConfigCrud<
           then: (schema) => schema.required("Especifique la dependencia"),
           otherwise: (schema) => schema.notRequired(),
         }),
-    },
-    nombre: {
-      label: "Nombre Completo",
     },
   })
 
@@ -687,33 +652,8 @@ export const interviewBuilderCrud = ConfigCrud<
       loadingHook: () => UseDigitalSpace().loading,
       multiple: true,
       responsive: ResponsiveSelectAndDate,
-      validation: ({ yup }) => {
-        return yup
-          .array()
-          .test(
-            "al-menos-un-campo",
-            "Seleccione al menos una opción entre todos los espacios y transportes",
-            function (value) {
-              const { parent } = this; // valores actuales del formulario
-
-              const todosLosCampos = [
-                parent.id_espacio_digital,
-                parent.id_espacio_particular,
-                parent.id_espacio_publico,
-                parent.id_transporte_foraneo,
-                parent.id_transporte_privado,
-                parent.id_transporte_urbano,
-              ];
-
-              // Verificar si al menos UNO de los seis tiene al menos un elemento
-              const algunoConValor = todosLosCampos.some(
-                (campo) => campo && campo.length > 0,
-              );
-
-              return algunoConValor;
-            },
-          );
-      },
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
     },
     id_espacio_particular: {
       label: "Espacio Particular",
@@ -722,33 +662,8 @@ export const interviewBuilderCrud = ConfigCrud<
       selectOptionsHook: () => UseParticleSpace().items,
       refreshActionHook: () => UseParticleSpace().refresh,
       loadingHook: () => UseParticleSpace().loading,
-      validation: ({ yup }) => {
-        return yup
-          .array()
-          .test(
-            "al-menos-un-campo",
-            "Seleccione al menos una opción entre todos los espacios y transportes",
-            function (value) {
-              const { parent } = this; // valores actuales del formulario
-
-              const todosLosCampos = [
-                parent.id_espacio_digital,
-                parent.id_espacio_particular,
-                parent.id_espacio_publico,
-                parent.id_transporte_foraneo,
-                parent.id_transporte_privado,
-                parent.id_transporte_urbano,
-              ];
-
-              // Verificar si al menos UNO de los seis tiene al menos un elemento
-              const algunoConValor = todosLosCampos.some(
-                (campo) => campo && campo.length > 0,
-              );
-
-              return algunoConValor;
-            },
-          );
-      },
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
       multiple: true,
       responsive: ResponsiveSelectAndDate,
     },
@@ -759,33 +674,8 @@ export const interviewBuilderCrud = ConfigCrud<
       selectOptionsHook: () => UsePublicSpace().items,
       refreshActionHook: () => UsePublicSpace().refresh,
       loadingHook: () => UsePublicSpace().loading,
-      validation: ({ yup }) => {
-        return yup
-          .array()
-          .test(
-            "al-menos-un-campo",
-            "Seleccione al menos una opción entre todos los espacios y transportes",
-            function (value) {
-              const { parent } = this; // valores actuales del formulario
-
-              const todosLosCampos = [
-                parent.id_espacio_digital,
-                parent.id_espacio_particular,
-                parent.id_espacio_publico,
-                parent.id_transporte_foraneo,
-                parent.id_transporte_privado,
-                parent.id_transporte_urbano,
-              ];
-
-              // Verificar si al menos UNO de los seis tiene al menos un elemento
-              const algunoConValor = todosLosCampos.some(
-                (campo) => campo && campo.length > 0,
-              );
-
-              return algunoConValor;
-            },
-          );
-      },
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
       multiple: true,
       responsive: ResponsiveSelectAndDate,
     },
@@ -796,33 +686,8 @@ export const interviewBuilderCrud = ConfigCrud<
       selectOptionsHook: () => UseForeignTransportation().items,
       refreshActionHook: () => UseForeignTransportation().refresh,
       loadingHook: () => UseForeignTransportation().loading,
-      validation: ({ yup }) => {
-        return yup
-          .array()
-          .test(
-            "al-menos-un-campo",
-            "Seleccione al menos una opción entre todos los espacios y transportes",
-            function (value) {
-              const { parent } = this; // valores actuales del formulario
-
-              const todosLosCampos = [
-                parent.id_espacio_digital,
-                parent.id_espacio_particular,
-                parent.id_espacio_publico,
-                parent.id_transporte_foraneo,
-                parent.id_transporte_privado,
-                parent.id_transporte_urbano,
-              ];
-
-              // Verificar si al menos UNO de los seis tiene al menos un elemento
-              const algunoConValor = todosLosCampos.some(
-                (campo) => campo && campo.length > 0,
-              );
-
-              return algunoConValor;
-            },
-          );
-      },
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
       multiple: true,
       responsive: ResponsiveSelectAndDate,
     },
@@ -833,33 +698,8 @@ export const interviewBuilderCrud = ConfigCrud<
       selectOptionsHook: () => UsePrivateTransportation().items,
       refreshActionHook: () => UsePrivateTransportation().refresh,
       loadingHook: () => UsePrivateTransportation().loading,
-      validation: ({ yup }) => {
-        return yup
-          .array()
-          .test(
-            "al-menos-un-campo",
-            "Seleccione al menos una opción entre todos los espacios y transportes",
-            function (value) {
-              const { parent } = this; // valores actuales del formulario
-
-              const todosLosCampos = [
-                parent.id_espacio_digital,
-                parent.id_espacio_particular,
-                parent.id_espacio_publico,
-                parent.id_transporte_foraneo,
-                parent.id_transporte_privado,
-                parent.id_transporte_urbano,
-              ];
-
-              // Verificar si al menos UNO de los seis tiene al menos un elemento
-              const algunoConValor = todosLosCampos.some(
-                (campo) => campo && campo.length > 0,
-              );
-
-              return algunoConValor;
-            },
-          );
-      },
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
       multiple: true,
       responsive: ResponsiveSelectAndDate,
     },
@@ -870,33 +710,8 @@ export const interviewBuilderCrud = ConfigCrud<
       selectOptionsHook: () => UseUrbanTransportation().items,
       refreshActionHook: () => UseUrbanTransportation().refresh,
       loadingHook: () => UseUrbanTransportation().loading,
-      validation: ({ yup }) => {
-        return yup
-          .array()
-          .test(
-            "al-menos-un-campo",
-            "Seleccione al menos una opción entre todos los espacios y transportes",
-            function (value) {
-              const { parent } = this; // valores actuales del formulario
-
-              const todosLosCampos = [
-                parent.id_espacio_digital,
-                parent.id_espacio_particular,
-                parent.id_espacio_publico,
-                parent.id_transporte_foraneo,
-                parent.id_transporte_privado,
-                parent.id_transporte_urbano,
-              ];
-
-              // Verificar si al menos UNO de los seis tiene al menos un elemento
-              const algunoConValor = todosLosCampos.some(
-                (campo) => campo && campo.length > 0,
-              );
-
-              return algunoConValor;
-            },
-          );
-      },
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
       multiple: true,
       responsive: ResponsiveSelectAndDate,
     },
@@ -1016,7 +831,11 @@ export const interviewBuilderCrud = ConfigCrud<
       refreshActionHook: () => UseSexualOrientationData().refresh,
       loadingHook: () => UseSexualOrientationData().loading,
       responsive: ResponsiveSelectAndDate,
-       
+      validation: ({ yup }) =>
+        yup
+          .number()
+          .min(1, "seleccione una opción")
+          .required("Seleccione una orientación sexual"),
     },
     id_identidad_genero: {
       label: "Identidad de género",
@@ -1026,7 +845,11 @@ export const interviewBuilderCrud = ConfigCrud<
       refreshActionHook: () => UseGenderIndentityData().refresh,
       loadingHook: () => UseGenderIndentityData().loading,
       responsive: ResponsiveSelectAndDate,
-    
+      validation: ({ yup }) =>
+        yup
+          .number()
+          .min(1, "seleccione una opción")
+          .required("Seleccione una identidad de género"),
     },
     id_estado_civil: {
       label: "Estado civil",
@@ -1144,7 +967,15 @@ export const interviewBuilderCrud = ConfigCrud<
       loadingHook: () => UseGenderIndentityData().loading,
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
-    
+      validation: ({ yup }) =>
+        yup.number().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema
+              .min(1, "seleccione una opción")
+              .required("Seleccione la identidad del agresor"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     id_orientacion_sexual_agresor: {
       label: "Orientación sexual del agresor",
@@ -1155,7 +986,15 @@ export const interviewBuilderCrud = ConfigCrud<
       loadingHook: () => UseSexualOrientationData().loading,
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
-      
+      validation: ({ yup }) =>
+        yup.number().when("conoce_agresor", {
+          is: true,
+          then: (schema) =>
+            schema
+              .min(1, "seleccione una opción")
+              .required("Seleccione la orientacion sexual del agresor"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
     },
     colonia_agresor: {
       label: "Colonia del agresor",
@@ -1281,7 +1120,8 @@ export const interviewBuilderCrud = ConfigCrud<
       selectOptionsHook: () => UseLegalServiceData().items,
       refreshActionHook: () => UseLegalServiceData().refresh,
       loadingHook: () => UseLegalServiceData().loading,
-  
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
     },
     id_servicios_psicologicos: {
       label: "Servicios Psicológicos",
@@ -1291,7 +1131,8 @@ export const interviewBuilderCrud = ConfigCrud<
       selectOptionsHook: () => UsePsYchologicalServicesData().items,
       refreshActionHook: () => UsePsYchologicalServicesData().refresh,
       loadingHook: () => UsePsYchologicalServicesData().loading,
-      
+      validation: ({ yup }) =>
+        yup.array().min(1, "Seleccione al menos una opción"),
     },
     id_dependencia: {
       label: "Dependencia / Institución",
@@ -1300,7 +1141,11 @@ export const interviewBuilderCrud = ConfigCrud<
       selectOptionsHook: () => UseDependencesData().items,
       refreshActionHook: () => UseDependencesData().refresh,
       loadingHook: () => UseDependencesData().loading,
-     
+      validation: ({ yup }) =>
+        yup
+          .number()
+          .min(1, "Seleccione una dependencia")
+          .required("Seleccione una dependencia"),
     },
     id_canalizacion: {
       label: "Tipo de Canalización",
@@ -1309,7 +1154,11 @@ export const interviewBuilderCrud = ConfigCrud<
       selectOptionsHook: () => UseCanalizationData().items,
       refreshActionHook: () => UseCanalizationData().refresh,
       loadingHook: () => UseCanalizationData().loading,
-      
+      validation: ({ yup }) =>
+        yup
+          .number()
+          .min(1, "Seleccione un tipo de canalización")
+          .required("Seleccione un tipo de canalización"),
     },
   })
 
@@ -1560,10 +1409,10 @@ export const interviewBuilderCrud = ConfigCrud<
   .layout(
     "stepper",
     "Apertura del caso",
-    "Datos de la víctima",
     "Narración de los hechos",
     "Clasificación de la violencia",
     "Efectos de la violencia",
+    "Datos de la víctima",
     "Persona agresora",
     "Ruta de atención",
     "Canalización",
@@ -1651,7 +1500,6 @@ export const interviewBuilderCrud = ConfigCrud<
       {
         title: "Información General",
         fields: [
-          "nombre",
           "fecha_nacimiento",
           "edad",
           "telefono",
@@ -1775,9 +1623,6 @@ export const interviewBuilderCrud = ConfigCrud<
     id: {
       label: "Folio",
     },
-    nombre: {
-      label: "Nombre",
-    },
     curp: {
       label: "CURP",
     },
@@ -1805,6 +1650,7 @@ export const interviewBuilderCrud = ConfigCrud<
     },
     creado_por: {
       label: "Registrado",
+      
     },
   })
   .tableActions<Hooks>({
@@ -1828,3 +1674,8 @@ export const interviewBuilderCrud = ConfigCrud<
     },
   })
   .build();
+
+
+
+
+

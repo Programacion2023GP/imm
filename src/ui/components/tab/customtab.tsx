@@ -1,28 +1,194 @@
 import { useState, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { theme as defaultTheme, type Theme } from "../../../config/themes";
 
 type Tab = {
-   id: string;
-   label: string;
-   icon?: ReactNode;
-   content: ReactNode;
-   disabled?: boolean;
-   badge?: number | string;
+  id: string;
+  label: string;
+  icon?: ReactNode;
+  content: ReactNode;
+  disabled?: boolean;
+  badge?: number | string;
 };
 
 type TabsProps = {
-   tabs: Tab[];
-   defaultTab?: string;
-   activeTab?: string;
-   onTabChange?: (tabId: string) => void;
-   variant?: "modern" | "minimal" | "cards" | "rounded";
-   size?: "sm" | "md" | "lg";
-   className?: string;
-   contentClassName?: string;
-   fullWidth?: boolean;
+  tabs: Tab[];
+  defaultTab?: string;
+  activeTab?: string;
+  onTabChange?: (tabId: string) => void;
+  variant?: "modern" | "minimal" | "cards" | "rounded";
+  size?: "sm" | "md" | "lg";
+  className?: string;
+  contentClassName?: string;
+  fullWidth?: boolean;
+  theme?: Theme;
 };
 
-export function CustomTab({
+// Estilos dinámicos basados en tema
+const getTabStyles = (
+  theme: Theme,
+  variant: TabsProps["variant"],
+  isActive: boolean,
+  disabled?: boolean,
+) => {
+  const baseStyles: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 500,
+    transition: theme.transitions.DEFAULT,
+    whiteSpace: "nowrap",
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.4 : 1,
+    position: "relative",
+  };
+
+  const variantStyles = getVariantStyles(theme, variant);
+
+  return {
+    ...baseStyles,
+    ...(isActive ? variantStyles.active : variantStyles.inactive),
+  };
+};
+
+const getVariantStyles = (theme: Theme, variant: TabsProps["variant"]) => {
+  const { colors, radius, shadows } = theme;
+
+  switch (variant) {
+    case "modern":
+      return {
+        active: {
+          color: colors.primary.DEFAULT,
+          borderBottom: `3px solid ${colors.primary.DEFAULT}`,
+          backgroundColor: `rgba(${parseInt(colors.primary.DEFAULT.slice(1, 3), 16)}, ${parseInt(
+            colors.primary.DEFAULT.slice(3, 5),
+            16,
+          )}, ${parseInt(colors.primary.DEFAULT.slice(5, 7), 16)}, 0.08)`,
+          marginBottom: "-1px",
+        },
+        inactive: {
+          color: colors.text.secondary,
+          borderBottom: "2px solid transparent",
+        },
+      };
+    case "minimal":
+      return {
+        active: {
+          background: `linear-gradient(135deg, ${colors.primary[700]}, ${colors.primary[600]})`,
+          color: colors.text.inverse,
+          boxShadow: shadows.md,
+          borderRadius: radius.lg,
+        },
+        inactive: {
+          color: colors.text.secondary,
+        },
+      };
+    case "cards":
+      return {
+        active: {
+          background: colors.background.card,
+          color: colors.text.primary,
+          boxShadow: shadows.card,
+          border: `2px solid ${colors.primary[200]}`,
+          borderRadius: radius.xl,
+        },
+        inactive: {
+          color: colors.text.secondary,
+        },
+      };
+    case "rounded":
+      return {
+        active: {
+          background: `linear-gradient(135deg, ${colors.background.card}, ${colors.neutral[50]})`,
+          color: colors.text.primary,
+          boxShadow: shadows.md,
+          border: `1px solid ${colors.border.light}`,
+          borderRadius: radius.full,
+        },
+        inactive: {
+          color: colors.text.secondary,
+        },
+      };
+    default:
+      return { active: {}, inactive: {} };
+  }
+};
+
+const getContainerStyles = (theme: Theme, variant: TabsProps["variant"]) => {
+  const { colors, radius, shadows } = theme;
+
+  switch (variant) {
+    case "modern":
+      return {
+        borderBottom: `2px solid ${colors.border.light}`,
+        background: `linear-gradient(to bottom, ${colors.background.card}, ${colors.background.surface})`,
+      };
+    case "minimal":
+      return {
+        background: colors.background.surface,
+        borderRadius: radius.xl,
+        padding: theme.spacing[1],
+        backdropFilter: "blur(4px)",
+        display: "flex",
+        gap: theme.spacing[1],
+      };
+    case "cards":
+      return {
+        background: `linear-gradient(135deg, ${colors.neutral[100]}, ${colors.background.surface})`,
+        borderRadius: radius["2xl"],
+        padding: theme.spacing[2],
+        boxShadow: "inset 0 2px 4px rgba(0,0,0,0.02)",
+        marginBottom: theme.spacing[4],
+      };
+    case "rounded":
+      return {
+        background: `linear-gradient(to right, ${colors.neutral[200]}, ${colors.neutral[100]})`,
+        borderRadius: radius.full,
+        padding: theme.spacing[1.5],
+        boxShadow: "inset 0 1px 3px rgba(0,0,0,0.05)",
+        marginBottom: theme.spacing[6],
+      };
+    default:
+      return {};
+  }
+};
+
+const getContentStyles = (theme: Theme, variant: TabsProps["variant"]) => {
+  const { colors, radius, shadows } = theme;
+
+  switch (variant) {
+    case "modern":
+      return {
+        paddingTop: theme.spacing[4],
+        background: colors.background.card,
+      };
+    case "minimal":
+      return {
+        padding: `0 ${theme.spacing[2]}`,
+        background: "transparent",
+      };
+    case "cards":
+      return {
+        background: `linear-gradient(135deg, ${colors.background.card}, ${colors.feedback.primaryLight})`,
+        border: `1px solid ${colors.border.light}`,
+        borderRadius: radius.xl,
+        padding: theme.spacing[6],
+        boxShadow: shadows.sm,
+      };
+    case "rounded":
+      return {
+        background: `linear-gradient(135deg, ${colors.background.card}, rgba(255,255,255,0.9))`,
+        borderRadius: radius["2xl"],
+        border: `1px solid ${colors.border.light}`,
+        boxShadow: shadows.sm,
+        padding: theme.spacing[6],
+      };
+    default:
+      return {};
+  }
+};
+
+ function CustomTab({
    tabs,
    defaultTab,
    activeTab: externalActiveTab,
@@ -31,177 +197,196 @@ export function CustomTab({
    size = "md",
    className = "",
    contentClassName = "",
-   fullWidth = false
-}: TabsProps) {
-   // Si solo hay un tab, devolvemos solo el contenido
+   fullWidth = false,
+   theme = defaultTheme, // ✅ Usar el objeto importado, no el tipo
+ }: TabsProps) {
    if (tabs.length === 1) {
-      return <div className={`${className}`}>{tabs[0].content}</div>;
+     return <div className={className}>{tabs[0].content}</div>;
    }
 
-   // Estado interno solo si no hay control externo
-   const [internalActiveTab, setInternalActiveTab] = useState(defaultTab ?? tabs[0]?.id);
+   const [internalActiveTab, setInternalActiveTab] = useState(
+     defaultTab ?? tabs[0]?.id,
+   );
+   const activeTab =
+     externalActiveTab !== undefined ? externalActiveTab : internalActiveTab;
 
-   // Determinar tab activo
-   const activeTab = externalActiveTab !== undefined ? externalActiveTab : internalActiveTab;
-
-   // Configuración de tamaños mejorada
    const sizeClasses = {
-      sm: {
-         tab: "px-3 py-2 text-xs",
-         icon: "w-3 h-3",
-         badge: "text-[10px] px-1.5"
-      },
-      md: {
-         tab: "px-4 py-3 text-sm",
-         icon: "w-4 h-4",
-         badge: "text-xs px-2"
-      },
-      lg: {
-         tab: "px-6 py-4 text-base",
-         icon: "w-5 h-5",
-         badge: "text-sm px-2.5"
-      }
+     sm: {
+       tab: {
+         padding: `${theme.spacing[2]} ${theme.spacing[3]}`,
+         fontSize: theme.typography.fontSize.xs,
+       },
+       icon: { width: "0.75rem", height: "0.75rem" },
+       badge: { fontSize: "10px", padding: "0.125rem 0.375rem" },
+     },
+     md: {
+       tab: {
+         padding: `${theme.spacing[3]} ${theme.spacing[4]}`,
+         fontSize: theme.typography.fontSize.sm,
+       },
+       icon: { width: "1rem", height: "1rem" },
+       badge: {
+         fontSize: theme.typography.fontSize.xs,
+         padding: "0.125rem 0.5rem",
+       },
+     },
+     lg: {
+       tab: {
+         padding: `${theme.spacing[4]} ${theme.spacing[6]}`,
+         fontSize: theme.typography.fontSize.base,
+       },
+       icon: { width: "1.25rem", height: "1.25rem" },
+       badge: {
+         fontSize: theme.typography.fontSize.sm,
+         padding: "0.125rem 0.625rem",
+       },
+     },
    };
 
-   // Configuraciones de variantes modernas
-  const variantClasses = {
-     modern: {
-        container: "border-b-2 border-gray-100 bg-gradient-to-b from-white to-gray-50/30",
-        active: "text-blue-600 border-b-[3px] border-blue-600 bg-blue-50/40",
-        inactive: "text-gray-600 hover:text-gray-900 hover:bg-gray-50/60 hover:border-gray-200",
-        content: "bg-gradient-to-br from-white to-gray-50/20"
-     },
-     minimal: {
-        container: "space-x-2 bg-gray-50/50 rounded-2xl p-2 backdrop-blur-sm",
-        active: "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white rounded-xl shadow-lg shadow-gray-900/20",
-        inactive: "text-gray-700 hover:bg-white/80 hover:text-gray-900 rounded-xl hover:shadow-sm",
-        content: "bg-transparent"
-     },
-     cards: {
-        container: "bg-gradient-to-br from-gray-100 via-gray-50 to-white rounded-3xl p-2 shadow-inner",
-        active: "bg-white text-gray-900 shadow-xl shadow-gray-200/50 rounded-2xl border-2 border-blue-100",
-        inactive: "text-gray-600 hover:text-gray-900 hover:bg-white/70 rounded-2xl hover:shadow-md transition-shadow",
-        content: "bg-gradient-to-br from-white to-blue-50/10 rounded-2xl border-2 border-gray-100 shadow-sm"
-     },
-     rounded: {
-        container: "bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded-full p-1.5 shadow-inner",
-        active: "bg-gradient-to-br from-white to-gray-50 text-gray-900 shadow-xl shadow-gray-300/40 rounded-full border border-gray-200",
-        inactive: "text-gray-600 hover:text-gray-900 rounded-full hover:bg-white/60 hover:shadow-md transition-all",
-        content: "bg-gradient-to-br from-white via-gray-50/30 to-white rounded-3xl shadow-sm"
-     }
-  };
-
-   const currentVariant = variantClasses[variant];
    const currentSize = sizeClasses[size];
+   const containerStyles = getContainerStyles(theme, variant);
+   const contentStyles = getContentStyles(theme, variant);
 
    const handleTabChange = (tabId: string) => {
-      if (externalActiveTab === undefined) {
-         setInternalActiveTab(tabId);
-      }
-      onTabChange?.(tabId);
+     if (externalActiveTab === undefined) {
+       setInternalActiveTab(tabId);
+     }
+     onTabChange?.(tabId);
    };
 
-   // Encontrar el contenido activo
    const activeTabContent = tabs.find((tab) => tab.id === activeTab)?.content;
 
    return (
-      <div className={`w-full ${className}`}>
-         {/* Header moderno */}
-         <div
-            className={`
-          flex ${fullWidth ? "w-full" : "w-auto"} 
-          ${variant === "modern" ? "border-b border-gray-200" : ""}
-          ${currentVariant.container}
-          ${variant === "minimal" ? "p-1" : ""}
-          ${variant === "cards" ? "mb-4" : "mb-6"}
-        `}
-         >
-            {tabs.map((tab) => {
-               const isActive = activeTab === tab.id;
+     <div
+       className={`w-full ${className}`}
+       style={{ fontFamily: theme.typography.fontFamilyPrimary }}
+     >
+       <div
+         className={`flex ${fullWidth ? "w-full" : "w-auto"}`}
+         style={containerStyles}
+       >
+         {tabs.map((tab) => {
+           const isActive = activeTab === tab.id;
+           const tabStyles = getTabStyles(
+             theme,
+             variant,
+             isActive,
+             tab.disabled,
+           );
 
-               return (
-                  <button
-                     key={tab.id}
-                     onClick={() => !tab.disabled && handleTabChange(tab.id)}
-                     disabled={tab.disabled}
-                     className={`
-                flex items-center justify-center
-                transition-all duration-300 ease-out
-                font-medium whitespace-nowrap
-                ${currentSize.tab}
-                ${isActive ? currentVariant.active : currentVariant.inactive}
-                ${tab.disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}
-                ${variant === "modern" ? "border-b-2 border-transparent -mb-px" : ""}
-                ${fullWidth ? "flex-1" : ""}
-                relative group
-              `}
-                     role="tab"
-                     aria-selected={isActive}
-                  >
-                     {/* Indicador sutil para hover */}
-                     {!isActive && !tab.disabled && variant !== "modern" && (
-                        <span className="absolute inset-0 bg-current opacity-0 group-hover:opacity-5 rounded-[inherit] transition-opacity duration-200" />
-                     )}
-
-                     {/* Ícono */}
-                     {tab.icon && <span className={`${currentSize.icon} mr-2 flex items-center justify-center`}>{tab.icon}</span>}
-
-                     {/* Label */}
-                     <span className="font-medium tracking-tight">{tab.label}</span>
-
-                     {/* Badge moderno */}
-                     {tab.badge !== undefined && tab.badge !== "" && (
-                        <span
-                           className={`
-                    ml-2 py-0.5 ${currentSize.badge}
-                    rounded-full font-medium leading-none
-                    transition-colors duration-200
-                    ${isActive ? (variant === "minimal" ? "bg-white/20 text-white" : "bg-blue-100 text-blue-700") : "bg-gray-200 text-gray-700"}
-                    ${tab.disabled ? "opacity-50" : ""}
-                  `}
-                        >
-                           {tab.badge}
-                        </span>
-                     )}
-
-                     {/* Indicador de foco sutil */}
-                     {isActive && variant !== "modern" && (
-                        <motion.span
-                           layoutId={`tab-indicator-${variant}`}
-                           className="absolute inset-0 -z-10 rounded-[inherit]"
-                           transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                        />
-                     )}
-                  </button>
-               );
-            })}
-         </div>
-
-         {/* Contenido con animación moderna */}
-         <AnimatePresence mode="wait">
-            <motion.div
-               key={activeTab}
-               initial={{ opacity: 0, y: 8 }}
-               animate={{ opacity: 1, y: 0 }}
-               exit={{ opacity: 0, y: -8 }}
-               transition={{
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 30,
-                  mass: 0.5
+           return (
+             <button
+               key={tab.id}
+               onClick={() => !tab.disabled && handleTabChange(tab.id)}
+               disabled={tab.disabled}
+               className={fullWidth ? "flex-1" : ""}
+               style={{
+                 ...tabStyles,
+                 ...currentSize.tab,
+                 borderRadius:
+                   variant === "rounded"
+                     ? theme.radius.full
+                     : variant === "cards"
+                       ? theme.radius.xl
+                       : theme.radius.md,
                }}
-               className={`
-            ${contentClassName}
-            ${variant === "cards" || variant === "rounded" ? "p-6 border border-gray-200 shadow-sm" : "pt-2"}
-            ${currentVariant.content}
-            ${variant === "cards" ? "rounded-xl" : ""}
-            ${variant === "rounded" ? "rounded-2xl" : ""}
-            ${variant === "minimal" ? "px-2" : ""}
-          `}
-            >
-               {activeTabContent}
-            </motion.div>
-         </AnimatePresence>
-      </div>
+               role="tab"
+               aria-selected={isActive}
+               onMouseEnter={(e) => {
+                 if (!isActive && !tab.disabled) {
+                   const target = e.currentTarget;
+                   if (variant === "minimal") {
+                     target.style.backgroundColor = "rgba(255,255,255,0.8)";
+                     target.style.color = theme.colors.text.primary;
+                   } else if (variant === "cards") {
+                     target.style.backgroundColor = "rgba(255,255,255,0.7)";
+                     target.style.boxShadow = theme.shadows.sm;
+                   } else if (variant === "rounded") {
+                     target.style.backgroundColor = "rgba(255,255,255,0.6)";
+                   } else {
+                     target.style.backgroundColor =
+                       theme.colors.background.surfaceHover;
+                     target.style.color = theme.colors.text.primary;
+                   }
+                 }
+               }}
+               onMouseLeave={(e) => {
+                 if (!isActive && !tab.disabled) {
+                   const target = e.currentTarget;
+                   if (variant === "minimal") {
+                     target.style.backgroundColor = "";
+                     target.style.color = theme.colors.text.secondary;
+                   } else if (variant === "cards") {
+                     target.style.backgroundColor = "";
+                     target.style.boxShadow = "";
+                   } else if (variant === "rounded") {
+                     target.style.backgroundColor = "";
+                   } else {
+                     target.style.backgroundColor = "";
+                     target.style.color = theme.colors.text.secondary;
+                   }
+                 }
+               }}
+             >
+               {tab.icon && (
+                 <span
+                   style={{
+                     ...currentSize.icon,
+                     marginRight: theme.spacing[2],
+                   }}
+                   className="flex items-center justify-center"
+                 >
+                   {tab.icon}
+                 </span>
+               )}
+               <span className="font-medium tracking-tight">{tab.label}</span>
+               {tab.badge !== undefined && tab.badge !== "" && (
+                 <span
+                   style={{
+                     marginLeft: theme.spacing[2],
+                     ...currentSize.badge,
+                     borderRadius: theme.radius.full,
+                     fontWeight: 500,
+                     lineHeight: 1,
+                     backgroundColor: isActive
+                       ? variant === "minimal"
+                         ? "rgba(255,255,255,0.2)"
+                         : theme.colors.primary[100]
+                       : theme.colors.neutral[200],
+                     color: isActive
+                       ? variant === "minimal"
+                         ? theme.colors.text.inverse
+                         : theme.colors.primary[700]
+                       : theme.colors.text.secondary,
+                   }}
+                 >
+                   {tab.badge}
+                 </span>
+               )}
+             </button>
+           );
+         })}
+       </div>
+
+       <AnimatePresence mode="wait">
+         <motion.div
+           key={activeTab}
+           initial={{ opacity: 0, y: 8 }}
+           animate={{ opacity: 1, y: 0 }}
+           exit={{ opacity: 0, y: -8 }}
+           transition={{
+             type: "spring",
+             stiffness: 300,
+             damping: 30,
+             mass: 0.5,
+           }}
+           className={contentClassName}
+           style={contentStyles}
+         >
+           {activeTabContent}
+         </motion.div>
+       </AnimatePresence>
+     </div>
    );
-}
+ }
+export default CustomTab;

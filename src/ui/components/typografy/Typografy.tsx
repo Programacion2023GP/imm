@@ -4,7 +4,7 @@ type TypographyProps = {
   variant?: 'h1' | 'h2' | 'h3' | 'body' | 'caption'; // Variantes de tipografía
   size?: 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl'; // Tamaño de la fuente
   weight?: 'normal' | 'bold' | 'light' | 'semibold'; // Peso de la fuente
-  color?: 'black' | 'white' | 'gray' | 'primary' | 'secondary'; // Color de la fuente
+  color?: 'black' | 'white' | 'gray' | 'primary' | 'secondary'| string; // Color de la fuente
   children: React.ReactNode; // El contenido del texto
   className?: string; // Clases adicionales
 };

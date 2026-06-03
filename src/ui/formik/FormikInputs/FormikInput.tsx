@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { FieldArray, getIn, useFormikContext } from "formik";
+import { FieldArray, FormikContextType, getIn, useFormikContext } from "formik";
 import { motion, AnimatePresence } from "framer-motion";
 import { IoIosEyeOff, IoMdEye } from "react-icons/io";
 import { FaMinus, FaPlus } from "react-icons/fa";
@@ -2542,16 +2542,21 @@ export function FormikImageInput(props: FormikImageInputProps) {
 interface FormikMultiSelectProps {
   name: string;
   label: string;
-  options: Option[];
+  options: any[];  // ✅ Ahora acepta cualquier tipo de objeto
   loading?: boolean;
   disabled?: boolean;
   required?: boolean;
   placeholder?: string;
   responsive?: ResponsiveProps;
-  onRefresh?: () => void | Promise<void>;
+  onRefresh?: () => Promise<void>;
   onAdd?: () => void;
-  onChange?: (value: any, formik: FormikCtx) => void;
+  onChange?: (value: any[], formik: FormikContextType<any>) => void;
+  idKey?: string;   // ✅ nuevo
+  labelKey?: string; // ✅ nuevo
 }
+
+// Puedes mantener Option para otros usos o eliminarlo
+// interface Option { ... }
 
 export function FormikMultiSelect(props: FormikMultiSelectProps) {
   const {
@@ -2566,6 +2571,8 @@ export function FormikMultiSelect(props: FormikMultiSelectProps) {
     onRefresh,
     onAdd,
     onChange: externalOnChange,
+    idKey = "value", // valor por defecto
+    labelKey = "label", // valor por defecto
   } = props;
 
   const formik = useFormikContext();
@@ -2589,10 +2596,27 @@ export function FormikMultiSelect(props: FormikMultiSelectProps) {
     placement: "bottom" as "bottom" | "top",
   });
 
+  // Función para obtener el valor de un option según idKey
+  const getOptionValue = (opt: any): string | number => {
+    return opt[idKey];
+  };
+
+  // Función para obtener la etiqueta de un option según labelKey
+  const getOptionLabel = (opt: any): string => {
+    return opt[labelKey];
+  };
+
+  // Transformar options a un formato uniforme para uso interno
+  const normalizedOptions = options.map((opt) => ({
+    raw: opt,
+    value: getOptionValue(opt),
+    label: getOptionLabel(opt),
+  }));
+
   const hasValue = value.length > 0;
   const isActive = hasValue || isFocused || isOpen;
 
-  const filteredOptions = options.filter((opt) =>
+  const filteredOptions = normalizedOptions.filter((opt) =>
     opt.label?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
@@ -2731,7 +2755,7 @@ export function FormikMultiSelect(props: FormikMultiSelectProps) {
   };
 
   if (disabled) {
-    const selectedLabels = options
+    const selectedLabels = normalizedOptions
       .filter((opt) => value.includes(opt.value))
       .map((opt) => opt.label);
     return (
@@ -2801,7 +2825,7 @@ export function FormikMultiSelect(props: FormikMultiSelectProps) {
           }}
         >
           {value.map((v) => {
-            const opt = options.find((o) => o.value === v);
+            const opt = normalizedOptions.find((o) => o.value === v);
             if (!opt) return null;
             return (
               <div
@@ -3068,6 +3092,22 @@ interface FormikDatePickerProps {
   padding?: boolean;
 }
 
+
+
+// ✅ Portal container — monta el calendario directamente en document.body
+
+const CalendarPortal = ({ children }: { children: React.ReactNode }) => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return createPortal(children, document.body);
+};
+
 export function FormikDatePicker(props: FormikDatePickerProps) {
   const {
     name,
@@ -3091,66 +3131,41 @@ export function FormikDatePicker(props: FormikDatePickerProps) {
 
   const rawValue = formik.values?.[name] ?? "";
 
-  // === FUNCIÓN SEGURA PARA OBTENER LA FECHA ===
   const getSafeDate = (value: any): Date | null => {
-    // Si no hay valor, retornar null
     if (!value) return null;
-
-    // Si ya es un Date válido
-    if (value instanceof Date && !isNaN(value.getTime())) {
-      return value;
-    }
-
-    // Si es string
+    if (value instanceof Date && !isNaN(value.getTime())) return value;
     if (typeof value === "string") {
-      // Valores inválidos conocidos
-      if (value === "" || value === "null" || value === "undefined") {
+      if (value === "" || value === "null" || value === "undefined")
         return null;
-      }
-
-      // Intentar parsear la fecha
       const parsed = new Date(value);
-      if (!isNaN(parsed.getTime())) {
-        return parsed;
-      }
+      if (!isNaN(parsed.getTime())) return parsed;
     }
-
-    // Si es número (timestamp)
     if (typeof value === "number" && !isNaN(value)) {
       const parsed = new Date(value);
-      if (!isNaN(parsed.getTime())) {
-        return parsed;
-      }
+      if (!isNaN(parsed.getTime())) return parsed;
     }
-
     return null;
   };
 
-  // Obtener fecha segura
   const selectedDate = getSafeDate(rawValue);
 
-  // === LIMPIAR VALORES INVÁLIDOS EN formik ===
-  // Si el valor actual es inválido pero selectedDate es null, limpiar formik
   React.useEffect(() => {
     if (rawValue && !selectedDate) {
-      // El valor es inválido, limpiarlo en formik
       formik.setFieldValue(name, "");
     }
   }, [rawValue, selectedDate, name, formik]);
 
   const handleChange = (date: Date | null) => {
     let value = "";
-
     if (date && !isNaN(date.getTime())) {
       if (type === "time") {
-        value = date.toTimeString().split(" ")[0]; // HH:MM:SS
+        value = date.toTimeString().split(" ")[0];
       } else if (type === "datetime-local") {
         value = date.toISOString().slice(0, 16);
       } else {
         value = date.toISOString().split("T")[0];
       }
     }
-
     formik.setFieldValue(name, value);
     onChange?.(value, formik);
   };
@@ -3161,24 +3176,12 @@ export function FormikDatePicker(props: FormikDatePickerProps) {
     onBlur?.({} as React.FocusEvent<HTMLInputElement>);
   };
 
-  // ✅ Abre el calendario y enfoca el input al hacer clic en cualquier parte del contenedor
   const handleContainerClick = () => {
     if (disabled) return;
-    // Abre el calendario
-    if (datePickerRef.current) {
-      datePickerRef.current.setOpen(true);
-    }
-    // Enfoca el input
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
+    if (datePickerRef.current) datePickerRef.current.setOpen(true);
+    if (inputRef.current) inputRef.current.focus();
   };
 
-  const showTimeSelectOnly = type === "time";
-  const showMonthYearPicker = type === "month";
-  const showWeekPicker = type === "week";
-
-  // Determinar el formato de fecha según el tipo
   const getDateFormat = (): string => {
     if (type === "time") return "HH:mm";
     if (type === "datetime-local") return "dd/MM/yyyy HH:mm";
@@ -3188,6 +3191,10 @@ export function FormikDatePicker(props: FormikDatePickerProps) {
   };
 
   const customStyles = `
+    #datepicker-portal {
+      position: fixed;
+      z-index: 9999;
+    }
     .react-datepicker-wrapper {
       width: 100%;
     }
@@ -3254,10 +3261,12 @@ export function FormikDatePicker(props: FormikDatePickerProps) {
       color: ${theme.colors.text.disabled};
     }
   `;
+
   const error =
     formik.touched[name] && formik.errors[name]
       ? String(formik.errors[name])
       : null;
+
   if (disabled) {
     return (
       <ColComponent responsive={responsive} autoPadding={padding}>
@@ -3304,8 +3313,6 @@ export function FormikDatePicker(props: FormikDatePickerProps) {
       </ColComponent>
     );
   }
-
-
 
   return (
     <ColComponent responsive={responsive} autoPadding={padding}>
@@ -3383,6 +3390,9 @@ export function FormikDatePicker(props: FormikDatePickerProps) {
             showWeekPicker={type === "week"}
             minDate={min ? getSafeDate(min) : undefined}
             maxDate={max ? getSafeDate(max) : undefined}
+            // ✅ PORTAL NATIVO DE REACT-DATEPICKER
+            portalId="datepicker-portal"
+            popperProps={{ strategy: "fixed" }}
             customInput={
               <input
                 ref={inputRef}

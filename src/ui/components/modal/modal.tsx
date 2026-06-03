@@ -1,12 +1,14 @@
-import { ReactNode, useEffect } from "react";
-import { AiOutlineClose } from "react-icons/ai";
+// CustomModal.tsx
+import { ReactNode, useEffect, useRef, useState } from "react";
+import { AiOutlineClose, AiOutlineExpandAlt } from "react-icons/ai";
 import { motion, AnimatePresence } from "framer-motion";
 import { theme } from "../../../config/themes";
+import { useWindowSize } from "../../../hooks/windossize";
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
+  title: string | ReactNode;
   children: ReactNode;
   footer?: ReactNode;
   showCloseButton?: boolean;
@@ -16,6 +18,8 @@ interface ModalProps {
   footerClassName?: string;
   zIndex?: number | string;
   closeOnBackdropClick?: boolean;
+  fullModal?: boolean; // permite expandir a pantalla completa (como en CompositePage)
+  hideDefaultFooter?: boolean; // si se proporciona footer personalizado, oculta el predeterminado
 }
 
 const CustomModal = ({
@@ -31,7 +35,13 @@ const CustomModal = ({
   footerClassName = "",
   zIndex = 200,
   closeOnBackdropClick = true,
+  fullModal = false,
+  hideDefaultFooter = false,
 }: ModalProps) => {
+  const { width: windowWidth } = useWindowSize();
+  const isMobile = windowWidth < 768;
+  const [isExpanded, setIsExpanded] = useState(false); // para expandir en desktop
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -49,160 +59,222 @@ const CustomModal = ({
     }
   };
 
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          className="fixed inset-0"
-          style={{
-            zIndex,
-            background: "rgba(0, 0, 0, 0.6)",
-            backdropFilter: "blur(12px)",
-          }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          onClick={handleBackdropClick}
-        >
-          <motion.div
-            className="relative flex flex-col overflow-hidden"
-            style={{
-              background: theme.colors.background.card,
-              height: "100vh",
-              width: "100vw",
-              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-            }}
-            initial={{ opacity: 0, scale: 0.96, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 20 }}
-            transition={{
-              type: "spring",
-              damping: 30,
-              stiffness: 400,
-              mass: 0.8,
-            }}
-          >
-            {/* Header elegante con efecto vidrio y borde sutil */}
+  const toggleExpand = () => setIsExpanded(!isExpanded);
+
+  // Altura del cuerpo según dispositivo y estado expandido
+  const getBodyHeight = () => {
+    if (isMobile) return `calc(100vh - 140px)`;
+    if (fullModal || isExpanded) return `calc(100vh - 120px)`;
+    return `calc(80vh - 120px)`;
+  };
+
+  // Estilos del header: gradiente igual al CompositePage
+  const headerStyle = {
+    background: `linear-gradient(135deg, ${theme.colors.primary.DEFAULT}, ${theme.colors.primary.dark})`,
+    borderBottom: `1px solid ${theme.colors.border.DEFAULT}40`,
+  };
+
+  // Botón cerrar blanco con hover efecto vidrio
+  const CloseButton = () => (
+    <button
+      onClick={onClose}
+      className="p-2 transition-colors rounded-lg"
+      style={{ color: theme.colors.text.inverse }}
+      onMouseEnter={(e) =>
+        (e.currentTarget.style.background = "rgba(255,255,255,0.2)")
+      }
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+      aria-label="Cerrar"
+    >
+      <AiOutlineClose size={18} />
+    </button>
+  );
+
+  // Botón expandir (solo en desktop y si fullModal está habilitado)
+  const ExpandButton = () => (
+    <button
+      onClick={toggleExpand}
+      className="p-2 transition-colors rounded-lg"
+      style={{ color: theme.colors.text.inverse }}
+      title={isExpanded ? "Reducir" : "Expandir"}
+    >
+      <AiOutlineExpandAlt size={18} />
+    </button>
+  );
+
+  // Render para móvil (hoja inferior)
+  const renderMobile = () => (
+    <div className="fixed inset-0 z-[600]">
+      <motion.div
+        className="absolute inset-0 backdrop-blur-sm"
+        style={{ background: "rgba(0, 0, 0, 0.5)" }}
+        onClick={handleBackdropClick}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      />
+      <div className="fixed top-0 left-0 right-0 z-50 pointer-events-none">
+        <div className="pointer-events-auto">
+          <CloseButton />
+        </div>
+      </div>
+      <motion.div
+        className="absolute bottom-0 left-0 right-0 rounded-t-3xl overflow-hidden flex flex-col"
+        style={{
+          background: theme.colors.background.card,
+          boxShadow: theme.shadows.dropdown,
+          height: "100vh",
+          maxHeight: "100vh",
+          paddingTop: "env(safe-area-inset-top, 0px)",
+        }}
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 25, stiffness: 300, mass: 0.8 }}
+      >
+        <div style={headerStyle}>
+          <div className="flex justify-center pt-6 pb-2 cursor-grab active:cursor-grabbing">
             <div
-              className={`sticky top-0 z-10 ${headerClassName}`}
-              style={{
-                background: theme.colors.primary[600],
-                borderBottom: `1px solid ${theme.colors.border.DEFAULT}40`,
-                boxShadow: "0 1px 2px rgba(0,0,0,0.02)",
-              }}
+              className="w-24 h-1.5 rounded-full"
+              style={{ background: "rgba(255,255,255,0.5)" }}
+            />
+          </div>
+          <div className="px-6 pt-0 pb-4">
+            <h2
+              className="text-xl font-bold truncate pr-16"
+              style={{ color: theme.colors.text.inverse }}
             >
-              <div className="px-8 py-5">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    {titleIcon && (
-                      <div
-                        className="flex items-center justify-center w-10 h-10 rounded-full"
-                        style={{
-                          background: `${theme.colors.primary}15`,
-                          color: theme.colors.primary,
-                        }}
-                      >
-                        {titleIcon}
-                      </div>
-                    )}
-                    <div>
-                      <motion.h1
-                        className="text-3xl font-semibold tracking-tight"
-                        style={{ color: theme.colors.text.primary }}
-                        initial={{ x: -10, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 0.05 }}
-                      >
-                        {title}
-                      </motion.h1>
-                      {subtitle && (
-                        <motion.p
-                          className="text-sm mt-1.5"
-                          style={{ color: theme.colors.text.secondary }}
-                          initial={{ x: -10, opacity: 0 }}
-                          animate={{ x: 0, opacity: 1 }}
-                          transition={{ delay: 0.1 }}
-                        >
-                          {subtitle}
-                        </motion.p>
-                      )}
-                    </div>
+              {title}
+            </h2>
+            {subtitle && (
+              <p
+                className="text-sm mt-1 opacity-80"
+                style={{ color: theme.colors.text.inverse }}
+              >
+                {subtitle}
+              </p>
+            )}
+          </div>
+        </div>
+        <div
+          className="flex-1 overflow-y-auto"
+          style={{ height: getBodyHeight(), WebkitOverflowScrolling: "touch" }}
+        >
+          <div className="px-6 py-4 pb-8">{children}</div>
+        </div>
+        {!hideDefaultFooter && footer && (
+          <div className="flex-shrink-0">{footer}</div>
+        )}
+        {!hideDefaultFooter && !footer && (
+          <div
+            className="px-6 py-4 border-t"
+            style={{ borderTopColor: theme.colors.border.DEFAULT }}
+          >
+            {/* Aquí podrías poner botones por defecto si quieres */}
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+
+  // Render para desktop/tablet (modal centrado)
+  const renderDesktop = () => (
+    <div className="fixed inset-0 z-[300]">
+      <motion.div
+        className="absolute inset-0 backdrop-blur-sm"
+        style={{ background: "rgba(0, 0, 0, 0.5)" }}
+        onClick={handleBackdropClick}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      />
+      <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
+        <motion.div
+          className="pointer-events-auto flex flex-col overflow-hidden rounded-xl"
+          style={{
+            background: theme.colors.background.card,
+            boxShadow: theme.shadows.xl,
+            width: fullModal && !isExpanded ? "90vw" : "800px",
+            maxWidth: "90vw",
+            height: fullModal && isExpanded ? "90vh" : "auto",
+            maxHeight: "90vh",
+          }}
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          transition={{
+            type: "spring",
+            damping: 30,
+            stiffness: 400,
+            mass: 0.8,
+          }}
+        >
+          {/* Header */}
+          <div style={headerStyle} className={headerClassName}>
+            <div className="flex items-center justify-between px-6 py-4">
+              <div className="flex items-center gap-3">
+                {titleIcon && (
+                  <div
+                    className="flex items-center justify-center w-8 h-8 rounded-full"
+                    style={{ background: "rgba(255,255,255,0.2)" }}
+                  >
+                    {titleIcon}
                   </div>
-                  {showCloseButton && (
-                    <motion.button
-                      onClick={onClose}
-                      className="p-2 rounded-full transition-all duration-200"
-                      style={{ color: theme.colors.text.secondary }}
-                      whileHover={{
-                        scale: 1.1,
-                        backgroundColor: `${theme.colors.background.page}30`,
-                        color: theme.colors.text.primary,
-                      }}
-                      whileTap={{ scale: 0.95 }}
-                      aria-label="Cerrar"
+                )}
+                <div>
+                  <h2
+                    className="text-xl font-semibold"
+                    style={{ color: theme.colors.text.inverse }}
+                  >
+                    {title}
+                  </h2>
+                  {subtitle && (
+                    <p
+                      className="text-sm opacity-80"
+                      style={{ color: theme.colors.text.inverse }}
                     >
-                      <AiOutlineClose size={22} style={{color:"black"}} />
-                    </motion.button>
+                      {subtitle}
+                    </p>
                   )}
                 </div>
               </div>
+              <div className="flex items-center gap-2">
+                {fullModal && <ExpandButton />}
+                {showCloseButton && <CloseButton />}
+              </div>
             </div>
+          </div>
 
-            {/* Contenido principal con scroll personalizado */}
+          {/* Body */}
+          <div
+            className="flex-1 overflow-y-auto"
+            style={{ height: getBodyHeight(), maxHeight: "calc(90vh - 120px)" }}
+          >
+            <div className="p-6">{children}</div>
+          </div>
+
+          {/* Footer */}
+          {footer && (
             <div
-              className="flex-1 overflow-y-auto custom-scroll"
+              className={`px-6 py-4 border-t ${footerClassName}`}
               style={{
-                maxHeight: "calc(100vh - 140px)",
-                scrollbarWidth: "thin",
+                borderTopColor: theme.colors.border.DEFAULT,
+                background: theme.colors.background.surface,
               }}
             >
-              <div className="px-8 py-6">{children}</div>
+              {footer}
             </div>
-
-            {/* Footer elegante con sombra superior */}
-            {footer && (
-              <motion.div
-                className={`sticky bottom-0 z-10 px-8 py-4 ${footerClassName}`}
-                style={{
-                  background: `linear-gradient(to top, ${theme.colors.background.card}, ${theme.colors.background.surface})`,
-                  borderTop: `1px solid ${theme.colors.border.DEFAULT}40`,
-                  boxShadow: "0 -2px 10px rgba(0,0,0,0.02)",
-                }}
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.1 }}
-              >
-                {footer}
-              </motion.div>
-            )}
-          </motion.div>
+          )}
         </motion.div>
-      )}
+      </div>
+    </div>
+  );
+
+  return (
+    <AnimatePresence>
+      {isOpen && (isMobile ? renderMobile() : renderDesktop())}
     </AnimatePresence>
   );
 };
-
-// Agrega estos estilos globales o en tu CSS modules para el scroll personalizado
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  .custom-scroll::-webkit-scrollbar {
-    width: 6px;
-  }
-  .custom-scroll::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .custom-scroll::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 10px;
-  }
-  .custom-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.3);
-  }
-`;
-if (!document.head.querySelector("#modal-scroll-styles")) {
-  styleSheet.id = "modal-scroll-styles";
-  document.head.appendChild(styleSheet);
-}
 
 export default CustomModal;

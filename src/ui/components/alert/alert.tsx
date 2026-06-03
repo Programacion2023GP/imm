@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { AlertCircle, AlertTriangle, Info, CheckCircle, X } from "lucide-react";
-import { theme } from "../../../config/themes";
 
 interface SimpleAlertProps {
   type?: "success" | "error" | "warning" | "info";
@@ -19,28 +18,32 @@ const CustomAlert: React.FC<SimpleAlertProps> = ({
 
   const types = {
     success: {
-      bg: theme.colors.feedback.successLight,
-      border: theme.colors.status.success,
-      text: theme.colors.status.success,
+      bg: "#F0FDF4", // Verde muy claro
+      border: "#22C55E", // Verde
+      text: "#166534", // Verde oscuro
       icon: <CheckCircle className="w-5 h-5" />,
+      hover: "#15803D", // Verde más oscuro para hover
     },
     error: {
-      bg: theme.colors.feedback.errorLight,
-      border: theme.colors.status.error,
-      text: theme.colors.status.error,
+      bg: "#FEF2F2", // Rojo muy claro
+      border: "#EF4444", // Rojo
+      text: "#991B1B", // Rojo oscuro
       icon: <AlertCircle className="w-5 h-5" />,
+      hover: "#B91C1C",
     },
     warning: {
-      bg: `${theme.colors.status.warning}15`,
-      border: theme.colors.status.warning,
-      text: theme.colors.status.warning,
+      bg: "#FFFBEB", // Amarillo muy claro
+      border: "#F59E0B", // Amarillo/Ámbar
+      text: "#92400E", // Ámbar oscuro
       icon: <AlertTriangle className="w-5 h-5" />,
+      hover: "#B45309",
     },
     info: {
-      bg: theme.colors.feedback.primaryLight,
-      border: theme.colors.primary.DEFAULT,
-      text: theme.colors.primary.DEFAULT,
+      bg: "#EFF6FF", // Azul muy claro
+      border: "#3B82F6", // Azul
+      text: "#1E40AF", // Azul oscuro
       icon: <Info className="w-5 h-5" />,
+      hover: "#1D4ED8",
     },
   }[type];
 
@@ -48,7 +51,7 @@ const CustomAlert: React.FC<SimpleAlertProps> = ({
 
   return (
     <div
-      className={`flex items-center justify-between p-4 rounded-lg border ${className}`}
+      className={`flex items-center justify-between p-4 rounded-lg border w-full ${className}`}
       style={{
         background: types.bg,
         borderColor: types.border,
@@ -65,12 +68,12 @@ const CustomAlert: React.FC<SimpleAlertProps> = ({
         <button
           onClick={() => setIsVisible(false)}
           className="transition-colors"
-          style={{ color: theme.colors.text.disabled }}
+          style={{ color: "#9CA3AF" }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.color = theme.colors.text.secondary;
+            e.currentTarget.style.color = types.hover;
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.color = theme.colors.text.disabled;
+            e.currentTarget.style.color = "#9CA3AF";
           }}
         >
           <X className="w-4 h-4" />

@@ -35,8 +35,8 @@ import useAuthData from "./ui/hooks/auth/useauthdata";
 const PageInterview = lazy(
   () => import("./ui/pages/interview/pageinterview.page"),
 );
-const Loby = lazy(
-  () => import("./ui/pages/loby/loby.page"),
+const Psicologico = lazy(
+  () => import("./ui/pages/psychological/psychological.page"),
 );
 const PageUsers = lazy(
   () => import("./ui/pages/catalogues/users/pageusers.page"),
@@ -158,17 +158,17 @@ const MainLayout = () => {
     const items: SidebarItem[] = [
       createRouteItem(
         5,
-        "LOBY_PSICOLOGO",
-        "/loby",
+        "PSICOLOGO",
+        "/psicologo",
         <RiFileList3Line />,
-        "LOBY",
+        "Sesiones de registro (M2)",
       ),
       createRouteItem(
         6,
         "ENTREVISTA",
         "/expedienteuno",
         <RiFileList3Line />,
-        "Expediente 1",
+        "Entrevista (M1)",
       ),
       createChildrenItem(7, "CATALOGOS", "Catálogos", <FaBuildingColumns />, [
         createRouteItem(
@@ -317,7 +317,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   const routePermissions: Record<string, string> = {
     "/expedienteuno": "ENTREVISTA",
-    "/loby": "LOBY_PSICOLOGO",
+    "/loby": "PSICOLOGO",
     "/catalogos/usuarios": "CATALOGOS",
     "/catalogos/permisos": "CATALOGOS",
     "/catalogos/roles": "CATALOGOS",
@@ -364,7 +364,7 @@ const DefaultRedirect = () => {
 
     const routesByPrefix = {
       ENTREVISTA: "/expedienteuno",
-      LOBY_PSICOLOGO: "/loby",
+      PSICOLOGO: "/loby",
       CATALOGOS: "/catalogos/usuarios",
     };
 
@@ -420,10 +420,10 @@ function App() {
           }
         />
         <Route
-          path="loby"
+          path="psicologo"
           element={
             <Suspense fallback={<Spinner />}>
-              <Loby loby="psicologo" />
+              <Psicologico />
             </Suspense>
           }
         />

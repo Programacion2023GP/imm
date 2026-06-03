@@ -1742,7 +1742,7 @@ const StepperFormLocal = React.forwardRef<
               alignItems: "center",
               gap: "12px",
               padding: "12px 20px",
-              background: `linear-gradient(to right, ${primaryLight}, ${theme.colors.background.card})`,
+              background: `linear-gradient(135deg, ${primaryColor} 0%, ${theme.colors.primary[700] || "#7D1B35"} 100%)`,
               borderBottom: `1px solid ${borderColor}`,
             }}
           >
@@ -1765,9 +1765,10 @@ const StepperFormLocal = React.forwardRef<
             </div>
             <span
               style={{
-                fontSize: theme.typography.fontSize.sm,
-                fontWeight: 600,
-                color: theme.colors.text.primary,
+                fontSize: theme.typography.fontSize.base,
+                          fontWeight: 600,
+                          color: "#FFFFFF",
+                          letterSpacing: "0.3px",
               }}
             >
               {currentSection.title}
@@ -1790,7 +1791,7 @@ const StepperFormLocal = React.forwardRef<
                   key={idx}
                   style={{
                     marginBottom: "24px",
-                    background: theme.colors.background.card,
+                    background: theme.colors.background.page,
                     borderRadius: theme.radius.lg,
                     border: `1px solid ${theme.colors.border.light}`,
                     boxShadow: theme.shadows.sm,
@@ -2344,18 +2345,7 @@ const SuperCrud = <
     }
     return manualFields || [];
   }, [crudConfig, manualFields]);
-  // Dentro de SuperCrud, después de computedFields
-  const originalRowRef = useRef<any>(null);
- 
-  const displayOnlyFields = useMemo(() => {
-    if (!crudConfig?.tableColumns) return new Set<string>();
-    const formFields = new Set(computedFields.map((f) => f.name));
-    const extra = new Set<string>();
-    Object.keys(crudConfig.tableColumns).forEach((col) => {
-      if (!formFields.has(col)) extra.add(col);
-    });
-    return extra;
-  }, [crudConfig, computedFields]);
+
   const tableColumns = useMemo(() => {
     if (crudConfig?.tableColumns) {
       const cols = Object.entries(crudConfig.tableColumns).map(
@@ -3343,6 +3333,7 @@ const SuperCrud = <
                   onEdit={(row) => {
                     const formattedRow = prepareForForm(row);
                     hook.setOpen(true);
+                    console.log("aquiii",formattedRow)
                     hook.handleChangeItem(formattedRow);
                   }}
                   onDelete={async (row) => {
@@ -3508,6 +3499,6 @@ const SuperCrud = <
       )}
     </div>
   );
-};;
+};
 
 export default SuperCrud;

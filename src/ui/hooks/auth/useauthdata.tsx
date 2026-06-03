@@ -1,6 +1,9 @@
 import { useMemo } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { useGenericData, type GenericDataReturn } from "../../../library/reactztore/hook/usegenericdata";
+import {
+  useGenericData,
+  type GenericDataReturn,
+} from "../../../library/reactztore/hook/usegenericdata";
 
 export interface User {
   id: number;
@@ -33,7 +36,6 @@ export interface AuthPersistState {
   auth: Auth | null;
   token: string;
   permisos: string[];
-  
 }
 
 export interface AuthExtension {
@@ -77,58 +79,58 @@ const useAuthData = (): AuthDataReturn => {
     extension: (set, get, persist) => ({
       // useAuthData.ts (solo la parte del login)
       login: async (usuario, password, navigate) => {
-  try {
-    const res = await get().request({
-      url: `${get().prefix}/login`,
-      method: "POST",
-      data: { usuario, password },
-      getData: false,
-    });
-    const response = res as unknown as AuthResponse;
+        try {
+          const res = await get().request({
+            url: `${get().prefix}/login`,
+            method: "POST",
+            data: { usuario, password },
+            getData: false,
+          });
+          const response = res as unknown as AuthResponse;
 
-    if (response?.user) {
-      // Guardar en persistencia
-      persist?.set("auth", {
-        id: response.user.id,
-        usuario: response.user.usuario,
-        password: response.user.password,
-        nombre_completo: response.user.nombre_completo,
-        id_rol: response.user.id_rol,
-        activo: response.user.activo,
-      });
-      persist?.set("token", response.token);
-      persist?.set("permisos", response.permisos);
-      
-      if (navigate) {
-        const routesByPrefix: Record<string, string> = {
-          ENTREVISTA: "/expedienteuno",
-          LOBY_PSICOLOGO: "/loby",
-          CATALOGOS: "/catalogos/usuarios",
-        };
+          if (response?.user) {
+            // Guardar en persistencia
+            persist?.set("auth", {
+              id: response.user.id,
+              usuario: response.user.usuario,
+              password: response.user.password,
+              nombre_completo: response.user.nombre_completo,
+              id_rol: response.user.id_rol,
+              activo: response.user.activo,
+            });
+            persist?.set("token", response.token);
+            persist?.set("permisos", response.permisos);
 
-        let redirectUrl = "/dashboard";
+            if (navigate) {
+              const routesByPrefix: Record<string, string> = {
+                ENTREVISTA: "/expedienteuno",
+                PSICOLOGO: "/loby",
+                CATALOGOS: "/catalogos/usuarios",
+              };
 
-        // ✅ Buscar el primer permiso que coincida y salir del bucle
-        // for (const permiso of response.permisos) {
-        //   for (const [prefix, route] of Object.entries(routesByPrefix)) {
-        //     if (permiso.startsWith(prefix)) {
-        //       redirectUrl = route;
-        //       break; // ✅ Salir del bucle interno
-        //     }
-        //   }
-        //   if (redirectUrl !== "/dashboard") break; // ✅ Salir del bucle externo si ya encontramos
-        // }
+              let redirectUrl = "/dashboard";
 
-        // // ✅ Redirigir UNA SOLA VEZ
-        // console.log("✅ Redirigiendo a:", redirectUrl);
-        // navigate(redirectUrl);
-      }
-    }
-  } catch (error) {
-    console.error("Error en login:", error);
-    throw error;
-  }
-},
+              // ✅ Buscar el primer permiso que coincida y salir del bucle
+              // for (const permiso of response.permisos) {
+              //   for (const [prefix, route] of Object.entries(routesByPrefix)) {
+              //     if (permiso.startsWith(prefix)) {
+              //       redirectUrl = route;
+              //       break; // ✅ Salir del bucle interno
+              //     }
+              //   }
+              //   if (redirectUrl !== "/dashboard") break; // ✅ Salir del bucle externo si ya encontramos
+              // }
+
+              // // ✅ Redirigir UNA SOLA VEZ
+              // console.log("✅ Redirigiendo a:", redirectUrl);
+              // navigate(redirectUrl);
+            }
+          }
+        } catch (error) {
+          console.error("Error en login:", error);
+          throw error;
+        }
+      },
 
       logout: async () => {
         try {
