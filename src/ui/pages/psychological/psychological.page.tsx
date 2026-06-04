@@ -39,6 +39,7 @@ import { FormikProps } from "formik";
 import { PyschologicalEvaluation } from "../../../models/psychologicalevaluation.tsx/psychological.models";
 import useAuthData from "../../hooks/auth/useauthdata";
 import UseInterview from "../../hooks/interview/interviewdata";
+import AgendaPro from "./calendary.page";
 
 const PsychologicalPage = () => {
   const {
@@ -47,8 +48,7 @@ const PsychologicalPage = () => {
     psychologicalEvaluation,
     initialValues: psychologicalInitialValues,
     postItem: submitPsychological,
-    handleChangeItem:setHandleChangePsychological,
-    
+    handleChangeItem: setHandleChangePsychological,
   } = UsePsychologicalEvaluationModuleData();
  const { items: users,loading:loadingUsers } = useUsersData();
  const {persist} = useAuthData()
@@ -57,13 +57,13 @@ const PsychologicalPage = () => {
 
  const { items: issuesAddressed, loading: loadingIssuesAddressed } =
    UseIssuesAddressedData();
-     const formikRef = useRef<FormikProps<PyschologicalEvaluation>>(null);
+  const formikRef = useRef<FormikProps<PyschologicalEvaluation>>(null);
 
   useEffect(()=>{
       if (persist.auth.id_rol == 4) {
         formikRef?.current?.setFieldValue(
           "id_responsable",
-          Number(3),
+          persist.auth.id,
         );
       }
   },[formikRef?.current])
@@ -175,6 +175,10 @@ const validationSchema = Yup.object().shape({
     .positive("Seleccione un psicólogo válido")
     .typeError("Debe seleccionar un psicólogo"),
 
+  id_entrevista: Yup.number() // ✅ Campo faltante
+    .required("ID de entrevista es obligatorio")
+    .positive("ID de entrevista inválido"),
+
   id_problematica_abordada: Yup.array()
     .of(Yup.number().positive("ID de problemática inválido"))
     .min(1, "Debe seleccionar al menos una problemática abordada")
@@ -185,24 +189,36 @@ const validationSchema = Yup.object().shape({
     .min(1, "Debe seleccionar al menos un tipo de violencia asociada")
     .required("El tipo de violencia asociada es obligatorio"),
 
+  especifique_problematica_abordada: Yup.string().when(
+    "id_problematica_abordada",
+    {
+      is: (val: number[]) => val?.includes(11), // 11 es el ID de "Otro" o "Especifique"
+      then: (schema) => schema.required("Debe especificar la problemática"),
+      otherwise: (schema) => schema.nullable(),
+    },
+  ),
+
   activo: Yup.boolean().default(true),
 });
+
 
   return (
     <>
       <CustomTab
         tabs={[
           {
-            content: <CompositeLoby loby="psicologo" />,
-            id: "loby",
-            label: "Psicológico",
-            icon: <FileText className="w-4 h-4" />,
-          },
-          {
-            content: <></>,
+            content: (
+              <AgendaPro onEvent={(e) => console.log(e.type, e.payload)} />
+            ),
             id: "agenda",
             label: "Agenda",
             icon: <Building2 className="w-4 h-4" />,
+          },
+          {
+            content: <CompositeLoby loby="psicologo" />,
+            id: "loby",
+            label: "Loby",
+            icon: <FileText className="w-4 h-4" />,
           },
         ]}
         variant="modern"
@@ -243,13 +259,14 @@ const validationSchema = Yup.object().shape({
           <FormikForm
             ref={formikRef}
             initialValues={psychologicalInitialValues}
-            onSubmit={async(values)=>{
-              await submitPsychological(values)
-              await getLoby('psicologo')
+            onSubmit={async (values) => {
+              await submitPsychological(values);
+              await getLoby("psicologo");
             }}
             validationSchema={validationSchema}
-            children={(values) => (
+            children={(values, r, c, a, errors) => (
               <>
+              
                 <RowComponent>
                   <ColComponent
                     responsive={{ "2xl": 6, lg: 6, md: 12, sm: 12, xl: 12 }}

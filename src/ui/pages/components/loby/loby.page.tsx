@@ -13,6 +13,7 @@ const CompositeLoby = ({ loby }: { loby: "psicologo" | "juridico" }) => {
    setOpen: setModalOpenPsychological,
    handleChangeItem: setHandlePsychological,
    initialValues: initialValuesPsychological,
+   
  } = UsePsychologicalEvaluationModuleData();
   useEffect(() => {
     getLoby(loby);

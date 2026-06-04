@@ -1,14 +1,15 @@
 import React, { forwardRef, useState } from "react";
 import { Formik, Form } from "formik";
-import type { FormikProps, FormikTouched, FormikErrors } from "formik";import * as Yup from "yup";
+import type { FormikProps, FormikTouched, FormikErrors } from "formik";
+import * as Yup from "yup";
 import { RowComponent } from "../components/responsive/Responsive";
 import CustomButton from "../components/button/custombuttom";
 import { useWindowSize } from "../../hooks/windossize";
+
 export interface FormikFormProps<TValues> {
   initialValues: TValues;
   validationSchema?: Yup.ObjectSchema<any>;
-  enableReinitialize?: boolean; // ✅ agregar esta línea
-
+  enableReinitialize?: boolean;
   onSubmit: (values: TValues) => Promise<void> | void;
   children: (
     values: TValues,
@@ -30,6 +31,9 @@ export interface FormikFormProps<TValues> {
   id?: string;
 }
 
+// ✅ Exportar el tipo de la ref como FormikProps directamente
+export type FormikFormRef<TValues> = FormikProps<TValues>;
+
 const FormikForm = forwardRef(
   <TValues extends Record<string, any>>(
     props: FormikFormProps<TValues>,
@@ -44,6 +48,7 @@ const FormikForm = forwardRef(
       buttonLoading,
       handleButtonsSubmit,
       id,
+      enableReinitialize,
     } = props;
     const { width } = useWindowSize();
     const [isLoading, setIsLoading] = useState(false);
@@ -51,10 +56,10 @@ const FormikForm = forwardRef(
 
     return (
       <Formik<TValues>
-        innerRef={ref}
+        innerRef={ref} // ✅ Pasar la ref directamente a Formik
         initialValues={initialValues}
         validationSchema={validationSchema}
-        enableReinitialize={props.enableReinitialize} // ✅ pasarla aquí
+        enableReinitialize={enableReinitialize}
         onSubmit={async (values, { setSubmitting }) => {
           setIsLoading(true);
           try {
@@ -101,6 +106,6 @@ const FormikForm = forwardRef(
   props: FormikFormProps<TValues> & {
     ref?: React.ForwardedRef<FormikProps<TValues>>;
   },
-) => React.ReactElement; // ✅ Corregido
+) => React.ReactElement;
 
 export default FormikForm;
