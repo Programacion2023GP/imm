@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo, useId } from "react";
 import { FieldArray, FormikContextType, getIn, useFormikContext } from "formik";
 import { motion, AnimatePresence } from "framer-motion";
 import { IoIosEyeOff, IoMdEye } from "react-icons/io";
@@ -401,7 +401,312 @@ interface FormikTextAreaProps {
   onChange?: (value: string, formik: FormikCtx) => void;
   responsive?: ResponsiveProps;
   padding?: boolean;
+  // 🔥 Nuevas props
+  maxLength?: number;
+  showCounter?: boolean;
+  resize?: "none" | "vertical" | "horizontal" | "both";
+  autoFocus?: boolean;
 }
+
+
+
+
+// Utilidad para extraer texto plano desde HTML
+const getPlainTextFromHtml = (html: string): string => {
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  return div.textContent || div.innerText || "";
+};
+
+// Botón de la barra de herramientas
+
+
+
+
+
+
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function getPlainText(html: string): string {
+  if (!html) return "";
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  return div.textContent ?? div.innerText ?? "";
+}
+
+// ─── Tipos ──────────────────────────────────────────────────────────────────
+
+interface Responsive {
+  sm?: number;
+  md?: number;
+  lg?: number;
+  xl?: number;
+  "2xl"?: number;
+}
+
+
+interface Responsive {
+  sm?: number;
+  md?: number;
+  lg?: number;
+  xl?: number;
+  "2xl"?: number;
+}
+
+interface FormikTextAreaProps {
+  name: string;
+  label: string;
+  rows?: number;
+  disabled?: boolean;
+  readOnly?: boolean;
+  required?: boolean;
+  placeholder?: string;
+  debounceMs?: number;
+  caseTransform?: "none" | "uppercase" | "lowercase";
+  responsive?: Responsive;
+  padding?: boolean;
+  maxLength?: number;
+  showCounter?: boolean;
+  resize?: "none" | "vertical" | "horizontal" | "both";
+  autoFocus?: boolean;
+}
+
+// ─── Tokens de diseño ───────────────────────────────────────────────────────
+
+/**
+ * FormikTextArea — Rich text editor integrado con Formik
+ *
+ * FIXES:
+ * 1. Selector CSS scopeado por `data-rte-id` único por instancia
+ *    → múltiples editores en la misma página ya NO se afectan entre sí
+ * 2. Estilos de listas bonitos (✦ bullets, numeración con color primario)
+ * 3. Toolbar mejorada: grupos visuales con fondo, tooltips, iconos consistentes
+ * 4. isActive() recalculado en cada render via estado para que los botones
+ *    se iluminen correctamente al seleccionar texto
+ */
+
+// ─── Tipos ──────────────────────────────────────────────────────────────────
+
+interface FormikTextAreaProps {
+  name: string;
+  label: string;
+  rows?: number;
+  disabled?: boolean;
+  readOnly?: boolean;
+  required?: boolean;
+  placeholder?: string;
+  debounceMs?: number;
+  caseTransform?: "none" | "uppercase" | "lowercase";
+
+  maxLength?: number;
+  showCounter?: boolean;
+  autoFocus?: boolean;
+}
+
+// ─── Tokens de diseño ───────────────────────────────────────────────────────
+
+// ------------------------------------------------------------------
+// FORMIK TEXTAREA (RICH TEXT EDITOR) - CON theme GLOBAL
+// ------------------------------------------------------------------
+
+// Utilidad para extraer texto plano desde HTML
+
+
+// Botón de la barra de herramientas
+const ToolbarButton = ({
+  onClick,
+  title,
+  active = false,
+  danger = false,
+  children,
+}: {
+  onClick: () => void;
+  title: string;
+  active?: boolean;
+  danger?: boolean;
+  children: React.ReactNode;
+}) => {
+  const [hover, setHover] = useState(false);
+
+  return (
+    <button
+      type="button"
+      title={title}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        onClick();
+      }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minWidth: "30px",
+        height: "30px",
+        padding: "0 6px",
+        borderRadius: theme.radius.sm,
+        border: active ? `1px solid ${theme.colors.primary.light}` : "1px solid transparent",
+        cursor: "pointer",
+        fontSize: "13px",
+        fontWeight: 600,
+        transition: theme.transitions.DEFAULT,
+        background: active
+          ? theme.colors.feedback.primaryLight
+          : hover
+          ? theme.colors.background.surfaceHover
+          : "transparent",
+        color:
+          danger && hover
+            ? theme.colors.status.error
+            : active
+            ? theme.colors.primary.dark
+            : hover
+            ? theme.colors.text.primary
+            : theme.colors.text.secondary,
+        outline: "none",
+        flexShrink: 0,
+      }}
+    >
+      {children}
+    </button>
+  );
+};
+
+const ToolbarGroup = ({ children }: { children: React.ReactNode }) => (
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "1px",
+      background: `${theme.colors.primary.DEFAULT}10`,
+      borderRadius: theme.radius.sm,
+      padding: "2px",
+      border: `1px solid ${theme.colors.border.light}`,
+    }}
+  >
+    {children}
+  </div>
+);
+
+const ToolbarDivider = () => <div style={{ width: "6px" }} />;
+
+// Iconos SVG inline
+const Icon = {
+  Bold: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z" />
+      <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z" />
+    </svg>
+  ),
+  Italic: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <line x1="19" y1="4" x2="10" y2="4" />
+      <line x1="14" y1="20" x2="5" y2="20" />
+      <line x1="15" y1="4" x2="9" y2="20" />
+    </svg>
+  ),
+  Underline: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <path d="M6 4v6a6 6 0 0 0 12 0V4" />
+      <line x1="4" y1="20" x2="20" y2="20" />
+    </svg>
+  ),
+  Strike: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <path d="M16 4H9a3 3 0 0 0-2.83 4" />
+      <path d="M14 12a4 4 0 0 1 0 8H6" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+    </svg>
+  ),
+  BulletList: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <line x1="9" y1="6" x2="20" y2="6" />
+      <line x1="9" y1="12" x2="20" y2="12" />
+      <line x1="9" y1="18" x2="20" y2="18" />
+      <circle cx="4" cy="6" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="18" r="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  OrderedList: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <line x1="10" y1="6" x2="21" y2="6" />
+      <line x1="10" y1="12" x2="21" y2="12" />
+      <line x1="10" y1="18" x2="21" y2="18" />
+      <text x="2" y="8" fontSize="7" fontWeight="bold" fill="currentColor" stroke="none">1</text>
+      <text x="2" y="14" fontSize="7" fontWeight="bold" fill="currentColor" stroke="none">2</text>
+      <text x="2" y="20" fontSize="7" fontWeight="bold" fill="currentColor" stroke="none">3</text>
+    </svg>
+  ),
+  AlignLeft: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="15" y2="12" />
+      <line x1="3" y1="18" x2="18" y2="18" />
+    </svg>
+  ),
+  AlignCenter: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="6" y1="12" x2="18" y2="12" />
+      <line x1="4" y1="18" x2="20" y2="18" />
+    </svg>
+  ),
+  AlignRight: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="9" y1="12" x2="21" y2="12" />
+      <line x1="6" y1="18" x2="21" y2="18" />
+    </svg>
+  ),
+  Link: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  ),
+  Unlink: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      <line x1="2" y1="2" x2="22" y2="22" />
+    </svg>
+  ),
+  Quote: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+      <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" />
+    </svg>
+  ),
+  Code: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="16 18 22 12 16 6" />
+      <polyline points="8 6 2 12 8 18" />
+    </svg>
+  ),
+  Clear: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 7V4h16v3" />
+      <path d="M9 20h6" />
+      <path d="M12 4v16" />
+      <line x1="17" y1="7" x2="7" y2="17" />
+    </svg>
+  ),
+  Undo: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 7v6h6" />
+      <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+    </svg>
+  ),
+  Redo: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 7v6h-6" />
+      <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" />
+    </svg>
+  ),
+};
 
 export function FormikTextArea(props: FormikTextAreaProps) {
   const {
@@ -411,47 +716,110 @@ export function FormikTextArea(props: FormikTextAreaProps) {
     disabled = false,
     readOnly = false,
     required = false,
-    placeholder = " ",
-    debounceMs,
+    placeholder = "Escribe aquí...",
+    debounceMs = 300,
     caseTransform = "none",
     onInput,
     onChange,
     responsive = { sm: 12, md: 12, lg: 12, xl: 12, "2xl": 12 },
     padding = true,
+    maxLength,
+    showCounter,
+    autoFocus = false,
   } = props;
 
   const formik = useFormikContext<Record<string, any>>();
   const [isFocused, setIsFocused] = useState(false);
-  const [localValue, setLocalValue] = useState("");
-  const debounceTimer = useRef<number>(null);
+  const [plainLen, setPlainLen] = useState(0);
+  const [activeCommands, setActiveCommands] = useState<Record<string, boolean>>({});
+
+  const editorRef = useRef<HTMLDivElement>(null);
+  const lastHtmlRef = useRef<string>("");
+  const skipSyncRef = useRef(false);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const uid = useId().replace(/:/g, "");
+  const editorSelector = `[data-rte-id="${uid}"]`;
+
+  const formikValue: string = formik.values?.[name] ?? "";
+
+  // Sincronización Formik → DOM
+  useEffect(() => {
+    if (!editorRef.current) return;
+    if (skipSyncRef.current) {
+      skipSyncRef.current = false;
+      return;
+    }
+    if (editorRef.current.innerHTML !== formikValue) {
+      editorRef.current.innerHTML = formikValue;
+      lastHtmlRef.current = formikValue;
+      setPlainLen(getPlainText(formikValue).length);
+    }
+  }, [formikValue]);
 
   useEffect(() => {
-    const value = formik.values?.[name];
-    setLocalValue(value ?? "");
-  }, [formik.values, name]);
+    if (autoFocus) editorRef.current?.focus();
+  }, [autoFocus]);
 
-  const error =
-    formik.touched[name] && formik.errors[name]
-      ? String(formik.errors[name])
-      : null;
-  const hasValue = localValue.length > 0;
-  const isActive = hasValue || isFocused;
+  const refreshActiveCommands = useCallback(() => {
+    try {
+      setActiveCommands({
+        bold: document.queryCommandState("bold"),
+        italic: document.queryCommandState("italic"),
+        underline: document.queryCommandState("underline"),
+        strikeThrough: document.queryCommandState("strikeThrough"),
+        insertUnorderedList: document.queryCommandState("insertUnorderedList"),
+        insertOrderedList: document.queryCommandState("insertOrderedList"),
+        justifyLeft: document.queryCommandState("justifyLeft"),
+        justifyCenter: document.queryCommandState("justifyCenter"),
+        justifyRight: document.queryCommandState("justifyRight"),
+      });
+    } catch {
+      /* no-op */
+    }
+  }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const processed = applyCase(e.target.value, caseTransform);
-    setLocalValue(processed);
-    onInput?.(processed, formik);
-
-    if (debounceMs) {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-      debounceTimer.current = window.setTimeout(() => {
+  const pushToFormik = useCallback(
+    (html: string) => {
+      let processed = html;
+      if (caseTransform === "uppercase") processed = html.toUpperCase();
+      if (caseTransform === "lowercase") processed = html.toLowerCase();
+      skipSyncRef.current = true;
+      const commit = () => {
         formik.setFieldValue(name, processed);
         onChange?.(processed, formik);
-      }, debounceMs);
-    } else {
-      formik.setFieldValue(name, processed);
-      onChange?.(processed, formik);
+        onInput?.(processed, formik);
+      };
+      if (debounceMs > 0) {
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(commit, debounceMs);
+      } else {
+        commit();
+      }
+    },
+    [name, formik, debounceMs, caseTransform, onChange, onInput],
+  );
+
+  const handleInput = () => {
+    if (!editorRef.current) return;
+    const html = editorRef.current.innerHTML;
+    const plain = getPlainText(html);
+    if (maxLength && plain.length > maxLength) {
+      editorRef.current.innerHTML = lastHtmlRef.current;
+      const range = document.createRange();
+      const sel = window.getSelection();
+      if (sel) {
+        range.selectNodeContents(editorRef.current);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      return;
     }
+    lastHtmlRef.current = html;
+    setPlainLen(plain.length);
+    pushToFormik(html);
+    refreshActiveCommands();
   };
 
   const handleBlur = () => {
@@ -459,11 +827,50 @@ export function FormikTextArea(props: FormikTextAreaProps) {
     formik.setFieldTouched(name, true);
   };
 
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    document.execCommand("insertText", false, e.clipboardData.getData("text/plain"));
+  };
+
+  const handleKeyUp = () => refreshActiveCommands();
+  const handleMouseUp = () => refreshActiveCommands();
+
+  const exec = useCallback(
+    (command: string, value?: string) => {
+      if (disabled || readOnly) return;
+      document.execCommand(command, false, value);
+      if (editorRef.current) {
+        const html = editorRef.current.innerHTML;
+        lastHtmlRef.current = html;
+        setPlainLen(getPlainText(html).length);
+        pushToFormik(html);
+        refreshActiveCommands();
+      }
+    },
+    [disabled, readOnly, pushToFormik, refreshActiveCommands],
+  );
+
+  const insertLink = () => {
+    const url = prompt("URL del enlace:", "https://");
+    if (url) exec("createLink", url);
+  };
+
+  const error =
+    formik.touched[name] && formik.errors[name]
+      ? String(formik.errors[name])
+      : null;
+
+  const hasValue = plainLen > 0;
+  const labelRaised = hasValue || isFocused;
+  const minHeight = `${rows * 1.6 + 1}rem`;
+  const shouldShowCounter = showCounter || (maxLength && maxLength > 0);
+  const counterWarn = maxLength && plainLen >= maxLength * 0.85;
+
   if (disabled) {
     return (
       <DisabledField
         label={label}
-        value={localValue}
+        value={getPlainText(formikValue)}
         error={error}
         multiline
         responsive={responsive}
@@ -474,111 +881,355 @@ export function FormikTextArea(props: FormikTextAreaProps) {
 
   return (
     <ColComponent responsive={responsive} autoPadding={padding}>
-      <div style={{ position: "relative", marginBottom: "28px" }}>
+      <div style={{ marginBottom: "28px", position: "relative" }}>
+        {/* Wrapper con borde gradiente animado */}
         <div
           style={{
-            borderRadius: "14px",
-            padding: "1.5px",
+            borderRadius: theme.radius.xl,
+            padding: "2px",
             background: error
-              ? `linear-gradient(135deg, ${theme.colors.status.error}, #ff8a80)`
+              ? `linear-gradient(135deg, ${theme.colors.status.error}, ${theme.colors.status.critical})`
               : isFocused
-                ? `linear-gradient(135deg, ${theme.colors.primary.DEFAULT}, #7c3aed, #06b6d4)`
-                : `linear-gradient(135deg, ${theme.colors.border.DEFAULT}, ${theme.colors.border.DEFAULT})`,
+              ? `linear-gradient(135deg, ${theme.colors.primary.DEFAULT}, ${theme.colors.primary.light}, ${theme.colors.secondary?.DEFAULT || "#06b6d4"})`
+              : `linear-gradient(135deg, ${theme.colors.border.DEFAULT}, ${theme.colors.border.DEFAULT})`,
             transition: theme.transitions.DEFAULT,
             boxShadow: isFocused
               ? error
-                ? "0 4px 20px rgba(220,38,38,0.18)"
-                : "0 4px 24px rgba(99,102,241,0.18)"
-              : "0 2px 8px rgba(0,0,0,0.06)",
+                ? `0 6px 24px ${theme.colors.status.error}30`
+                : `0 6px 24px ${theme.colors.primary.DEFAULT}38`
+              : "0 2px 6px rgba(0,0,0,0.04)",
           }}
         >
           <div
             style={{
-              borderRadius: "13px",
+              borderRadius: "16px",
               background: theme.colors.background.card,
               overflow: "hidden",
             }}
           >
-            <label
-              htmlFor={name}
-              style={{
-                position: "absolute",
-                left: "14px",
-                top: isActive ? "8px" : "50%",
-                transform: isActive ? "translateY(0)" : "translateY(-50%)",
-                fontSize: isActive ? "10px" : theme.typography.fontSize.base,
-                fontWeight: isActive ? 700 : 400,
-                color: error
-                  ? theme.colors.status.error
-                  : isFocused
+            <div style={{ position: "relative", paddingTop: "24px" }}>
+              {/* Label flotante */}
+              <label
+                style={{
+                  position: "absolute",
+                  left: "14px",
+                  top: labelRaised ? "6px" : "calc(24px + 0.55rem)",
+                  transform: labelRaised ? "none" : "translateY(-50%)",
+                  fontSize: labelRaised ? "10px" : "14px",
+                  fontWeight: labelRaised ? 700 : 500,
+                  color: error
+                    ? theme.colors.status.error
+                    : isFocused
                     ? theme.colors.primary.DEFAULT
-                    : isActive
-                      ? theme.colors.text.secondary
-                      : theme.colors.text.placeholder,
-                letterSpacing: isActive ? "0.07em" : "0",
-                textTransform: isActive ? "uppercase" : "none",
-                pointerEvents: "none",
-                transition: "all 0.22s cubic-bezier(0.4,0,0.2,1)",
-                zIndex: 2,
-              }}
-            >
-              {label}
-              {required && (
-                <span
-                  style={{ color: theme.colors.status.error, marginLeft: 2 }}
-                >
-                  *
-                </span>
-              )}
-            </label>
-            <textarea
-              id={name}
-              value={localValue}
-              onChange={handleChange}
-              onFocus={() => setIsFocused(true)}
-              onBlur={handleBlur}
-              rows={rows}
-              readOnly={readOnly}
-              placeholder={placeholder}
-              style={{
-                width: "100%",
-                padding: "28px 14px 12px",
-                background: "transparent",
-                border: "none",
-                outline: "none",
-                resize: "none",
-                fontSize: theme.typography.fontSize.base,
-                lineHeight: "1.6",
-                color: theme.colors.text.primary,
-                fontFamily: "inherit",
-                caretColor: error
-                  ? theme.colors.status.error
-                  : theme.colors.primary.DEFAULT,
-              }}
-            />
+                    : labelRaised
+                    ? theme.colors.text.secondary
+                    : theme.colors.text.placeholder,
+                  letterSpacing: labelRaised ? "0.07em" : "0",
+                  textTransform: labelRaised ? "uppercase" : "none",
+                  pointerEvents: "none",
+                  transition: theme.transitions.DEFAULT,
+                  zIndex: 3,
+                  background: labelRaised ? theme.colors.background.card : "transparent",
+                  padding: labelRaised ? "0 4px" : "0",
+                  borderRadius: "4px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {label}
+                {required && (
+                  <span style={{ color: theme.colors.status.error, marginLeft: 2 }}>
+                    *
+                  </span>
+                )}
+              </label>
+
+              {/* Toolbar */}
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: "4px",
+                  padding: "6px 10px 8px",
+                  borderBottom: `1px solid ${theme.colors.border.light}`,
+                  background: theme.colors.background.surface,
+                }}
+              >
+                <ToolbarGroup>
+                  <ToolbarButton onClick={() => exec("bold")} title="Negrita (Ctrl+B)" active={activeCommands.bold}>
+                    <Icon.Bold />
+                  </ToolbarButton>
+                  <ToolbarButton onClick={() => exec("italic")} title="Cursiva (Ctrl+I)" active={activeCommands.italic}>
+                    <Icon.Italic />
+                  </ToolbarButton>
+                  <ToolbarButton onClick={() => exec("underline")} title="Subrayado (Ctrl+U)" active={activeCommands.underline}>
+                    <Icon.Underline />
+                  </ToolbarButton>
+                  <ToolbarButton onClick={() => exec("strikeThrough")} title="Tachado" active={activeCommands.strikeThrough}>
+                    <Icon.Strike />
+                  </ToolbarButton>
+                </ToolbarGroup>
+
+                <ToolbarDivider />
+
+                <ToolbarGroup>
+                  <ToolbarButton onClick={() => exec("insertUnorderedList")} title="Lista con viñetas" active={activeCommands.insertUnorderedList}>
+                    <Icon.BulletList />
+                  </ToolbarButton>
+                  <ToolbarButton onClick={() => exec("insertOrderedList")} title="Lista numerada" active={activeCommands.insertOrderedList}>
+                    <Icon.OrderedList />
+                  </ToolbarButton>
+                </ToolbarGroup>
+
+                <ToolbarDivider />
+
+                <ToolbarGroup>
+                  <ToolbarButton onClick={() => exec("justifyLeft")} title="Alinear izquierda" active={activeCommands.justifyLeft}>
+                    <Icon.AlignLeft />
+                  </ToolbarButton>
+                  <ToolbarButton onClick={() => exec("justifyCenter")} title="Centrar" active={activeCommands.justifyCenter}>
+                    <Icon.AlignCenter />
+                  </ToolbarButton>
+                  <ToolbarButton onClick={() => exec("justifyRight")} title="Alinear derecha" active={activeCommands.justifyRight}>
+                    <Icon.AlignRight />
+                  </ToolbarButton>
+                </ToolbarGroup>
+
+                <ToolbarDivider />
+
+                <ToolbarGroup>
+                  <ToolbarButton onClick={insertLink} title="Insertar enlace">
+                    <Icon.Link />
+                  </ToolbarButton>
+                  <ToolbarButton onClick={() => exec("unlink")} title="Quitar enlace" danger>
+                    <Icon.Unlink />
+                  </ToolbarButton>
+                </ToolbarGroup>
+
+                <ToolbarDivider />
+
+                <ToolbarGroup>
+                  <ToolbarButton onClick={() => exec("formatBlock", "<blockquote>")} title="Cita en bloque">
+                    <Icon.Quote />
+                  </ToolbarButton>
+                  <ToolbarButton onClick={() => exec("formatBlock", "<pre>")} title="Bloque de código">
+                    <Icon.Code />
+                  </ToolbarButton>
+                  <ToolbarButton onClick={() => exec("removeFormat")} title="Limpiar todo el formato" danger>
+                    <Icon.Clear />
+                  </ToolbarButton>
+                </ToolbarGroup>
+
+                <ToolbarDivider />
+
+                <ToolbarGroup>
+                  <ToolbarButton onClick={() => exec("undo")} title="Deshacer (Ctrl+Z)">
+                    <Icon.Undo />
+                  </ToolbarButton>
+                  <ToolbarButton onClick={() => exec("redo")} title="Rehacer (Ctrl+Y)">
+                    <Icon.Redo />
+                  </ToolbarButton>
+                </ToolbarGroup>
+              </div>
+
+              {/* Editor contentEditable */}
+              <div
+                ref={editorRef}
+                contentEditable={!readOnly}
+                data-rte-id={uid}
+                data-placeholder={placeholder}
+                dir="ltr"
+                onInput={handleInput}
+                onFocus={() => {
+                  setIsFocused(true);
+                  refreshActiveCommands();
+                }}
+                onBlur={handleBlur}
+                onPaste={handlePaste}
+                onKeyUp={handleKeyUp}
+                onMouseUp={handleMouseUp}
+                suppressContentEditableWarning
+                style={{
+                  minHeight,
+                  maxHeight: "420px",
+                  overflowY: "auto",
+                  padding: "14px 16px",
+                  fontSize: theme.typography.fontSize.base,
+                  lineHeight: "1.7",
+                  color: theme.colors.text.primary,
+                  fontFamily: "inherit",
+                  outline: "none",
+                  wordBreak: "break-word",
+                  direction: "ltr",
+                  textAlign: "left",
+                }}
+              />
+            </div>
           </div>
         </div>
+
+        {/* Pie: error + contador */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
+            alignItems: "center",
             marginTop: "6px",
+            minHeight: "20px",
+            padding: "0 4px",
           }}
         >
           <FieldError error={error} />
-          {hasValue && (
+          {shouldShowCounter && (
             <span
               style={{
-                fontSize: theme.typography.fontSize.xs,
-                color: isFocused
+                fontSize: "11px",
+                fontWeight: 600,
+                color: counterWarn
+                  ? theme.colors.status.error
+                  : isFocused
                   ? theme.colors.primary.DEFAULT
                   : theme.colors.text.disabled,
+                background: counterWarn
+                  ? `${theme.colors.status.error}10`
+                  : isFocused
+                  ? `${theme.colors.primary.DEFAULT}10`
+                  : "transparent",
+                padding: "2px 8px",
+                borderRadius: "20px",
+                transition: theme.transitions.DEFAULT,
               }}
             >
-              {localValue.length} caracteres
+              {plainLen}
+              {maxLength && ` / ${maxLength}`}
             </span>
           )}
         </div>
+
+        {/* Estilos CSS scopeados */}
+        <style>{`
+          ${editorSelector}[data-placeholder]:empty::before {
+            content: attr(data-placeholder);
+            color: ${theme.colors.text.placeholder};
+            pointer-events: none;
+            font-style: italic;
+          }
+
+          ${editorSelector} ul {
+            padding-left: 1.8rem;
+            margin: 0.5rem 0;
+            list-style: none !important;
+          }
+          ${editorSelector} ul > li {
+            position: relative;
+            margin: 0.3rem 0;
+            padding-left: 0.1rem;
+            list-style: none !important;
+          }
+          ${editorSelector} ul > li::before {
+            content: "✦";
+            color: ${theme.colors.primary.DEFAULT};
+            font-size: 0.6em;
+            position: absolute;
+            left: -1.35rem;
+            top: 0.22em;
+            line-height: 1;
+          }
+          ${editorSelector} ul ul > li::before {
+            content: "◆";
+            font-size: 0.5em;
+            color: ${theme.colors.text.secondary};
+            top: 0.3em;
+          }
+          ${editorSelector} ul ul ul > li::before {
+            content: "–";
+            font-size: 0.85em;
+            top: 0.06em;
+            color: ${theme.colors.text.placeholder};
+          }
+
+          ${editorSelector} ol {
+            padding-left: 1.8rem;
+            margin: 0.5rem 0;
+            list-style: none !important;
+            counter-reset: rte-ol;
+          }
+          ${editorSelector} ol > li {
+            position: relative;
+            margin: 0.3rem 0;
+            padding-left: 0.1rem;
+            list-style: none !important;
+            counter-increment: rte-ol;
+          }
+          ${editorSelector} ol > li::before {
+            content: counter(rte-ol);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.25rem;
+            height: 1.25rem;
+            background: ${theme.colors.feedback.primaryLight};
+            color: ${theme.colors.primary.dark};
+            font-weight: 700;
+            font-size: 0.72em;
+            border-radius: 50%;
+            position: absolute;
+            left: -1.65rem;
+            top: 0.12em;
+          }
+
+          ${editorSelector} a {
+            color: ${theme.colors.primary.DEFAULT};
+            text-decoration: underline;
+            text-underline-offset: 2px;
+          }
+          ${editorSelector} a:hover {
+            opacity: 0.75;
+          }
+
+          ${editorSelector} blockquote {
+            border-left: 3px solid ${theme.colors.primary.DEFAULT};
+            background: ${theme.colors.feedback.primaryLight};
+            padding: 0.5rem 1rem;
+            margin: 0.6rem 0;
+            border-radius: 0 ${theme.radius.sm} ${theme.radius.sm} 0;
+            color: ${theme.colors.text.secondary};
+            font-style: italic;
+          }
+
+          ${editorSelector} pre {
+            background: ${theme.colors.background.surface};
+            padding: 0.7rem 1rem;
+            border-radius: ${theme.radius.md};
+            font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+            font-size: 0.85em;
+            overflow-x: auto;
+            border: 1px solid ${theme.colors.border.light};
+            margin: 0.5rem 0;
+          }
+          ${editorSelector} code {
+            background: ${theme.colors.background.surface};
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.875em;
+            border: 1px solid ${theme.colors.border.light};
+          }
+
+          ${editorSelector}::-webkit-scrollbar {
+            width: 5px;
+          }
+          ${editorSelector}::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          ${editorSelector}::-webkit-scrollbar-thumb {
+            background: ${theme.colors.border.DEFAULT};
+            border-radius: 3px;
+          }
+          ${editorSelector}::-webkit-scrollbar-thumb:hover {
+            background: ${theme.colors.text.placeholder};
+          }
+        `}</style>
       </div>
     </ColComponent>
   );
@@ -1360,24 +2011,28 @@ export function FormikRadio<TOption>(props: FormikRadioProps<TOption>) {
 // ------------------------------------------------------------------
 // FORMIK AUTOCOMPLETE
 // ------------------------------------------------------------------
-interface FormikAutocompleteProps<TOption> {
+
+// Fallback manual para getIn
+
+
+export interface FormikAutocompleteProps<TOption> {
   name: string;
   label: string;
-  options: TreeNode<TOption>[];
+  options: TOption[];
   idKey: keyof TOption;
   labelKey: keyof TOption;
   loading?: boolean;
   disabled?: boolean;
   required?: boolean;
-  responsive?: ResponsiveProps;
+  responsive?: Record<string, number>;
   padding?: boolean;
-  onSelect?: (value: TOption) => void;
-  onRefresh?: () => void | Promise<void>;
+  compact?: boolean;
+  onSelect?: (option: TOption | null) => void;
+  onRefresh?: () => Promise<void>;
   onAdd?: () => void;
-  onChange?: (value: any, formik: FormikCtx) => void;
-  onInput?: (text: string, formik: FormikCtx) => void;
-  caseTransform?: CaseTransform;
-  compact?: boolean; // si es true, usa padding reducido
+  onChange?: (value: any, formik: any) => void;
+  onInput?: (value: string, formik: any) => void;
+  caseTransform?: "uppercase" | "lowercase" | "none";
 }
 
 export function FormikAutocomplete<TOption>(
@@ -1419,11 +2074,12 @@ export function FormikAutocomplete<TOption>(
     placement: "bottom" as "bottom" | "top",
   });
 
-  const value = formik.values?.[name];
-  const error =
-    formik.touched[name] && formik.errors[name]
-      ? String(formik.errors[name])
-      : null;
+  // ✅ Lectura correcta de valores anidados usando getIn
+  const value = getIn(formik.values, name);
+  const touched = getIn(formik.touched, name);
+  const errorRaw = getIn(formik.errors, name);
+  const error = touched && errorRaw ? String(errorRaw) : null;
+
   const hasValue = searchTerm.length > 0;
   const isActive = hasValue || isFocused || isOpen;
 
@@ -1487,7 +2143,6 @@ export function FormikAutocomplete<TOption>(
       updateDropdownPosition();
       setIsOpen(true);
       setIsFocused(true);
-      // Devolver foco al input principal
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   };
@@ -1523,6 +2178,7 @@ export function FormikAutocomplete<TOption>(
     };
   }, [isOpen, filteredOptions.length]);
 
+  // ✅ Sincronizar searchTerm con el valor anidado
   useEffect(() => {
     if (!value && value !== 0) {
       setSearchTerm("");
@@ -1665,14 +2321,12 @@ export function FormikAutocomplete<TOption>(
                 formik.setFieldValue(name, null);
                 onChange?.(null, formik);
               }
-              // Si escribe, asegurarse de que el dropdown esté abierto
               if (!isOpen) {
                 updateDropdownPosition();
                 setIsOpen(true);
               }
             }}
             onBlur={() => {
-              // Solo cerrar si el foco va a algo fuera del dropdown
               setTimeout(() => {
                 const active = document.activeElement;
                 const inDropdown = dropdownRef.current?.contains(active);
@@ -2542,7 +3196,7 @@ export function FormikImageInput(props: FormikImageInputProps) {
 interface FormikMultiSelectProps {
   name: string;
   label: string;
-  options: any[];  // ✅ Ahora acepta cualquier tipo de objeto
+  options: any[];
   loading?: boolean;
   disabled?: boolean;
   required?: boolean;
@@ -2551,12 +3205,9 @@ interface FormikMultiSelectProps {
   onRefresh?: () => Promise<void>;
   onAdd?: () => void;
   onChange?: (value: any[], formik: FormikContextType<any>) => void;
-  idKey?: string;   // ✅ nuevo
-  labelKey?: string; // ✅ nuevo
+  idKey?: string;
+  labelKey?: string;
 }
-
-// Puedes mantener Option para otros usos o eliminarlo
-// interface Option { ... }
 
 export function FormikMultiSelect(props: FormikMultiSelectProps) {
   const {
@@ -2571,12 +3222,12 @@ export function FormikMultiSelect(props: FormikMultiSelectProps) {
     onRefresh,
     onAdd,
     onChange: externalOnChange,
-    idKey = "value", // valor por defecto
-    labelKey = "label", // valor por defecto
+    idKey = "value",
+    labelKey = "label",
   } = props;
 
   const formik = useFormikContext();
-  const value: (string | number)[] = formik.values[name] || [];
+  const value: any[] = formik.values[name] || [];
   const error =
     formik.touched[name] && formik.errors[name]
       ? String(formik.errors[name])
@@ -2597,7 +3248,7 @@ export function FormikMultiSelect(props: FormikMultiSelectProps) {
   });
 
   // Función para obtener el valor de un option según idKey
-  const getOptionValue = (opt: any): string | number => {
+  const getOptionValue = (opt: any): any => {
     return opt[idKey];
   };
 
@@ -2606,12 +3257,24 @@ export function FormikMultiSelect(props: FormikMultiSelectProps) {
     return opt[labelKey];
   };
 
-  // Transformar options a un formato uniforme para uso interno
+  // ✅ Función para comparar valores normalizados
+  const areValuesEqual = (a: any, b: any): boolean => {
+    // Convertir ambos a string para comparación
+    return String(a) === String(b);
+  };
+
+  // Transformar options a un formato uniforme
   const normalizedOptions = options.map((opt) => ({
     raw: opt,
     value: getOptionValue(opt),
     label: getOptionLabel(opt),
   }));
+
+  // ✅ Verificar si un valor está seleccionado (comparación normalizada)
+  const isValueSelected = (optValue: any): boolean => {
+    console.log('va',optValue)
+    return value.some(v => areValuesEqual(v, optValue));
+  };
 
   const hasValue = value.length > 0;
   const isActive = hasValue || isFocused || isOpen;
@@ -2705,11 +3368,25 @@ export function FormikMultiSelect(props: FormikMultiSelectProps) {
       window.removeEventListener("resize", handleUpdate);
     };
   }, [isOpen, filteredOptions.length]);
-
-  const toggleValue = (optValue: string | number) => {
-    const newValue = value.includes(optValue)
-      ? value.filter((v) => v !== optValue)
-      : [...value, optValue];
+useEffect(() => {
+  if (formik.values[name] === undefined) {
+    console.log(
+      `[FormikMultiSelect] Inicializando campo ${name} con array vacío`,
+    );
+    formik.setFieldValue(name, []);
+  }
+}, [formik.values[name], name]);
+  // ✅ toggleValue con comparación normalizada
+  const toggleValue = (optValue: any) => {
+    const isSelected = isValueSelected(optValue);
+    console.log("seleccion",isSelected)
+    let newValue: any[];
+    if (isSelected) {
+      newValue = value.filter(v => !areValuesEqual(v, optValue));
+    } else {
+      newValue = [...value, optValue];
+    }
+    
     formik.setFieldValue(name, newValue);
     formik.setFieldTouched(name, true);
     externalOnChange?.(newValue, formik);
@@ -2731,9 +3408,10 @@ export function FormikMultiSelect(props: FormikMultiSelectProps) {
     onAdd?.();
   };
 
-  const removeChip = (optValue: string | number, e: React.MouseEvent) => {
+  // ✅ removeChip con comparación normalizada
+  const removeChip = (optValue: any, e: React.MouseEvent) => {
     e.stopPropagation();
-    const newValue = value.filter((v) => v !== optValue);
+    const newValue = value.filter(v => !areValuesEqual(v, optValue));
     formik.setFieldValue(name, newValue);
     formik.setFieldTouched(name, true);
     externalOnChange?.(newValue, formik);
@@ -2756,7 +3434,7 @@ export function FormikMultiSelect(props: FormikMultiSelectProps) {
 
   if (disabled) {
     const selectedLabels = normalizedOptions
-      .filter((opt) => value.includes(opt.value))
+      .filter((opt) => isValueSelected(opt.value))
       .map((opt) => opt.label);
     return (
       <DisabledField
@@ -2825,11 +3503,11 @@ export function FormikMultiSelect(props: FormikMultiSelectProps) {
           }}
         >
           {value.map((v) => {
-            const opt = normalizedOptions.find((o) => o.value === v);
+            const opt = normalizedOptions.find((o) => areValuesEqual(o.value, v));
             if (!opt) return null;
             return (
               <div
-                key={v}
+                key={String(v)}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -3032,7 +3710,7 @@ export function FormikMultiSelect(props: FormikMultiSelectProps) {
                     <input
                       type="checkbox"
                       style={{ accentColor: theme.colors.primary[100] }}
-                      checked={value.includes(opt.value)}
+                      checked={isValueSelected(opt.value)}
                       onChange={() => {}}
                       onClick={(e) => e.stopPropagation()}
                     />
@@ -3149,11 +3827,11 @@ export function FormikDatePicker(props: FormikDatePickerProps) {
 
   const selectedDate = getSafeDate(rawValue);
 
-  React.useEffect(() => {
-    if (rawValue && !selectedDate) {
-      formik.setFieldValue(name, "");
-    }
-  }, [rawValue, selectedDate, name, formik]);
+  // React.useEffect(() => {
+  //   if (rawValue && !selectedDate) {
+  //     formik.setFieldValue(name, "");
+  //   }
+  // }, [rawValue, selectedDate, name, formik]);
 
   const handleChange = (date: Date | null) => {
     let value = "";
@@ -4816,8 +5494,10 @@ export const FormikArrayTable: React.FC<FormikArrayTableProps> = ({
   };
 
  const renderSelectField = (fieldDef: ArrayFieldItem, rowIndex: number) => {
-   const fullName = `${name}.${rowIndex}.${fieldDef.name}`;
-   // Construimos un objeto "field" que contenga todas las propiedades que necesita DynamicSelectFieldLocal
+   // ✅ Notación con corchetes para arrays anidados
+   const fullName = `${name}[${rowIndex}].${fieldDef.name}`;
+   // Ejemplo: "dependientes[0].id_vinculo"
+
    const fieldForSelect = {
      name: fullName,
      label: fieldDef.label,
@@ -4832,7 +5512,6 @@ export const FormikArrayTable: React.FC<FormikArrayTableProps> = ({
      multiple: fieldDef.multiple,
      placeholder: fieldDef.placeholder,
      options: fieldDef.options,
-
    };
    return (
      <DynamicSelectFieldLocal
@@ -5103,5 +5782,5 @@ export const FormikArrayTable: React.FC<FormikArrayTableProps> = ({
         )}
       </div>
     </ColComponent>
-  );
+  )
 };

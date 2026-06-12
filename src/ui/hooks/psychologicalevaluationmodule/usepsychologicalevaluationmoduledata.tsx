@@ -10,9 +10,11 @@ import { PyschologicalEvaluation } from "../../../models/psychologicalevaluation
 interface ExtraState {
   psychologicalEvaluation: Loby;
   listDiary:{id:number,nombre:string}[]
+  selectPersonCalendary:{},
 }
 interface Methods {
-  getDiary:()=>void
+  getDiary:()=>void,
+  evaluationPerson:(personId:number)=>Promise<{}>,
 }
 
 export type DataReturn = GenericDataReturn<
@@ -44,6 +46,7 @@ const UsePsychologicalEvaluationModuleData = (): DataReturn => {
      extraState: {
        psychologicalEvaluation: null,
        listDiary: [],
+       selectPersonCalendary: null,
      },
      // persistKey: "departments-persist",
      hooks: {
@@ -51,25 +54,38 @@ const UsePsychologicalEvaluationModuleData = (): DataReturn => {
          console.error("[UsePsychologicalEvaluationModuleData]", msg),
      },
      extension: (set, get, prefix) => ({
-      
-       getDiary:async()=>{
-         set({loading:true})
-        try {
+       evaluationPerson: async (personId: number): Promise<{}> => {
+         set({ loading: true });
+         try {
            const res = await get().request({
-            method:"GET",
-            url:`${get().prefix}/agenda`,
-            getData:false,
-  
-           })
-          set({ loading: false });
-  
-           set({ listDiary: res as unknown as { id: number; nombre: string }[] });
-          
-        } catch (error) {
-         set({ loading: false, listDiary:[] });
-          
-        }
-       }
+             method: "GET",
+             url: `agenda/evaluacionpersona/${personId}`,
+             getData: false,
+           });
+           set({ loading: false });
+           return res?.[0];
+         } catch (error) {
+           set({ loading: false, listDiary: [] });
+           return {}
+         }
+       },
+       getDiary: async () => {
+         set({ loading: true });
+         try {
+           const res = await get().request({
+             method: "GET",
+             url: `${get().prefix}/agenda`,
+             getData: false,
+           });
+           set({ loading: false });
+
+           set({
+             listDiary: res as unknown as { id: number; nombre: string }[],
+           });
+         } catch (error) {
+           set({ loading: false, listDiary: [] });
+         }
+       },
      }),
    });
 };

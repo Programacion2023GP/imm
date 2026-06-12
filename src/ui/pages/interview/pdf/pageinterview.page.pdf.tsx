@@ -1,195 +1,160 @@
 import React, { useMemo } from "react";
-import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
+import {
+  Document,
+  Page,
+  View,
+  Text,
+  StyleSheet,
+  Link,
+} from "@react-pdf/renderer";
 
 // ============================================================================
 // Paleta de colores Human Tech 2026
 // ============================================================================
 const COLORS = {
-  primary: "#0B2B40", // Azul profundo, calma y autoridad
-  secondary: "#E05A47", // Terracota cálido, acento humano
-  background: "#FFFFFF", // Lienzo limpio
-  surface: "#F4F7F9", // Gris azulado sutil para áreas de apoyo
-  textPrimary: "#1A2E3D", // Azul grisáceo oscuro (máximo contraste)
-  textSecondary: "#5B6F82", // Gris sereno para etiquetas
-  accentLight: "#FCE8E4", // Fondo de acento suave
-  border: "#DCE3E9", // Borde apenas perceptible
+  primary: "#0B2B40",
+  secondary: "#E05A47",
+  background: "#FFFFFF",
+  surface: "#F4F7F9",
+  textPrimary: "#1A2E3D",
+  textSecondary: "#5B6F82",
+  accentLight: "#FCE8E4",
+  border: "#DCE3E9",
   success: "#2C8C6E",
   warning: "#E6A157",
 };
 
 // ============================================================================
-// Estilos: Minimalismo audaz, jerarquía clara, espacios generosos
+// Estilos
 // ============================================================================
 const styles = StyleSheet.create({
   page: {
-    padding: 48,
+    padding: 40,
     backgroundColor: COLORS.background,
     fontFamily: "Helvetica",
   },
-
-  // Cabecera: grande, limpia, con un solo acento
   header: {
-    marginBottom: 32,
+    marginBottom: 24,
     borderBottom: `2px solid ${COLORS.secondary}`,
-    paddingBottom: 16,
+    paddingBottom: 12,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-end",
   },
-  titleBlock: {
-    flexDirection: "column",
-  },
-  mainTitle: {
-    fontSize: 28,
-    fontWeight: "extrabold",
-    color: COLORS.primary,
-    letterSpacing: -0.5,
-  },
-  subTitle: {
-    fontSize: 9,
-    color: COLORS.textSecondary,
-    marginTop: 6,
-    letterSpacing: 0.3,
-  },
-  folioBox: {
-    alignItems: "flex-end",
-  },
+  titleBlock: { flexDirection: "column" },
+  mainTitle: { fontSize: 24, fontWeight: "bold", color: COLORS.primary },
+  subTitle: { fontSize: 8, color: COLORS.textSecondary, marginTop: 4 },
+  folioBox: { alignItems: "flex-end" },
   folioLabel: {
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: "bold",
     color: COLORS.textSecondary,
     textTransform: "uppercase",
-    letterSpacing: 1,
   },
   folioNumber: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "bold",
     color: COLORS.secondary,
-    marginTop: 4,
+    marginTop: 2,
   },
-
-  // Secciones: sin bordes externos, solo separación sutil
-  section: {
-    marginBottom: 28,
-  },
+  section: { marginBottom: 20 },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "bold",
     color: COLORS.primary,
-    letterSpacing: -0.2,
     textTransform: "uppercase",
   },
-  sectionBody: {
-    paddingLeft: 24,
-  },
-
-  // Subsecciones: líneas delgadas, sin decoración excesiva
+  sectionBody: { paddingLeft: 16 },
   subsection: {
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 12,
+    marginBottom: 6,
     borderBottom: `0.5px solid ${COLORS.border}`,
-    paddingBottom: 4,
+    paddingBottom: 3,
   },
   subsectionTitle: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "bold",
     color: COLORS.textSecondary,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
   },
-
-  // Campos en dos columnas (grid limpio)
-  gridTwoCols: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
+  gridTwoCols: { flexDirection: "row", flexWrap: "wrap" },
   gridItem: {
     width: "50%",
     flexDirection: "row",
-    paddingVertical: 6,
-    paddingRight: 16,
+    paddingVertical: 4,
+    paddingRight: 12,
   },
-  gridLabel: {
-    width: "40%",
-    fontSize: 8.5,
-    fontWeight: "medium",
-    color: COLORS.textSecondary,
-  },
+  gridLabel: { width: "40%", fontSize: 8, color: COLORS.textSecondary },
   gridValue: {
     width: "60%",
-    fontSize: 8.5,
+    fontSize: 8,
     fontWeight: "bold",
     color: COLORS.textPrimary,
   },
-
-  // Campo de línea completa
-  row: {
-    flexDirection: "row",
-    paddingVertical: 6,
-  },
-  rowLabel: {
-    width: "30%",
-    fontSize: 8.5,
-    color: COLORS.textSecondary,
-  },
+  row: { flexDirection: "row", paddingVertical: 4 },
+  rowLabel: { width: "30%", fontSize: 8, color: COLORS.textSecondary },
   rowValue: {
     width: "70%",
-    fontSize: 8.5,
+    fontSize: 8,
     fontWeight: "bold",
     color: COLORS.textPrimary,
   },
-
-  // Badges (etiquetas múltiples, estilo moderno)
-  badgesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    width: "70%",
-  },
+  badgesContainer: { flexDirection: "row", flexWrap: "wrap", width: "70%" },
   badge: {
     backgroundColor: COLORS.accentLight,
-    borderRadius: 20,
+    borderRadius: 12,
     paddingVertical: 2,
-    paddingHorizontal: 10,
-    marginRight: 6,
-    marginBottom: 4,
+    paddingHorizontal: 8,
+    marginRight: 4,
+    marginBottom: 2,
   },
-  badgeText: {
-    fontSize: 7.5,
-    color: COLORS.secondary,
-    fontWeight: "bold",
-  },
-
-  // Narración: estilo "nota" con fondo suave y sin bordes duros
+  badgeText: { fontSize: 7, color: COLORS.secondary, fontWeight: "bold" },
+  // Narrativa rich text
   narrativeBox: {
     backgroundColor: COLORS.surface,
-    padding: 12,
-    marginBottom: 16,
+    padding: 10,
+    marginBottom: 12,
     borderRadius: 4,
   },
-  narrativeText: {
-    fontSize: 8.5,
+  narrativeText: { fontSize: 8, lineHeight: 1.5, color: COLORS.textPrimary },
+  // Listas dentro de narrativa
+  rtListItem: { flexDirection: "row", marginBottom: 3 },
+  rtBullet: { width: 14, fontSize: 8, color: COLORS.secondary },
+  rtListText: {
+    flex: 1,
+    fontSize: 8,
     lineHeight: 1.5,
     color: COLORS.textPrimary,
   },
-
-  // Tablas: limpias, solo líneas horizontales sutiles
-  table: {
-    marginTop: 8,
-    width: "100%",
+  // Blockquote
+  rtBlockquote: {
+    borderLeft: `3px solid ${COLORS.secondary}`,
+    paddingLeft: 8,
+    marginVertical: 4,
+    backgroundColor: COLORS.accentLight,
   },
+  // Code
+  rtCode: {
+    fontFamily: "Courier",
+    fontSize: 7,
+    backgroundColor: COLORS.surface,
+    padding: 4,
+    borderRadius: 3,
+  },
+  table: { marginTop: 6, width: "100%" },
   tableHeader: {
     flexDirection: "row",
     borderBottom: `0.5px solid ${COLORS.border}`,
-    paddingVertical: 4,
-    marginBottom: 4,
+    paddingVertical: 3,
+    marginBottom: 2,
   },
   tableHeaderCell: {
-    fontSize: 7.5,
+    fontSize: 7,
     fontWeight: "bold",
     color: COLORS.textSecondary,
     flex: 1,
@@ -197,29 +162,308 @@ const styles = StyleSheet.create({
   },
   tableRow: {
     flexDirection: "row",
-    paddingVertical: 5,
+    paddingVertical: 3,
     borderBottom: `0.3px solid ${COLORS.border}`,
   },
-  tableCell: {
-    fontSize: 7.5,
-    color: COLORS.textPrimary,
-    flex: 1,
-  },
-
-  // Pie de página: sutil, solo información necesaria
+  tableCell: { fontSize: 7, color: COLORS.textPrimary, flex: 1 },
   footer: {
     position: "absolute",
     bottom: 30,
-    left: 48,
-    right: 48,
+    left: 40,
+    right: 40,
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingTop: 12,
+    paddingTop: 8,
     borderTop: `0.5px solid ${COLORS.border}`,
     fontSize: 7,
     color: COLORS.textSecondary,
   },
 });
+
+// ============================================================================
+// HTML → react-pdf renderer
+// ============================================================================
+
+/**
+ * Parsea HTML del rich text editor y lo convierte en componentes react-pdf.
+ *
+ * react-pdf NO soporta dangerouslySetInnerHTML ni HTML nativo.
+ * Usamos DOMParser del lado del cliente (o un parser manual SSR-safe)
+ * para convertir el árbol HTML en nodos <Text> con estilos en línea.
+ *
+ * Estilos soportados: bold, italic, underline, strikethrough,
+ * listas ul/ol con bullets personalizados, blockquote, pre/code, links.
+ */
+function parseHtmlNode(
+  node: Node,
+  inheritedStyle: Record<string, any> = {},
+  key: string = "0",
+): React.ReactNode {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const text = node.textContent ?? "";
+    if (!text) return null;
+    return (
+      <Text key={key} style={{ ...styles.narrativeText, ...inheritedStyle }}>
+        {text}
+      </Text>
+    );
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) return null;
+  const el = node as Element;
+  const tag = el.tagName?.toLowerCase();
+
+  const children = Array.from(el.childNodes).map((child, i) =>
+    parseHtmlNode(child, inheritedStyle, `${key}-${i}`),
+  );
+
+  switch (tag) {
+    case "strong":
+    case "b":
+      return (
+        <Text
+          key={key}
+          style={{
+            ...styles.narrativeText,
+            ...inheritedStyle,
+            fontWeight: "bold",
+          }}
+        >
+          {Array.from(el.childNodes).map((c, i) =>
+            parseHtmlNode(
+              c,
+              { ...inheritedStyle, fontWeight: "bold" },
+              `${key}-${i}`,
+            ),
+          )}
+        </Text>
+      );
+
+    case "em":
+    case "i":
+      return (
+        <Text
+          key={key}
+          style={{
+            ...styles.narrativeText,
+            ...inheritedStyle,
+            fontStyle: "italic",
+          }}
+        >
+          {Array.from(el.childNodes).map((c, i) =>
+            parseHtmlNode(
+              c,
+              { ...inheritedStyle, fontStyle: "italic" },
+              `${key}-${i}`,
+            ),
+          )}
+        </Text>
+      );
+
+    case "u":
+      return (
+        <Text
+          key={key}
+          style={{
+            ...styles.narrativeText,
+            ...inheritedStyle,
+            textDecoration: "underline",
+          }}
+        >
+          {Array.from(el.childNodes).map((c, i) =>
+            parseHtmlNode(
+              c,
+              { ...inheritedStyle, textDecoration: "underline" },
+              `${key}-${i}`,
+            ),
+          )}
+        </Text>
+      );
+
+    case "s":
+    case "del":
+    case "strike":
+      return (
+        <Text
+          key={key}
+          style={{
+            ...styles.narrativeText,
+            ...inheritedStyle,
+            textDecoration: "line-through",
+          }}
+        >
+          {Array.from(el.childNodes).map((c, i) =>
+            parseHtmlNode(
+              c,
+              { ...inheritedStyle, textDecoration: "line-through" },
+              `${key}-${i}`,
+            ),
+          )}
+        </Text>
+      );
+
+    case "a": {
+      const href = el.getAttribute("href") ?? "";
+      return (
+        <Link
+          key={key}
+          src={href}
+          style={{
+            color: COLORS.secondary,
+            textDecoration: "underline",
+            fontSize: 8,
+          }}
+        >
+          {el.textContent ?? href}
+        </Link>
+      );
+    }
+
+    case "br":
+      return (
+        <Text key={key} style={styles.narrativeText}>
+          {"\n"}
+        </Text>
+      );
+
+    case "p":
+    case "div":
+      return (
+        <View key={key} style={{ marginBottom: 3 }}>
+          {children}
+        </View>
+      );
+
+    case "ul": {
+      const items = Array.from(el.querySelectorAll(":scope > li"));
+      return (
+        <View key={key} style={{ marginVertical: 4, paddingLeft: 4 }}>
+          {items.map((li, i) => (
+            <View key={i} style={styles.rtListItem}>
+              <Text style={[styles.rtBullet, { color: COLORS.secondary }]}>
+                ✦
+              </Text>
+              <Text style={styles.rtListText}>
+                {Array.from(li.childNodes).map((c, j) =>
+                  parseHtmlNode(c, inheritedStyle, `${key}-li${i}-${j}`),
+                )}
+              </Text>
+            </View>
+          ))}
+        </View>
+      );
+    }
+
+    case "ol": {
+      const items = Array.from(el.querySelectorAll(":scope > li"));
+      return (
+        <View key={key} style={{ marginVertical: 4, paddingLeft: 4 }}>
+          {items.map((li, i) => (
+            <View key={i} style={styles.rtListItem}>
+              <Text
+                style={[
+                  styles.rtBullet,
+                  { fontWeight: "bold", color: COLORS.primary },
+                ]}
+              >
+                {i + 1}.
+              </Text>
+              <Text style={styles.rtListText}>
+                {Array.from(li.childNodes).map((c, j) =>
+                  parseHtmlNode(c, inheritedStyle, `${key}-li${i}-${j}`),
+                )}
+              </Text>
+            </View>
+          ))}
+        </View>
+      );
+    }
+
+    case "li":
+      // li sin ul/ol padre — fallback
+      return (
+        <View key={key} style={styles.rtListItem}>
+          <Text style={styles.rtBullet}>•</Text>
+          <Text style={styles.rtListText}>{children}</Text>
+        </View>
+      );
+
+    case "blockquote":
+      return (
+        <View key={key} style={styles.rtBlockquote}>
+          <Text
+            style={{
+              ...styles.narrativeText,
+              fontStyle: "italic",
+              color: COLORS.textSecondary,
+            }}
+          >
+            {el.textContent ?? ""}
+          </Text>
+        </View>
+      );
+
+    case "pre":
+    case "code":
+      return (
+        <View
+          key={key}
+          style={{
+            backgroundColor: COLORS.surface,
+            padding: 4,
+            borderRadius: 3,
+            marginVertical: 3,
+          }}
+        >
+          <Text style={styles.rtCode}>{el.textContent ?? ""}</Text>
+        </View>
+      );
+
+    default:
+      // Cualquier otro tag: renderizar children directo
+      return <React.Fragment key={key}>{children}</React.Fragment>;
+  }
+}
+
+/**
+ * Componente NarrativeField:
+ * Recibe HTML string, lo parsea y lo renderiza como react-pdf nodes.
+ * Muestra texto plano limpio como fallback si el HTML no tiene etiquetas.
+ */
+function NarrativeField({ html }: { html: string | undefined }) {
+  if (!html) return null;
+
+  // Si no hay etiquetas HTML, renderizar como texto plano directamente
+  const hasHtmlTags = /<[a-z][\s\S]*>/i.test(html);
+  if (!hasHtmlTags) {
+    return (
+      <View style={styles.narrativeBox}>
+        <Text style={styles.narrativeText}>{html}</Text>
+      </View>
+    );
+  }
+
+  // Parsear HTML usando DOMParser (disponible en browser donde se genera el PDF)
+  let nodes: React.ReactNode[] = [];
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    nodes = Array.from(doc.body.childNodes).map((node, i) =>
+      parseHtmlNode(node, {}, String(i)),
+    );
+  } catch {
+    // Fallback: mostrar texto plano sin etiquetas
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    return (
+      <View style={styles.narrativeBox}>
+        <Text style={styles.narrativeText}>{div.textContent ?? html}</Text>
+      </View>
+    );
+  }
+
+  return <View style={styles.narrativeBox}>{nodes}</View>;
+}
 
 // ============================================================================
 // Utilidades
@@ -242,21 +486,13 @@ const formatBoolean = (val: boolean | number | undefined): string => {
   return "";
 };
 
-const splitBadges = (value: string | undefined): string[] => {
-  if (!value) return [];
-  return value
-    .split(/[,;]/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-};
-
 // ============================================================================
 // Componentes base
 // ============================================================================
 const FieldRow = ({ label, value }: { label: string; value: any }) => {
   if (value === undefined || value === null || value === "") return null;
   return (
-    <View style={styles.row}>
+    <View style={styles.row} wrap={false}>
       <Text style={styles.rowLabel}>{label}</Text>
       <Text style={styles.rowValue}>{String(value)}</Text>
     </View>
@@ -265,11 +501,14 @@ const FieldRow = ({ label, value }: { label: string; value: any }) => {
 
 const BadgeField = ({ label, value }: { label: string; value: any }) => {
   if (!value) return null;
-  const badges = splitBadges(String(value));
+  const badges = String(value)
+    .split(/[,;]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (badges.length === 0) return null;
   if (badges.length === 1) return <FieldRow label={label} value={value} />;
   return (
-    <View style={styles.row}>
+    <View style={styles.row} wrap={false}>
       <Text style={styles.rowLabel}>{label}</Text>
       <View style={styles.badgesContainer}>
         {badges.map((b, i) => (
@@ -282,9 +521,16 @@ const BadgeField = ({ label, value }: { label: string; value: any }) => {
   );
 };
 
-const Section = ({ title, children }: any) => (
+const Section = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => (
+  // wrap={false} removido — causaba páginas en blanco forzando secciones completas a nueva página
   <View style={styles.section}>
-    <View style={styles.sectionHeader}>
+    <View style={styles.sectionHeader} wrap={false}>
       <Text style={styles.sectionTitle}>{title.toUpperCase()}</Text>
     </View>
     <View style={styles.sectionBody}>{children}</View>
@@ -292,15 +538,15 @@ const Section = ({ title, children }: any) => (
 );
 
 const Subsection = ({ title }: { title: string }) => (
-  <View style={styles.subsection}>
+  <View style={styles.subsection} wrap={false}>
     <Text style={styles.subsectionTitle}>{title}</Text>
   </View>
 );
 
 const GridField = ({ label, value }: { label: string; value: any }) => {
-  if (!value && value !== 0) return null;
+  if (value === undefined || value === null || value === "") return null;
   return (
-    <View style={styles.gridItem}>
+    <View style={styles.gridItem} wrap={false}>
       <Text style={styles.gridLabel}>{label}</Text>
       <Text style={styles.gridValue}>{String(value)}</Text>
     </View>
@@ -308,11 +554,12 @@ const GridField = ({ label, value }: { label: string; value: any }) => {
 };
 
 // ============================================================================
-// Secciones temáticas (utilizando la estructura real de tu API)
+// Secciones
 // ============================================================================
 const DatosVictima = ({ data }: { data: any }) => (
-  <Section title="Datos de la víctima" >
+  <Section title="Datos de la víctima">
     <View style={styles.gridTwoCols}>
+      <GridField label="Nombre" value={data.nombre} />
       <GridField label="CURP" value={data.curp} />
       <GridField
         label="Fecha nacimiento"
@@ -358,9 +605,23 @@ const DatosVictima = ({ data }: { data: any }) => (
       <GridField label="Calle" value={data.calle} />
       <GridField label="Número exterior" value={data.num_ext} />
       <GridField label="Número interior" value={data.num_int} />
-      <GridField label="Entre calles" value={data.entre_calles} />
     </View>
-    <FieldRow label="Referencias" value={data.referencias} />
+
+    {/* ── entre_calles: campo rich text ── */}
+    {data.entre_calles && (
+      <>
+        <Subsection title="Entre calles" />
+        <NarrativeField html={data.entre_calles} />
+      </>
+    )}
+
+    {/* ── referencias: campo rich text ── */}
+    {data.referencias && (
+      <>
+        <Subsection title="Referencias" />
+        <NarrativeField html={data.referencias} />
+      </>
+    )}
 
     <Subsection title="Condiciones específicas" />
     <View style={styles.gridTwoCols}>
@@ -426,10 +687,10 @@ const DatosVictima = ({ data }: { data: any }) => (
 );
 
 const Hechos = ({ data }: { data: any }) => (
-  <Section title="Narración de los hechos" >
-    <View style={styles.narrativeBox}>
-      <Text style={styles.narrativeText}>{data.hechos}</Text>
-    </View>
+  <Section title="Narración de los hechos">
+    {/* ── hechos: campo rich text principal ── */}
+    <NarrativeField html={data.hechos} />
+
     <View style={styles.gridTwoCols}>
       <GridField label="Fecha del hecho" value={formatDate(data.fecha_hecho)} />
       <GridField label="Hora" value={data.hora_hecho} />
@@ -470,13 +731,13 @@ const Hechos = ({ data }: { data: any }) => (
     ]
       .filter(([, v]) => v)
       .map(([label, value], i) => (
-        <BadgeField key={i} label={label} value={value} />
+        <BadgeField key={i} label={label as string} value={value} />
       ))}
   </Section>
 );
 
 const Violencia = ({ data }: { data: any }) => (
-  <Section title="Clasificación de violencia" >
+  <Section title="Clasificación de violencia">
     <BadgeField
       label="Tipos de violencia"
       value={data.id_tipos_violencia_nombres}
@@ -509,7 +770,7 @@ const Violencia = ({ data }: { data: any }) => (
 );
 
 const Efectos = ({ data }: { data: any }) => (
-  <Section title="Efectos de la violencia" >
+  <Section title="Efectos de la violencia">
     <BadgeField
       label="Efectos físicos"
       value={data.id_efectos_fisicos_nombres}
@@ -579,23 +840,29 @@ const DependientesRed = ({ data }: { data: any }) => {
   if (!hasDep && !hasRed) return null;
 
   return (
-    <Section title="Red familiar y de apoyo" >
+    <Section title="Red familiar y de apoyo">
       {hasDep && (
         <>
           <Subsection title="Hijas, hijos y dependientes" />
           <View style={styles.table}>
             <View style={styles.tableHeader}>
-              <Text style={[styles.tableHeaderCell, { flex: 2 }]}>
+              {/* ++ Columna Edad añadida ++ */}
+              <Text style={[styles.tableHeaderCell, { flex: 2.5 }]}>
                 Nombre completo
               </Text>
+              <Text style={styles.tableHeaderCell}>Edad</Text>
               <Text style={styles.tableHeaderCell}>Vínculo</Text>
               <Text style={styles.tableHeaderCell}>¿En riesgo?</Text>
             </View>
             {data.dependientes.map((dep: any, idx: number) => (
               <View key={idx} style={styles.tableRow}>
-                <Text
-                  style={[styles.tableCell, { flex: 2 }]}
-                >{`${dep.nombre} ${dep.apellido_paterno} ${dep.apellido_materno}`}</Text>
+                <Text style={[styles.tableCell, { flex: 2.5 }]}>
+                  {`${dep.nombre} ${dep.apellido_paterno} ${dep.apellido_materno}`}
+                </Text>
+                {/* edad puede venir como dep.edad o dep.age */}
+                <Text style={styles.tableCell}>
+                  {dep.edad ?? dep.age ?? "—"}
+                </Text>
                 <Text style={styles.tableCell}>{dep.vinculo_nombre}</Text>
                 <Text style={styles.tableCell}>{dep.esta_riesgo_texto}</Text>
               </View>
@@ -603,22 +870,29 @@ const DependientesRed = ({ data }: { data: any }) => {
           </View>
         </>
       )}
+
       {hasRed && (
         <>
           <Subsection title="Red de apoyo" />
           <View style={styles.table}>
             <View style={styles.tableHeader}>
-              <Text style={[styles.tableHeaderCell, { flex: 2 }]}>
+              {/* ++ Columna Teléfono añadida ++ */}
+              <Text style={[styles.tableHeaderCell, { flex: 2.5 }]}>
                 Nombre completo
               </Text>
+              <Text style={styles.tableHeaderCell}>Teléfono</Text>
               <Text style={styles.tableHeaderCell}>Vínculo</Text>
               <Text style={styles.tableHeaderCell}>¿Cuenta con apoyo?</Text>
             </View>
             {data.redapoyo.map((red: any, idx: number) => (
               <View key={idx} style={styles.tableRow}>
-                <Text
-                  style={[styles.tableCell, { flex: 2 }]}
-                >{`${red.nombre} ${red.apellido_paterno} ${red.apellido_materno}`}</Text>
+                <Text style={[styles.tableCell, { flex: 2.5 }]}>
+                  {`${red.nombre} ${red.apellido_paterno} ${red.apellido_materno}`}
+                </Text>
+                {/* telefono puede venir como red.telefono o red.phone */}
+                <Text style={styles.tableCell}>
+                  {red.telefono ?? red.phone ?? "—"}
+                </Text>
                 <Text style={styles.tableCell}>{red.vinculo_nombre}</Text>
                 <Text style={styles.tableCell}>{red.cuenta_apoyo_texto}</Text>
               </View>
@@ -631,7 +905,7 @@ const DependientesRed = ({ data }: { data: any }) => {
 };
 
 const Agresor = ({ data }: { data: any }) => (
-  <Section title="Persona agresora" >
+  <Section title="Persona agresora">
     <FieldRow
       label="¿Conoce al agresor?"
       value={formatBoolean(data.conoce_agresor)}
@@ -688,7 +962,6 @@ const Agresor = ({ data }: { data: any }) => (
             value={data.id_drogas_agresor_nombres}
           />
         )}
-
         <Subsection title="Domicilio del agresor" />
         <View style={styles.gridTwoCols}>
           <GridField label="Código postal" value={data.codigo_postal_agresor} />
@@ -705,7 +978,7 @@ const Agresor = ({ data }: { data: any }) => (
 );
 
 const RutaAtencion = ({ data }: { data: any }) => (
-  <Section title="Ruta de atención" >
+  <Section title="Ruta de atención">
     <BadgeField
       label="Servicios de Trabajo Social"
       value={data.id_servicios_trabajo_social_nombres}
@@ -718,11 +991,19 @@ const RutaAtencion = ({ data }: { data: any }) => (
       label="Servicios Psicológicos"
       value={data.id_servicios_psicologicos_nombres}
     />
+
+    {/* ── comentarios_ruta_antencion: campo rich text ── */}
+    {data.comentarios_ruta_antencion && (
+      <>
+        <Subsection title="Comentarios" />
+        <NarrativeField html={data.comentarios_ruta_antencion} />
+      </>
+    )}
   </Section>
 );
 
 const Canalizacion = ({ data }: { data: any }) => (
-  <Section title="Canalización" >
+  <Section title="Canalización">
     <View style={styles.gridTwoCols}>
       <GridField
         label="Dependencia / Institución"
@@ -738,7 +1019,14 @@ const Canalizacion = ({ data }: { data: any }) => (
       />
       <GridField label="Responsable" value={data.responsable} />
     </View>
-    <FieldRow label="Observaciones" value={data.observaciones} />
+
+    {/* ── observaciones: campo rich text ── */}
+    {data.observaciones && (
+      <>
+        <Subsection title="Observaciones" />
+        <NarrativeField html={data.observaciones} />
+      </>
+    )}
   </Section>
 );
 
@@ -752,17 +1040,7 @@ interface InterviewCaratulaProps {
 export const InterviewCaratula = ({ data }: InterviewCaratulaProps) => {
   const resolvedData = useMemo(() => data ?? {}, [data]);
 
-  if (!resolvedData || Object.keys(resolvedData).length === 0) {
-    return (
-      <Document>
-        <Page size="A4" style={styles.page}>
-          <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>
-            Sin datos disponibles
-          </Text>
-        </Page>
-      </Document>
-    );
-  }
+  const isEmpty = !resolvedData || Object.keys(resolvedData).length === 0;
 
   const generatedDate = new Date().toLocaleDateString("es-MX", {
     day: "2-digit",
@@ -773,7 +1051,6 @@ export const InterviewCaratula = ({ data }: InterviewCaratulaProps) => {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* Cabecera */}
         <View style={styles.header}>
           <View style={styles.titleBlock}>
             <Text style={styles.mainTitle}>CARÁTULA DE ENTREVISTA</Text>
@@ -787,17 +1064,26 @@ export const InterviewCaratula = ({ data }: InterviewCaratulaProps) => {
           </View>
         </View>
 
-        {/* Cuerpo principal */}
-        <DatosVictima data={resolvedData} />
-        <Hechos data={resolvedData} />
-        <Violencia data={resolvedData} />
-        <Efectos data={resolvedData} />
-        <DependientesRed data={resolvedData} />
-        <Agresor data={resolvedData} />
-        <RutaAtencion data={resolvedData} />
-        <Canalizacion data={resolvedData} />
+        {isEmpty ? (
+          <Text
+            style={{ fontSize: 12, color: COLORS.textSecondary, marginTop: 20 }}
+          >
+            Sin datos disponibles
+          </Text>
+        ) : (
+          <>
+            <DatosVictima data={resolvedData} />
+            <Hechos data={resolvedData} />
+            <Violencia data={resolvedData} />
+            <Efectos data={resolvedData} />
+            <DependientesRed data={resolvedData} />
+            <Agresor data={resolvedData} />
+            <RutaAtencion data={resolvedData} />
+            <Canalizacion data={resolvedData} />
+          </>
+        )}
 
-        {/* Pie de página */}
+        {/* footer fixed — siempre al fondo, no genera página extra */}
         <View style={styles.footer} fixed>
           <Text>Generado el {generatedDate}</Text>
           <Text

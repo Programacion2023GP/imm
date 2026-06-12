@@ -1,8 +1,8 @@
 import React from "react";
 import { useFormikContext } from "formik";
 import { RowComponent } from "../responsive/Responsive";
-import type { FieldItem } from "./compositeCrud";
 import { theme } from "../../../config/themes";
+import { FieldItem } from "./types";
 
 interface BoxFormProps {
   sections: { title: string; fields: FieldItem[] }[];

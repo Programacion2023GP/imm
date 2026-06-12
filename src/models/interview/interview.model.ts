@@ -7,6 +7,7 @@ export interface Dependientes {
   apellido_paterno: string;
   apellido_materno: string;
   id_vinculo: number;
+  edad:number,
   esta_riesgo: boolean;
 }
 export interface RedApoyo {
@@ -15,6 +16,7 @@ export interface RedApoyo {
   apellido_materno: string;
   id_vinculo: number;
   cuenta_apoyo: boolean;
+  telefono:number,
 }
 
 export interface InterviewForm {
@@ -42,8 +44,10 @@ export interface InterviewForm {
 
   // clasificacion de violencia
   id_tipos_violencia: number[];
+
   especifique_tipo_violencia: string;
   id_ambitos_violencia: number[];
+  especifique_ambito_violencia: string;
   victima_delicuencia_organizada: boolean;
   relacion_denuncia: boolean;
   relacionado_orientacion_indetidad_genero: boolean;
@@ -67,7 +71,7 @@ export interface InterviewForm {
   especifique_aerea_anatomica_lesionada: string;
 
   // 5 DATOS DE LA VICTIMA
-  nombre:string,
+  nombre: string;
   vive_extrajero: boolean;
   fecha_nacimiento: string;
   edad: number;
@@ -151,6 +155,7 @@ export interface InterviewForm {
   id_servicios_trabajo_social: number[];
   id_servicios_juridicos: number[];
   id_servicios_psicologicos: number[];
+  comentarios_ruta_antencion:string,
 
   //CANALIZACION
   id_dependencia: number;
@@ -161,7 +166,8 @@ export interface InterviewForm {
   observaciones: string;
 }
 export interface InterviewTable extends InterviewForm {
-  creado_por:string,
+  creado_por: string;
+  created_at:string,
 }
 
 export interface CatalogoItem {

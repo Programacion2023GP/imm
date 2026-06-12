@@ -1,7 +1,7 @@
 // models/genericmodels.model.ts
 // ====================================================================
-// CONFIGURACIÓN CRUD GENÉRICA CON SOPORTE MÓVIL
-// GENERIC CRUD CONFIGURATION WITH MOBILE SUPPORT
+// CONFIGURACIÓN CRUD GENÉRICA CON SOPORTE MÓVIL Y COMPONENTES CUSTOM
+// GENERIC CRUD CONFIGURATION WITH MOBILE AND CUSTOM COMPONENTS
 // ====================================================================
 
 import * as yup from "yup";
@@ -10,7 +10,7 @@ import type { FilePreset } from "../ui/formik/FormikInputs/forminputimage";
 import type { GenericDataReturn } from "../library/reactztore/hook/usegenericdata";
 
 // ====================================================================
-// RESPONSIVE SIZES / TAMAÑOS RESPONSIVOS
+// RESPONSIVE SIZES
 // ====================================================================
 
 export type ResponsiveSizes = {
@@ -28,7 +28,7 @@ export type ResponsiveSizes = {
 export type CaseTransform = "uppercase" | "lowercase" | "none";
 
 // ====================================================================
-// FIELD ACTIONS - DEFINIDO ANTES DE FieldCallback
+// FIELD ACTIONS
 // ====================================================================
 
 export type FieldActions<TFormValues> = {
@@ -48,7 +48,7 @@ export type FieldActions<TFormValues> = {
 };
 
 // ====================================================================
-// FIELD CALLBACK - AHORA PUEDE USAR FieldActions
+// FIELD CALLBACK
 // ====================================================================
 
 export type FieldCallback<TFormValues = any, THooks = any> = (
@@ -65,7 +65,7 @@ export type FieldCallback<TFormValues = any, THooks = any> = (
 ) => void;
 
 // ====================================================================
-// VALIDATION CONTEXT (con hooks)
+// VALIDATION CONTEXT
 // ====================================================================
 
 export type ValidationContext<TFormValues = any, THooks = any> = {
@@ -123,7 +123,7 @@ export interface ArrayFieldItem {
 }
 
 // ====================================================================
-// FIELD CONFIGS (todas usan ValidationContext correctamente)
+// FIELD CONFIGS (todos los tipos)
 // ====================================================================
 
 export type TextConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
@@ -330,7 +330,7 @@ export type SliderConfig<TFormValues = any, THooks = any> = BaseFieldConfig<
 };
 
 // ====================================================================
-// HELPERS / UTILIDADES
+// HELPERS
 // ====================================================================
 
 export type NestedKeys<T> = T extends object
@@ -346,12 +346,12 @@ export type NestedKeys<T> = T extends object
   : never;
 
 // ====================================================================
-// TABLE COLUMN CONFIG
+// TABLE COLUMN CONFIG (ahora con acceso a hooks en render)
 // ====================================================================
 
-export type TableColumnConfig<TTable> = {
+export type TableColumnConfig<TTable = any, THooks = any> = {
   label: string;
-  render?: (value: any, record: TTable) => React.ReactNode;
+  render?: (value: any, record: TTable, hooks?: THooks) => React.ReactNode;
   getFilterValue?: (value: any, row?: TTable) => string;
   filterType?:
     | "text"
@@ -477,7 +477,7 @@ export interface MobileConfig<T = any> {
 }
 
 // ====================================================================
-// OVERRIDES COMPONENTS
+// OVERRIDES COMPONENTS (componentes por campo individual)
 // ====================================================================
 
 export interface OverrideFieldProps {
@@ -543,7 +543,74 @@ export interface OverrideComponents {
 }
 
 // ====================================================================
-// BUILD RESULT
+// NUEVO: GLOBAL TYPE OVERRIDES (sobrescritura global por tipo)
+// ====================================================================
+
+export type GlobalTypeOverrides = {
+  text?: React.ComponentType<OverrideFieldProps>;
+  select?: React.ComponentType<OverrideSelectProps>;
+  file?: React.ComponentType<OverrideFieldProps>;
+  color?: React.ComponentType<OverrideFieldProps>;
+  password?: React.ComponentType<OverrideFieldProps>;
+  textarea?: React.ComponentType<OverrideFieldProps>;
+  number?: React.ComponentType<OverrideFieldProps>;
+  radio?: React.ComponentType<OverrideFieldProps>;
+  toggle?: React.ComponentType<OverrideFieldProps>;
+  checkbox?: React.ComponentType<OverrideFieldProps>;
+  date?: React.ComponentType<OverrideFieldProps>;
+  daterange?: React.ComponentType<OverrideFieldProps>;
+  numberdirect?: React.ComponentType<OverrideFieldProps>;
+  slider?: React.ComponentType<OverrideFieldProps>;
+};
+
+// ====================================================================
+// NUEVO: REGISTERED COMPONENTS (componentes personalizados reutilizables)
+// ====================================================================
+
+export type RegisteredComponentProps<TForm = any, THooks = any> = {
+  hooks: THooks;
+  formik?: any;
+  actions?: FieldActions<TForm>;
+  responsive?: ResponsiveSizes;
+  [key: string]: any;
+};
+
+export type RegisteredComponentConfig<TForm = any, THooks = any> = {
+  component?: React.ComponentType<RegisteredComponentProps<TForm, THooks>>;
+  node?: React.ReactNode; // 👈 nueva
+  defaultResponsive?: ResponsiveSizes;
+};
+
+// ====================================================================
+// NUEVO: LAYOUT ITEM (permite componentes registrados)
+// ====================================================================
+
+export type LayoutItem<TForm = any, THooks = any> =
+  | (NestedKeys<TForm> & string) // campo normal
+  | {
+      component: string; // nombre de componente registrado
+      responsive?: ResponsiveSizes;
+      props?: Record<string, any>;
+    }
+  | BoxGroup<TForm>;
+
+// ====================================================================
+// NUEVO: UI RENDER PROP (control total de la página)
+// ====================================================================
+
+export type UIRenderProp<TForm = any, TTable = any, THooks = any> = (params: {
+  Form: React.ComponentType<{}>;
+  Table: React.ComponentType<{}>;
+  components: Record<
+    string,
+    React.ComponentType<RegisteredComponentProps<TForm, THooks>>
+  >;
+  hooks: GenericDataReturn<TForm>;
+  formik: any;
+}) => React.ReactNode;
+
+// ====================================================================
+// BUILD RESULT (actualizado con las nuevas capacidades)
 // ====================================================================
 
 export type BuildResult<TForm = any, TTable = any, THooks = any> = {
@@ -577,28 +644,40 @@ export type BuildResult<TForm = any, TTable = any, THooks = any> = {
   dateRangeConfigs: Record<string, DateRangeConfig<TForm, THooks>>;
   numberDirectConfigs: Record<string, NumberDirectConfig<TForm, THooks>>;
   sliderConfigs: Record<string, SliderConfig<TForm, THooks>>;
-  tableColumns: Record<string, TableColumnConfig<TTable>>;
-  tableConfig: Record<string, TableColumnConfig<TTable>>;
+  tableColumns: Record<
+    keyof TTable & string,
+    TableColumnConfig<TTable, THooks>
+  >;
+  tableConfig: Record<string, TableColumnConfig<TTable, THooks>>;
   tableActions?: TableActionsConfig<TTable>;
   tableHeader?: TableHeaderConfig;
   uiLayout: {
     mode: "stepper" | "box";
     sections: readonly string[];
-    fieldsPerSection: Record<string, any>;
+    fieldsPerSection: Record<string, LayoutItem<TForm, THooks>[]>;
   };
   validationSchema: (hooks: THooks) => yup.ObjectSchema<any>;
   overrides: OverrideComponents;
-  render: ((ctx: RenderContext<TForm, TTable>) => React.ReactNode) | null;
+  render:
+    | ((ctx: RenderContext<TForm, TTable, THooks>) => React.ReactNode)
+    | null;
   getOptionLabel: (field: string, option: any) => string;
   getOptionValue: (field: string, option: any) => any;
   mobileConfig?: MobileConfig<TTable>;
+  // NUEVOS
+  globalTypeOverrides: GlobalTypeOverrides;
+  registeredComponents: Record<
+    string,
+    RegisteredComponentConfig<TForm, THooks>
+  >;
+  uiRender?: UIRenderProp<TForm, TTable, THooks>;
 };
 
 // ====================================================================
-// RENDER CONTEXT
+// RENDER CONTEXT (actualizado con componentes registrados)
 // ====================================================================
 
-export type RenderContext<TForm, TTable> = {
+export type RenderContext<TForm = any, TTable = any, THooks = any> = {
   fields: {
     text: Array<{
       name: string;
@@ -691,15 +770,17 @@ export type RenderContext<TForm, TTable> = {
   Table?: React.ComponentType<{}>;
   overrides: OverrideComponents;
   hook: GenericDataReturn<TForm>;
-  modal: {
-    open: boolean;
-    close: () => void;
-    openWith: (data?: TForm) => void;
-  };
+  modal: { open: boolean; close: () => void; openWith: (data?: TForm) => void };
+  // NUEVO: componentes registrados disponibles en el contexto de renderizado
+  registeredComponents: Record<
+    string,
+    React.ComponentType<RegisteredComponentProps<TForm, THooks>>
+  >;
+  globalTypeOverrides: GlobalTypeOverrides;
 };
 
 // ====================================================================
-// CONFIGURATION BUILDER
+// CONFIGURATION BUILDER (implementación completa)
 // ====================================================================
 
 export const ConfigCrud = <
@@ -724,7 +805,7 @@ export const ConfigCrud = <
   let sliderFieldsList: (NestedKeys<TForm> & string)[] = [];
   let arrayFieldsList: (NestedKeys<TForm> & string)[] = [];
 
-  // Configuraciones
+  // Configuraciones de campos
   let arrayConfigs: Record<string, ArrayFieldConfig<TForm, THooks>> = {};
   let textConfigs: Record<string, TextConfig<TForm, THooks>> = {};
   let selectConfigs: Record<string, SelectConfig<TForm, THooks>> = {};
@@ -744,17 +825,27 @@ export const ConfigCrud = <
   > = {};
   let sliderConfigs: Record<string, SliderConfig<TForm, THooks>> = {};
 
-  let tableConfig: Record<string, TableColumnConfig<TTable>> = {};
+  // Configuraciones de tabla y UI
+  let tableConfig: Record<string, TableColumnConfig<TTable, THooks>> = {};
   let uiLayoutConfig: any = null;
   let tableActionsConfig: TableActionsConfig<TTable> | undefined = undefined;
   let tableHeaderConfig: TableHeaderConfig | undefined = undefined;
   let mobileConfigValue: MobileConfig<TTable> | undefined = undefined;
   let overrideComponents: OverrideComponents = {};
   let renderFunction:
-    | ((ctx: RenderContext<TForm, TTable>) => React.ReactNode)
+    | ((ctx: RenderContext<TForm, TTable, THooks>) => React.ReactNode)
     | null = null;
 
-  // Función que construye el esquema de validación (ahora devuelve una función que acepta hooks)
+  // NUEVOS: global type overrides y componentes registrados
+  let globalTypeOverrides: GlobalTypeOverrides = {};
+  let registeredComponents: Record<
+    string,
+    RegisteredComponentConfig<TForm, THooks>
+  > = {};
+  let uiRenderFunction: UIRenderProp<TForm, TTable, THooks> | undefined =
+    undefined;
+
+  // Función que construye el esquema de validación
   const buildValidationSchema = () => {
     return (hooks: THooks): yup.ObjectSchema<any> => {
       const schema: Record<string, yup.Schema<unknown>> = {};
@@ -788,13 +879,6 @@ export const ConfigCrud = <
       addValidations(numberDirectConfigs);
       addValidations(sliderConfigs);
       addValidations(arrayConfigs);
-
-      // Base para arrays sin validación explícita
-      Object.entries(arrayConfigs).forEach(([field]) => {
-        if (!schema[field]) {
-          schema[field] = yup.array().of(yup.mixed());
-        }
-      });
 
       return yup.object().shape(schema);
     };
@@ -1005,7 +1089,9 @@ export const ConfigCrud = <
           return methods;
         },
         tableColumns: (
-          newConfig: Partial<Record<keyof TTable, TableColumnConfig<TTable>>>,
+          newConfig: Partial<
+            Record<keyof TTable, TableColumnConfig<TTable, THooks>>
+          >,
         ) => {
           tableConfig = { ...tableConfig, ...newConfig };
           return methods;
@@ -1034,9 +1120,7 @@ export const ConfigCrud = <
           ) =>
           <
             TFieldsPerSection extends {
-              [K in TNames[number]]:
-                | (NestedKeys<TForm> & string)[]
-                | BoxGroup<TForm>[];
+              [K in TNames[number]]: LayoutItem<TForm, THooks>[];
             },
           >(
             fieldsPerSection: TFieldsPerSection,
@@ -1070,8 +1154,36 @@ export const ConfigCrud = <
           overrideComponents = { ...overrideComponents, ...overrides };
           return methods;
         },
+        // NUEVO: Sobrescritura global por tipo
+        overrideGlobalType: <K extends keyof GlobalTypeOverrides>(
+          type: K,
+          component: GlobalTypeOverrides[K],
+        ) => {
+          globalTypeOverrides = { ...globalTypeOverrides, [type]: component };
+          return methods;
+        },
+        // NUEVO: Registrar componente personalizado reutilizable
+        registerComponent: <TName extends string>(
+          name: TName,
+          config:
+            | {
+                component: React.ComponentType<
+                  RegisteredComponentProps<TForm, THooks>
+                >;
+                defaultResponsive?: ResponsiveSizes;
+              }
+            | { node: React.ReactNode; defaultResponsive?: ResponsiveSizes },
+        ) => {
+          registeredComponents = { ...registeredComponents, [name]: config };
+          return methods;
+        },
+        // NUEVO: Control total de la UI (reemplaza el render por defecto)
+        ui: (renderProp: UIRenderProp<TForm, TTable, THooks>) => {
+          uiRenderFunction = renderProp;
+          return methods;
+        },
         render: (
-          fn: (ctx: RenderContext<TForm, TTable>) => React.ReactNode,
+          fn: (ctx: RenderContext<TForm, TTable, THooks>) => React.ReactNode,
         ) => {
           renderFunction = fn;
           return methods;
@@ -1126,6 +1238,10 @@ export const ConfigCrud = <
           },
           overrides: overrideComponents,
           render: renderFunction,
+          // NUEVOS
+          globalTypeOverrides,
+          registeredComponents,
+          uiRender: uiRenderFunction,
         }),
       };
       return methods;

@@ -142,11 +142,7 @@ const codigoPostalRegex = /^\d{5}$/;
 // ============================================================================
 // CONFIGURACIÓN PRINCIPAL DEL CRUD
 // ============================================================================
-export const interviewBuilderCrud = ConfigCrud<
-  InterviewForm,
-  InterviewTable,
-  Hooks
->()
+export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Hooks>()
   // ==========================================================================
   // 1. DECLARACIÓN DE CAMPOS POR TIPO
   // ==========================================================================
@@ -156,6 +152,7 @@ export const interviewBuilderCrud = ConfigCrud<
       "curp",
       "especifica_domicilio",
       "especifique_tipo_violencia",
+      "especifique_ambito_violencia",
       "especifique_efecto_fisico",
       "especifique_consecuencia_sexual",
       "especifique_efecto_psicologico",
@@ -178,7 +175,13 @@ export const interviewBuilderCrud = ConfigCrud<
       "especifica_dependencia",
       "hora_hecho",
     ],
-    textarea: ["hechos", "entre_calles", "referencias", "observaciones"],
+    textarea: [
+      "hechos",
+      "entre_calles",
+      "referencias",
+      "observaciones",
+      "comentarios_ruta_antencion",
+    ],
     number: [
       "edad",
       "telefono",
@@ -353,7 +356,6 @@ export const interviewBuilderCrud = ConfigCrud<
       },
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
-     
     },
     num_ext_agresor: {
       label: "Número exterior del agresor",
@@ -395,7 +397,6 @@ export const interviewBuilderCrud = ConfigCrud<
     fecha_canalizacion: {
       label: "Fecha de canalización",
       responsive: ResponsiveSelectAndDate,
-     
     },
   })
 
@@ -408,40 +409,51 @@ export const interviewBuilderCrud = ConfigCrud<
       caseTransform: "uppercase",
       placeholder: "CURP (18 caracteres)",
       uppercase: true,
-      validation: ({ yup, hooks }) =>
-        yup
-          .string()
-          .length(18, "La CURP debe tener exactamente 18 caracteres")
-          .matches(
-            /^[A-Z]{4}\d{6}[HM][A-Z]{5}[0-9A-Z]{2}$/,
-            "Formato de CURP inválido. Ejemplo: HEAF880101HDFRRN09",
-          )
-          .test(
-            "curp-unica",
-            "Esta CURP ya está registrada en el sistema",
-            async (value, context) => {
-              if (!value) return true;
+      validation: ({ yup, hooks }) => {
+      // Cache para promesas pendientes y timer
+      let timeoutId: NodeJS.Timeout | null = null;
+      let lastPromise: Promise<boolean> | null = null;
 
-              try {
-                // Obtener todas las entrevistas
-                const entrevistas = hooks.UseInterview.dataAll;
+      return yup
+        .string()
+        .length(18, "La CURP debe tener exactamente 18 caracteres")
+        .matches(
+          /^[A-Z]{4}\d{6}[HM][A-Z]{5}[0-9A-Z]{2}$/,
+          "Formato de CURP inválido. Ejemplo: HEAF880101HDFRRN09",
+        )
+        .test(
+          "curp-unica",
+          "Esta CURP ya está registrada en el sistema",
+          async (value, context) => {
+            if (!value) return true;
+            const currentId = context.parent?.id || 0;
+            if (currentId) {
+                return true
+            }
+              // Si hay un timer anterior, lo cancelamos
+            if (timeoutId) clearTimeout(timeoutId);
 
-                // Obtener el ID actual (si estamos editando)
-                const currentId = context.parent?.id || 0;
-                // Buscar si existe otra entrevista con la misma CURP
-                const existe = entrevistas.some(
-                  (item: any) => item.curp === value && currentId == 0,
-                );
-
-                return !existe;
-              } catch (error) {
-                console.error("Error verificando CURP:", error);
-                return true;
-              }
-            },
-          )
-          .required("La CURP es requerida"),
+            // Devolvemos una promesa que se resolverá después del debounce
+            return new Promise<boolean>((resolve, reject) => {
+              timeoutId = setTimeout(async () => {
+                try {
+                  // Obtener todas las entrevistas (puedes usar un método específico)
+                  const entrevistas = hooks.UseInterview.items || await hooks.UseInterview.DataNorepeat() ;
+                  const existe = entrevistas.some(
+                    (item: any) => item.curp === value && item.id !== currentId
+                  );
+                  resolve(!existe);
+                } catch (error) {
+                  console.error("Error verificando CURP:", error);
+                  resolve(true); // En caso de error, permitir
+                }
+              }, 500); // Espera 500ms después de la última pulsación
+            });
+          },
+        )
+        .required("La CURP es requerida");
     },
+  },
     hora_hecho: {
       label: "Hora del hecho",
       type: "time",
@@ -467,6 +479,22 @@ export const interviewBuilderCrud = ConfigCrud<
             schema
               .required("Especifique el tipo de violencia")
               .min(3, "Debe describir el tipo de violencia"),
+          otherwise: (schema) => schema.notRequired(),
+        }),
+    },
+    especifique_ambito_violencia: {
+      label: "Especifique ambito de violencia",
+      placeholder: "Describa el ambito de violencia...",
+      caseTransform: "uppercase",
+      uppercase: true,
+      hidden: (values) => !values.id_ambitos_violencia?.includes(9),
+      validation: ({ yup }) =>
+        yup.string().when("id_ambitos_violencia", {
+          is: (val: number[]) => val?.includes(9),
+          then: (schema) =>
+            schema
+              .required("Especifique el ambito de violencia")
+              .min(3, "Debe describir el ambito de violencia"),
           otherwise: (schema) => schema.notRequired(),
         }),
     },
@@ -556,7 +584,6 @@ export const interviewBuilderCrud = ConfigCrud<
     correo: {
       label: "Correo electrónico",
       responsive: ResponsiveSelectAndDate,
-    
     },
     localidad: {
       label: "Localidad",
@@ -607,21 +634,18 @@ export const interviewBuilderCrud = ConfigCrud<
       responsive: ResponsiveSelectAndDate,
       uppercase: true,
       hidden: (values) => !values.conoce_agresor,
-     
     },
     estado_agresor: {
       label: "Estado del agresor",
       disabled: true,
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
-     
     },
     municipio_agresor: {
       label: "Municipio del agresor",
       disabled: true,
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
-      
     },
     zona_agresor: {
       label: "Zona del agresor",
@@ -633,7 +657,6 @@ export const interviewBuilderCrud = ConfigCrud<
       label: "Responsable",
       responsive: ResponsiveSelectAndDate,
       uppercase: true,
-     
     },
     especifica_dependencia: {
       label: "Especifica la dependencia",
@@ -671,6 +694,9 @@ export const interviewBuilderCrud = ConfigCrud<
     observaciones: {
       label: "Observaciones",
       uppercase: true,
+    },
+    comentarios_ruta_antencion: {
+      label: "Comentarios",
     },
   })
 
@@ -917,6 +943,7 @@ export const interviewBuilderCrud = ConfigCrud<
       keyId: "id",
       keyLabel: "nombre",
       multiple: true,
+
       selectOptionsHook: () => UseViolenceAerea().items,
       refreshActionHook: () => UseViolenceAerea().refresh,
       loadingHook: () => UseViolenceAerea().loading,
@@ -1016,7 +1043,6 @@ export const interviewBuilderCrud = ConfigCrud<
       refreshActionHook: () => UseSexualOrientationData().refresh,
       loadingHook: () => UseSexualOrientationData().loading,
       responsive: ResponsiveSelectAndDate,
-       
     },
     id_identidad_genero: {
       label: "Identidad de género",
@@ -1026,7 +1052,6 @@ export const interviewBuilderCrud = ConfigCrud<
       refreshActionHook: () => UseGenderIndentityData().refresh,
       loadingHook: () => UseGenderIndentityData().loading,
       responsive: ResponsiveSelectAndDate,
-    
     },
     id_estado_civil: {
       label: "Estado civil",
@@ -1144,7 +1169,6 @@ export const interviewBuilderCrud = ConfigCrud<
       loadingHook: () => UseGenderIndentityData().loading,
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
-    
     },
     id_orientacion_sexual_agresor: {
       label: "Orientación sexual del agresor",
@@ -1155,7 +1179,6 @@ export const interviewBuilderCrud = ConfigCrud<
       loadingHook: () => UseSexualOrientationData().loading,
       responsive: ResponsiveSelectAndDate,
       hidden: (values) => !values.conoce_agresor,
-      
     },
     colonia_agresor: {
       label: "Colonia del agresor",
@@ -1281,7 +1304,6 @@ export const interviewBuilderCrud = ConfigCrud<
       selectOptionsHook: () => UseLegalServiceData().items,
       refreshActionHook: () => UseLegalServiceData().refresh,
       loadingHook: () => UseLegalServiceData().loading,
-  
     },
     id_servicios_psicologicos: {
       label: "Servicios Psicológicos",
@@ -1291,7 +1313,6 @@ export const interviewBuilderCrud = ConfigCrud<
       selectOptionsHook: () => UsePsYchologicalServicesData().items,
       refreshActionHook: () => UsePsYchologicalServicesData().refresh,
       loadingHook: () => UsePsYchologicalServicesData().loading,
-      
     },
     id_dependencia: {
       label: "Dependencia / Institución",
@@ -1300,7 +1321,6 @@ export const interviewBuilderCrud = ConfigCrud<
       selectOptionsHook: () => UseDependencesData().items,
       refreshActionHook: () => UseDependencesData().refresh,
       loadingHook: () => UseDependencesData().loading,
-     
     },
     id_canalizacion: {
       label: "Tipo de Canalización",
@@ -1309,7 +1329,6 @@ export const interviewBuilderCrud = ConfigCrud<
       selectOptionsHook: () => UseCanalizationData().items,
       refreshActionHook: () => UseCanalizationData().refresh,
       loadingHook: () => UseCanalizationData().loading,
-      
     },
   })
 
@@ -1501,6 +1520,12 @@ export const interviewBuilderCrud = ConfigCrud<
           type: "text",
         },
         {
+          name: "edad",
+          label: "Edad",
+          type: "number",
+        },
+
+        {
           name: "id_vinculo",
           label: "Vínculo",
           type: "select",
@@ -1510,6 +1535,7 @@ export const interviewBuilderCrud = ConfigCrud<
           refreshActionHook: () => UseRelationShipData().refresh,
           loadingHook: () => UseRelationShipData().loading,
         },
+
         {
           name: "esta_riesgo",
           label: "¿Está en riesgo?",
@@ -1533,6 +1559,11 @@ export const interviewBuilderCrud = ConfigCrud<
         {
           name: "apellido_materno",
           label: "Apellido Materno",
+          type: "text",
+        },
+        {
+          name: "telefono",
+          label: "Telefono",
           type: "text",
         },
         {
@@ -1604,6 +1635,7 @@ export const interviewBuilderCrud = ConfigCrud<
           "id_tipos_violencia",
           "especifique_tipo_violencia",
           "id_ambitos_violencia",
+          "especifique_ambito_violencia",
           "victima_delicuencia_organizada",
           "relacion_denuncia",
           "relacionado_orientacion_indetidad_genero",
@@ -1755,6 +1787,7 @@ export const interviewBuilderCrud = ConfigCrud<
       "id_servicios_trabajo_social",
       "id_servicios_juridicos",
       "id_servicios_psicologicos",
+      "comentarios_ruta_antencion",
     ],
 
     Canalización: [
@@ -1805,6 +1838,15 @@ export const interviewBuilderCrud = ConfigCrud<
     },
     creado_por: {
       label: "Registrado",
+    },
+    created_at: {
+      label: "Fecha de creación",
+      filterType: "datetime-local",
+      render: (v) => {
+        return (
+          <>{formatDatetime(v, true, DateFormat.DD_DE_MMMM_DE_YYYY_H_MM_a)}</>
+        );
+      },
     },
   })
   .tableActions<Hooks>({

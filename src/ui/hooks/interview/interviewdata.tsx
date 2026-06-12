@@ -47,6 +47,7 @@ export interface Methods {
   getLoby: (string: "psicologo" | "juridico") => void;
   getAllData: () => void;
   getPdf: (id: number) => void;
+  DataNorepeat: () => Promise<InterviewTable[]>;
 }
 
 export type InterviewDataReturn = GenericDataReturn<
@@ -59,20 +60,19 @@ export type InterviewDataReturn = GenericDataReturn<
 // ─── VALORES INICIALES POR PASO ──────────────────────────────────────────────
 
 // PASO 1: APERTURA DEL CASO
-const aperturaInicial = {
+
+
+// ─── FORMULARIO COMPLETO ─────────────────────────────────────────────────────
+export const initialInterviewForm: InterviewForm = {
   id: 0,
   curp: "",
-};
-
-// PASO 2: NARRACIÓN DE LOS HECHOS
-const narracionInicial = {
   hechos: "",
-  id_espacio_digital: [] as number[],
-  id_espacio_particular: [] as number[],
-  id_espacio_publico: [] as number[],
-  id_transporte_foraneo: [] as number[],
-  id_transporte_urbano: [] as number[],
-  id_transporte_privado: [] as number[],
+  id_espacio_digital: [],
+  id_espacio_particular: [],
+  id_espacio_publico: [],
+  id_transporte_foraneo: [],
+  id_transporte_urbano: [],
+  id_transporte_privado: [],
   ocurrio_domicilio_victima: false,
   especifica_domicilio: "",
   sector: "",
@@ -82,37 +82,26 @@ const narracionInicial = {
   dia_festivo: false,
   conoce_autoridad_asunto: false,
   canalizado_cabi: false,
-};
-
-// PASO 3: CLASIFICACIÓN DE LA VIOLENCIA
-const clasificacionInicial = {
-  id_tipos_violencia: [] as number[],
+  id_tipos_violencia: [],
   especifique_tipo_violencia: "",
-  id_ambitos_violencia: [] as number[],
+  id_ambitos_violencia: [],
+  especifique_ambito_violencia: "",
   victima_delicuencia_organizada: false,
   relacion_denuncia: false,
   relacionado_orientacion_indetidad_genero: false,
-};
-
-// PASO 4: EFECTOS DE LA VIOLENCIA
-const efectosInicial = {
-  id_efectos_fisicos: [] as number[],
+  id_efectos_fisicos: [],
   especifique_efecto_fisico: "",
-  id_consecuencias_sexuales: [] as number[],
+  id_consecuencias_sexuales: [],
   especifique_consecuencia_sexual: "",
-  id_efectos_psicologicos: [] as number[],
+  id_efectos_psicologicos: [],
   especifique_efecto_psicologico: "",
-  id_efectos_economicos_patrimoniales: [] as number[],
+  id_efectos_economicos_patrimoniales: [],
   especifique_economicos_patrimonial: "",
-  id_agente_lesion: [] as number[],
+  id_agente_lesion: [],
   especifique_agente_lesion: "",
-  id_aerea_anatomica_lesionada: [] as number[],
+  id_aerea_anatomica_lesionada: [],
   especifique_aerea_anatomica_lesionada: "",
-};
-
-// PASO 5: DATOS DE LA VÍCTIMA
-const datosVictimaInicial = {
-  nombre:null,
+  nombre: "",
   vive_extrajero: false,
   fecha_nacimiento: "",
   edad: 0,
@@ -126,6 +115,7 @@ const datosVictimaInicial = {
   id_actividad: 0,
   realiza_mas_actividades: false,
   id_servicio_medico: 0,
+  vive_extranjero: false,
   codigo_postal: 0,
   colonia: "",
   estado: "",
@@ -137,8 +127,6 @@ const datosVictimaInicial = {
   entre_calles: "",
   referencias: "",
   zona: "",
-
-  // CONDICIONES ESPECÍFICAS
   migrante: false,
   pertenece_pueblo_indigena: false,
   autoidentificacion_etnica: "",
@@ -151,22 +139,11 @@ const datosVictimaInicial = {
   embarazo: false,
   semananas_embarazo: 0,
   tiene_dependientes: false,
-  vive_extranjero: false,
-
-  // DEPENDIENTES (ARRAY)
-  dependientes: [] as Dependientes[],
-
-  // RED DE APOYO (ARRAY)
-  redapoyo: [] as RedApoyo[],
-
-  // OTRAS CONDICIONES
+  dependientes: [],
+  redapoyo: [],
   vive_situacion_calle: false,
   tiene_adiccion: false,
   conducta: "",
-};
-
-// PASO 6: PERSONA AGRESORA
-const agresorInicial = {
   conoce_agresor: false,
   nombre_agresor: "",
   edad_agresor: "",
@@ -191,36 +168,17 @@ const agresorInicial = {
   acceso_armas_agresor: false,
   id_armas_agresor: 0,
   acceso_drogas_agresor: false,
-  id_drogas_agresor: [] as number[],
-};
-
-// PASO 7: RUTA DE ATENCIÓN
-const rutaAtencionInicial = {
-  id_servicios_trabajo_social: [] as number[],
-  id_servicios_juridicos: [] as number[],
-  id_servicios_psicologicos: [] as number[],
-};
-
-// PASO 8: CANALIZACIÓN
-const canalizacionInicial = {
+  id_drogas_agresor: [],
+  id_servicios_trabajo_social: [],
+  id_servicios_juridicos: [],
+  id_servicios_psicologicos: [],
+  comentarios_ruta_antencion: "",
   id_dependencia: 0,
   especifica_dependencia: "",
   id_canalizacion: 0,
   fecha_canalizacion: "",
   responsable: "",
-  observaciones: "",
-};
-
-// ─── FORMULARIO COMPLETO ─────────────────────────────────────────────────────
-export const initialInterviewForm: InterviewForm = {
-  ...aperturaInicial,
-  ...narracionInicial,
-  ...clasificacionInicial,
-  ...efectosInicial,
-  ...datosVictimaInicial,
-  ...agresorInicial,
-  ...rutaAtencionInicial,
-  ...canalizacionInicial,
+  observaciones: ""
 };
 
 // ─── HOOK PRINCIPAL ─────────────────────────────────────────────────────────
@@ -255,7 +213,7 @@ const UseInterview = (): InterviewDataReturn => {
 
     extension: (set, get, prefix) => ({
       handleChangeItem: (item: InterviewForm) => {
-        set({initialValues:item})
+        set({ initialValues: item });
 
         if (item.codigo_postal) {
           get().getCp(item.codigo_postal);
@@ -332,6 +290,7 @@ const UseInterview = (): InterviewDataReturn => {
             url: `${get().prefix}/${option}`,
           });
           set({ lobyData: res as unknown as Loby[], lobyLoading: false });
+          set({ lobyData: res as unknown as Loby[] });
         } catch (error) {
           set({ lobyData: [], lobyLoading: false });
         }
@@ -346,6 +305,21 @@ const UseInterview = (): InterviewDataReturn => {
           set({ lobyData: res as unknown as Loby[] });
         } catch (error) {
           set({ lobyData: [] });
+        }
+      },
+      DataNorepeat: async (): Promise<InterviewTable[]> => {
+        try {
+          const res = await get().request({
+            method: "GET",
+            formData: false,
+            url: `${get().prefix}/all`,
+          });
+          set({ dataAll: res as unknown as InterviewTable[] });
+          return res as unknown as InterviewTable[];
+        } catch (error) {
+          set({ dataAll: [] });
+                    return [] as unknown as InterviewTable[];
+
         }
       },
       getPdf: async (id: number) => {

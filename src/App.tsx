@@ -38,6 +38,9 @@ const PageInterview = lazy(
 const Psicologico = lazy(
   () => import("./ui/pages/psychological/psychological.page"),
 );
+const Legal = lazy(
+  () => import("./ui/pages/legal/legal.page"),
+);
 const PageUsers = lazy(
   () => import("./ui/pages/catalogues/users/pageusers.page"),
 );
@@ -158,17 +161,24 @@ const MainLayout = () => {
     const items: SidebarItem[] = [
       createRouteItem(
         5,
+        "ENTREVISTA",
+        "/expedienteuno",
+        <RiFileList3Line />,
+        "Entrevista (M1)",
+      ),
+      createRouteItem(
+        6,
         "PSICOLOGO",
         "/psicologo",
         <RiFileList3Line />,
         "Sesiones de registro (M2)",
       ),
       createRouteItem(
-        6,
-        "ENTREVISTA",
-        "/expedienteuno",
+        7,
+        "JURIDICO",
+        "/juridico",
         <RiFileList3Line />,
-        "Entrevista (M1)",
+        "Seguimiento de antenciones Legales/Juridicas (M3)",
       ),
       createChildrenItem(7, "CATALOGOS", "Catálogos", <FaBuildingColumns />, [
         createRouteItem(
@@ -306,18 +316,15 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const { persist, hasPermissionPrefix } = useAuthData();
 
-  console.log("🟢 [PROTECTED_ROUTE] Path:", location.pathname);
-  console.log("🟢 [PROTECTED_ROUTE] Token:", persist?.token);
-  console.log("🟢 [PROTECTED_ROUTE] Permisos:", persist.permisos);
+ 
 
   if (!persist?.token) {
-    console.log("🟢 [PROTECTED_ROUTE] No token, redirigiendo a login");
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   const routePermissions: Record<string, string> = {
     "/expedienteuno": "ENTREVISTA",
-    "/loby": "PSICOLOGO",
+    "/psicologo": "PSICOLOGO",
     "/catalogos/usuarios": "CATALOGOS",
     "/catalogos/permisos": "CATALOGOS",
     "/catalogos/roles": "CATALOGOS",
@@ -326,9 +333,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const requiredPrefix = routePermissions[location.pathname];
   if (requiredPrefix) {
     const hasAccess = hasPermissionPrefix(requiredPrefix);
-    console.log(
-      `🟢 [PROTECTED_ROUTE] Ruta ${location.pathname} requiere ${requiredPrefix}, tiene acceso: ${hasAccess}`,
-    );
+   
     if (!hasAccess) {
       return <Navigate to="/403" replace />;
     }
@@ -353,18 +358,17 @@ const DefaultRedirect = () => {
   useEffect(() => {
     const permisos = persist?.permisos;
 
-    console.log("🔵 [DEFAULT_REDIRECT] Permisos:", permisos);
-    console.log("🔵 [DEFAULT_REDIRECT] Token:", persist?.token);
+
 
     // ✅ Esperar a que los permisos estén disponibles
     if (!permisos || permisos.length === 0) {
-      console.log("🔵 [DEFAULT_REDIRECT] No hay permisos, esperando...");
+      navigate('/login')
       return;
     }
 
     const routesByPrefix = {
       ENTREVISTA: "/expedienteuno",
-      PSICOLOGO: "/loby",
+      PSICOLOGO: "/psicologo",
       CATALOGOS: "/catalogos/usuarios",
     };
 
@@ -424,6 +428,14 @@ function App() {
           element={
             <Suspense fallback={<Spinner />}>
               <Psicologico />
+            </Suspense>
+          }
+        />
+        <Route
+          path="juridico"
+          element={
+            <Suspense fallback={<Spinner />}>
+              <Legal />
             </Suspense>
           }
         />
