@@ -18,6 +18,7 @@ import { HiPlus, HiTrash } from "react-icons/hi2";
 // ------------------------------------------------------------------
 // TIPOS COMPARTIDOS
 // ------------------------------------------------------------------
+
 export type HandleModifiedFn = (
   values: Record<string, any>,
   setFieldValue: (name: string, value: any) => void,
@@ -2178,20 +2179,20 @@ export function FormikAutocomplete<TOption>(
     };
   }, [isOpen, filteredOptions.length]);
 
-  // ✅ Sincronizar searchTerm con el valor anidado
+  // ✅ FIX: Usar la forma funcional de setSearchTerm para evitar el bucle infinito.
+  // Si el padre pasa un array `options` con nueva referencia en cada render (sin useMemo),
+  // este efecto se re-ejecutaría infinitamente. La guarda `prev === next ? prev : next`
+  // evita el re-render cuando el valor no cambia realmente.
   useEffect(() => {
     if (!value && value !== 0) {
-      setSearchTerm("");
+      setSearchTerm((prev) => (prev === "" ? prev : ""));
       return;
     }
     const selected = (options as any[]).find(
       (opt) => String(opt[idKey]) === String(value),
     );
-    if (selected) {
-      setSearchTerm(String(selected[labelKey]));
-    } else {
-      setSearchTerm("");
-    }
+    const next = selected ? String(selected[labelKey]) : "";
+    setSearchTerm((prev) => (prev === next ? prev : next));
   }, [value, options, idKey, labelKey]);
 
   const handleSelect = (opt: any) => {
@@ -2381,8 +2382,9 @@ export function FormikAutocomplete<TOption>(
                 />
               ) : (
                 <svg
-                  width={14}
-                  height={14}
+                  width={25}
+                  height={25}
+                  color="black"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -2402,8 +2404,10 @@ export function FormikAutocomplete<TOption>(
               style={actionButtonStyle}
             >
               <svg
-                width={15}
-                height={15}
+               width={25}
+                  height={25}
+                                    color="black"
+
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -2455,8 +2459,9 @@ export function FormikAutocomplete<TOption>(
               }}
             >
               <svg
-                width={16}
-                height={16}
+                width={20}
+                  height={20}
+                                    color="black"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -3581,6 +3586,7 @@ useEffect(() => {
                   style={{
                     width: 13,
                     height: 13,
+                    color:"black",
                     border: `2px solid ${theme.colors.border.DEFAULT}`,
                     borderTopColor: theme.colors.primary.DEFAULT,
                     borderRadius: "50%",
@@ -3589,8 +3595,9 @@ useEffect(() => {
                 />
               ) : (
                 <svg
-                  width={14}
-                  height={14}
+                 width={25}
+                  height={25}
+                                    color="black"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -3603,8 +3610,9 @@ useEffect(() => {
           {onAdd && (
             <button type="button" onClick={handleAdd} style={actionButtonStyle}>
               <svg
-                width={15}
-                height={15}
+                width={25}
+                  height={25}
+                                    color="black"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -3645,7 +3653,7 @@ useEffect(() => {
               border: `1.5px solid ${theme.colors.border.DEFAULT}`,
               borderRadius: theme.radius.md,
               boxShadow: theme.shadows.dropdown,
-              zIndex: theme.zIndex.portal,
+              zIndex: '800',
               maxHeight: dropdownPosition.maxHeight,
               overflow: "auto",
             }}
@@ -3809,21 +3817,25 @@ export function FormikDatePicker(props: FormikDatePickerProps) {
 
   const rawValue = formik.values?.[name] ?? "";
 
-  const getSafeDate = (value: any): Date | null => {
-    if (!value) return null;
-    if (value instanceof Date && !isNaN(value.getTime())) return value;
-    if (typeof value === "string") {
-      if (value === "" || value === "null" || value === "undefined")
-        return null;
-      const parsed = new Date(value);
-      if (!isNaN(parsed.getTime())) return parsed;
+const getSafeDate = (value: any): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date && !isNaN(value.getTime())) return value;
+  if (typeof value === "string") {
+    if (value === "" || value === "null" || value === "undefined") return null;
+    // ✅ Si es formato YYYY-MM-DD, créalo localmente
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [y, m, d] = value.split("-").map(Number);
+      return new Date(y, m - 1, d);
     }
-    if (typeof value === "number" && !isNaN(value)) {
-      const parsed = new Date(value);
-      if (!isNaN(parsed.getTime())) return parsed;
-    }
-    return null;
-  };
+    const parsed = new Date(value);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+  if (typeof value === "number" && !isNaN(value)) {
+    const parsed = new Date(value);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+  return null;
+};;
 
   const selectedDate = getSafeDate(rawValue);
 
@@ -3833,20 +3845,35 @@ export function FormikDatePicker(props: FormikDatePickerProps) {
   //   }
   // }, [rawValue, selectedDate, name, formik]);
 
-  const handleChange = (date: Date | null) => {
-    let value = "";
-    if (date && !isNaN(date.getTime())) {
-      if (type === "time") {
-        value = date.toTimeString().split(" ")[0];
-      } else if (type === "datetime-local") {
-        value = date.toISOString().slice(0, 16);
-      } else {
-        value = date.toISOString().split("T")[0];
-      }
-    }
-    formik.setFieldValue(name, value);
-    onChange?.(value, formik);
-  };
+ const handleChange = (date: Date | null) => {
+   let value = "";
+   if (date && !isNaN(date.getTime())) {
+     if (type === "time") {
+       value = date.toTimeString().split(" ")[0];
+     } else if (type === "datetime-local") {
+       // Para datetime-local, también necesitas formato local sin zona horaria
+       const offset = date.getTimezoneOffset();
+       const localDate = new Date(date.getTime() - offset * 60000);
+       value = localDate.toISOString().slice(0, 16);
+     } else {
+       // ✅ Para date, month, week, usa los métodos locales
+       const year = date.getFullYear();
+       const month = String(date.getMonth() + 1).padStart(2, "0");
+       const day = String(date.getDate()).padStart(2, "0");
+       if (type === "month") {
+         value = `${year}-${month}`;
+       } else if (type === "week") {
+         // Para week, puedes usar el primer día de la semana o dejarlo como YYYY-MM-DD
+         // pero si usas react-datepicker con showWeekPicker, devuelve el inicio de semana.
+         value = `${year}-${month}-${day}`;
+       } else {
+         value = `${year}-${month}-${day}`;
+       }
+     }
+   }
+   formik.setFieldValue(name, value);
+   onChange?.(value, formik);
+ };;
 
   const handleBlur = () => {
     setIsFocused(false);
@@ -5253,7 +5280,7 @@ interface DynamicSelectFieldLocalProps {
 // ====================================================================
 // DynamicSelectFieldLocal (igual a DynamicMultipleSelectField pero para un solo valor)
 // ====================================================================
-const DynamicSelectFieldLocal = React.memo(
+export const DynamicSelectFieldLocal = React.memo(
   ({
     field,
     responsive,

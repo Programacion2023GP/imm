@@ -71,7 +71,10 @@ type ResponsiveSizes = {
 };
 
 export type CaseTransform = "uppercase" | "lowercase" | "none";
-
+export type ConfigActions = {
+  onBeforePost?: () => void;
+  onafterPost?: () => void;
+};
 export interface FieldItem {
   name: string;
   label: string;
@@ -189,6 +192,7 @@ interface PropsCrud<
   mobileQuickFilters?: MobileQuickFiltersConfig;
   enableMobileViews?: boolean;
   actionsDispatch?: THooks;
+  callbacks?: ConfigActions;
 }
 
 // ─── PortalDropdown (con theme) ────────────────────────────────────────────────
@@ -1047,43 +1051,22 @@ const DynamicSelectField = memo(
     onInput,
     caseTransform,
   }: DynamicSelectFieldProps) => {
-    const hookResult = field.selectOptionsHook!();
+    // ✅ Llamada directa al hook (válido en el cuerpo del componente)
+    const hookResult = field.selectOptionsHook?.();
     const isLoadingOptions = field.loadingHook?.() || false;
-    const [isAsync, setIsAsync] = useState(false);
-    const [asyncOptions, setAsyncOptions] = useState<any[]>([]);
 
-    useEffect(() => {
-      const checkAsync = async () => {
-        try {
-          const result = hookResult;
-          const isPromise =
-            result && typeof (result as any).then === "function";
-          setIsAsync(isPromise);
-          if (isPromise) {
-            const data = await (result as Promise<any[]>);
-            setAsyncOptions(Array.isArray(data) ? data : []);
-          } else {
-            setAsyncOptions(Array.isArray(result) ? result : []);
-          }
-        } catch (error) {
-          console.error("Error loading select options:", error);
-          setAsyncOptions([]);
-        }
-      };
-      checkAsync();
-    }, [hookResult]);
+    // Si hookResult es un array, úsalo; si no, usa selectOptions estático
+    const options = Array.isArray(hookResult)
+      ? hookResult
+      : (field.selectOptions ?? []);
 
-    const options = isAsync
-      ? asyncOptions
-      : Array.isArray(hookResult)
-        ? hookResult
-        : (field.selectOptions ?? []);
-    const refreshFn = useCallback(async (): Promise<void> => {
-      if (field.refreshActionHook) {
-        await Promise.resolve(field.refreshActionHook());
-      }
-    }, [field.refreshActionHook]);
-    const addFn = field.addActionHook?.();
+      const addFn = field.addActionHook?.();
+  const refreshRef = field.refreshActionHook?.(); // ← llamado en el cuerpo del componente
+
+  const refreshFn = useCallback(async (): Promise<void> => {
+    if (refreshRef) await refreshRef(); // ← solo ejecuta la fn ya obtenida
+  }, [refreshRef]);
+
 
     return (
       <FormikAutocomplete
@@ -1097,7 +1080,12 @@ const DynamicSelectField = memo(
         onAdd={addFn}
         loading={isLoadingOptions}
         onSelect={(selectedItem) => {
+          const idKey = field.selectIdKey || "id";
+          const idValue = selectedItem?.[idKey];
           onChange?.(selectedItem);
+          onInput?.(
+            String(selectedItem?.[field.selectLabelKey || "label"] ?? ""),
+          );
         }}
         onInput={onInput}
         caseTransform={caseTransform}
@@ -1116,50 +1104,32 @@ interface DynamicMultipleSelectFieldProps {
 
 const DynamicMultipleSelectField = memo(
   ({ field, responsive, onChange }: DynamicMultipleSelectFieldProps) => {
-    const hookResult = field.selectOptionsHook!();
+    const hookResult = field.selectOptionsHook?.();
     const isLoadingOptions = field.loadingHook?.() || false;
-    const [isAsync, setIsAsync] = useState(false);
-    const [asyncOptions, setAsyncOptions] = useState<any[]>([]);
 
-    useEffect(() => {
-      const checkAsync = async () => {
-        try {
-          const result = hookResult;
-          const isPromise =
-            result && typeof (result as any).then === "function";
-          setIsAsync(isPromise);
-          if (isPromise) {
-            const data = await (result as Promise<any[]>);
-            setAsyncOptions(Array.isArray(data) ? data : []);
-          } else {
-            setAsyncOptions(Array.isArray(result) ? result : []);
-          }
-        } catch (error) {
-          console.error("Error loading multiple select options:", error);
-          setAsyncOptions([]);
-        }
-      };
-      checkAsync();
-    }, [hookResult]);
+    const rawOptions = Array.isArray(hookResult)
+      ? hookResult
+      : (field.selectOptions ?? []);
 
-    const options = isAsync
-      ? asyncOptions
-      : Array.isArray(hookResult)
-        ? hookResult
-        : (field.selectOptions ?? []);
+    const selectOptions = useMemo(
+      () =>
+        rawOptions.map((opt) => ({
+          value: opt[field.selectIdKey || "id"],
+          label: opt[field.selectLabelKey || "name"],
+        })),
+      [rawOptions, field.selectIdKey, field.selectLabelKey],
+    );
 
-    const selectOptions = options.map((opt) => ({
-      value: opt[field.selectIdKey || "id"],
-      label: opt[field.selectLabelKey || "name"],
-    }));
-
-    const refreshFn = async () => {
-      if (field.refreshActionHook) {
-        await field.refreshActionHook();
-      }
-    };
     const addFn = field.addActionHook?.();
+  const refreshRef = field.refreshActionHook?.(); // ← en el cuerpo, no en el callback
 
+  const refreshFn = useCallback(async () => {
+    if (refreshRef) await refreshRef();
+  }, [refreshRef]);
+
+  const addFnw = useCallback(async () => {
+    if (addFn) await addFn();
+  }, [addFn]);
     return (
       <FormikMultiSelect
         name={field.name}
@@ -1171,7 +1141,7 @@ const DynamicMultipleSelectField = memo(
         placeholder={field.placeholder}
         responsive={responsive}
         onRefresh={refreshFn}
-        onAdd={addFn}
+        onAdd={addFnw}
         onChange={(newValue, formik) => {
           if (field.onChange) field.onChange(newValue, formik, undefined);
         }}
@@ -1558,19 +1528,38 @@ const StepperFormLocal = React.forwardRef<
       if (!hasErrors) onStepChange(activeStep + 1);
     }, [activeStep, currentSection, formik, onStepChange]);
 
-    const handleSave = useCallback(async () => {
-      const allFields = sections.flatMap((s) =>
-        s.items
-          .filter((i) => i.kind === "field")
-          .map((i) => (i as { kind: "field"; field: FieldItem }).field),
-      );
-      const allTouched = allFields.reduce(
-        (acc: any, f: FieldItem) => ({ ...acc, [f.name]: true }),
-        {},
-      );
-      await formik.setTouched(allTouched);
-      await formik.submitForm();
-    }, [sections, formik]);
+ const handleSave = useCallback(async () => {
+
+   // 1. Ver si formik existe
+   if (!formik) {
+     console.error("❌ formik is undefined in handleSave");
+     return;
+   }
+
+   // 2. Recolectar campos
+   const allFields = sections.flatMap((s) =>
+     s.items
+       .filter((i) => i.kind === "field")
+       .map((i) => (i as { kind: "field"; field: FieldItem }).field),
+   );
+   
+
+   // 3. Marcar como touched
+   const allTouched = allFields.reduce(
+     (acc: any, f: FieldItem) => ({ ...acc, [f.name]: true }),
+     {},
+   );
+   await formik.setTouched({ ...formik.touched, ...allTouched });
+
+   // 4. Validar y ver errores antes de submit
+   const errors = await formik.validateForm();
+   if (Object.keys(errors).length > 0) {
+     return; // Opcional: no enviar si hay errores
+   }
+
+   // 5. Ejecutar submit
+   await formik.submitForm();
+ }, [sections, formik]);
 
     useImperativeHandle(
       ref,
@@ -1988,33 +1977,73 @@ const BoxFormLocal = React.forwardRef<BoxNavHandle, BoxFormLocalProps>(
 
     const primaryColor = theme.colors.primary.DEFAULT;
     const primaryLight = theme.colors.feedback.primaryLight;
+    const borderColor = theme.colors.border.DEFAULT;
 
     return (
       <div>
-        {sections.map((section) => (
+        {sections.map((section, sectionIdx) => (
           <div
             key={section.title}
             style={{
-              border: `1px solid ${theme.colors.border.DEFAULT}`,
-              borderRadius: theme.radius.md,
+              borderRadius: theme.radius.lg,
+              border: `1px solid ${borderColor}`,
               background: theme.colors.background.card,
-              padding: "16px",
+              boxShadow: theme.shadows.sm,
+              overflow: "hidden",
               marginBottom: "24px",
             }}
           >
+            {/* Header estilo Stepper */}
             <div
               style={{
-                fontSize: theme.typography.fontSize.base,
-                fontWeight: 600,
-                color: primaryColor,
-                marginBottom: "16px",
-                borderBottom: `2px solid ${primaryLight}`,
-                paddingBottom: "6px",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                padding: "12px 20px",
+                background: `linear-gradient(135deg, ${primaryColor} 0%, ${theme.colors.primary[700] || "#7D1B35"} 100%)`,
+                borderBottom: `1px solid ${borderColor}`,
               }}
             >
-              {section.title}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "24px",
+                  height: "24px",
+                  borderRadius: "50%",
+                  background: primaryLight,
+                  color: primaryColor,
+                  fontSize: theme.typography.fontSize.xs,
+                  fontWeight: "bold",
+                  flexShrink: 0,
+                }}
+              >
+                {sectionIdx + 1}
+              </div>
+              <span
+                style={{
+                  fontSize: theme.typography.fontSize.base,
+                  fontWeight: 600,
+                  color: "#FFFFFF",
+                  letterSpacing: "0.3px",
+                }}
+              >
+                {section.title}
+              </span>
+              <span
+                style={{
+                  marginLeft: "auto",
+                  fontSize: theme.typography.fontSize.xs,
+                  color: theme.colors.text.disabled,
+                }}
+              >
+                {sectionIdx + 1} / {sections.length}
+              </span>
             </div>
-            <RowComponent>
+
+            {/* Contenido */}
+            <div className="p-5">
               {section.items.map((item, idx) => {
                 if (item.kind === "field") {
                   return renderField(item.field);
@@ -2073,9 +2102,10 @@ const BoxFormLocal = React.forwardRef<BoxNavHandle, BoxFormLocalProps>(
                 }
                 return null;
               })}
-            </RowComponent>
+            </div>
           </div>
         ))}
+
         {!hideSubmitButton && (
           <div
             style={{
@@ -2106,8 +2136,9 @@ const BoxFormLocal = React.forwardRef<BoxNavHandle, BoxFormLocalProps>(
     );
   },
 );
-
 BoxFormLocal.displayName = "BoxFormLocal";
+BoxFormLocal.displayName = "BoxFormLocal";
+
 
 // ─── RenderFormContent (adaptado) ──────────────────────────────────────────────
 interface RenderFormContentProps {
@@ -2198,6 +2229,7 @@ const CompositeCrud = <
   mobileQuickFilters,
   enableMobileViews = true,
   actionsDispatch,
+  callbacks,
 }: PropsCrud<TForm, TTable, THooks>) => {
   const [activeStep, setActiveStep] = useState(0);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -2416,6 +2448,7 @@ const CompositeCrud = <
   }, [crudConfig, manualFields]);
 
   const tableColumns = useMemo(() => {
+    // ✅ Solo usar columnas si están explícitamente definidas
     if (
       crudConfig?.tableColumns &&
       Object.keys(crudConfig.tableColumns).length > 0
@@ -2444,21 +2477,11 @@ const CompositeCrud = <
         tooltip: config.tooltip,
         conditionalStyle: config.conditionalStyle,
       }));
-      return cols;
     }
 
-    if (computedFields.length > 0) {
-      return computedFields.map((it) => ({
-        field: it.name,
-        headerName: it.headerName || it.label,
-        renderField: (value: any, row: TForm) =>
-          it.renderField ? it.renderField(value, row) : value,
-        getFilterValue: it.getFilterValue,
-      }));
-    }
-
+    // ✅ YA NO generamos automáticamente desde computedFields
     return [];
-  }, [crudConfig, computedFields]);
+  }, [crudConfig]);
 
   // ── Procesamiento de secciones con soporte para componentes y boxes ───────
   // ── Procesamiento de secciones con soporte para componentes y boxes ───────
@@ -2740,7 +2763,7 @@ const CompositeCrud = <
   ]);
 
   // ─── Custom render mode (crudConfig.render) ─────────────────────────────────
-  if (crudConfig?.render) {
+  if (crudConfig?.uiRender) {
     // ... (código del modo render, que ya tenías) ...
     // Lo omito por brevedad, pero debe estar igual que antes.
     // Asegúrate de que en el contexto se pasen registeredComponents y globalTypeOverrides.
@@ -3157,11 +3180,7 @@ const CompositeCrud = <
         {(!(isAdvanced && advancedHook.viewMode) ||
           advancedHook.viewMode === "table") && (
           <>
-            {tableColumns.length === 0 ? (
-              <></>
-            ) : hook.items?.length === 0 && tableColumns.length > 0 ? (
-              <></>
-            ) : (
+            {tableColumns.length > 0 && (
               <div className="h-[calc(85vh-60px)]">
                 <CustomTable
                   loading={hook.loading}
@@ -3174,9 +3193,8 @@ const CompositeCrud = <
                       row={row}
                       actionsConfig={crudConfig?.tableActions as any}
                       onEdit={(row) => {
-                        const formattedRow = prepareForForm(row);
                         hook.setOpen(true);
-                        hook.handleChangeItem(formattedRow);
+                        hook.handleChangeItem(prepareForForm(row));
                       }}
                       onDelete={async (row) => {
                         const confirmed = await showDeleteConfirmation();
@@ -3251,11 +3269,20 @@ const CompositeCrud = <
             <FormikForm
               initialValues={hook.initialValues as TForm}
               onSubmit={async (values) => {
+              
                 try {
+                  if (callbacks?.onafterPost) {
+
+                    await callbacks?.onafterPost();
+                  }
                   if (hasFileFields) await hook.postItem(values as TForm, true);
                   else await hook.postItem(values as TForm);
-                } catch {
-                  // Error handled by hook
+                  if (callbacks?.onBeforePost) {
+
+                    await callbacks?.onBeforePost();
+                  }
+                } catch (error) {
+                  console.error("❌ Error en onSubmit:", error);
                 }
               }}
               validationSchema={validationSchema}

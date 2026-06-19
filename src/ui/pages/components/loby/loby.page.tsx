@@ -31,7 +31,6 @@ const CompositeLoby = ({ loby }: { loby: "psicologo" | "juridico" }) => {
   }, [loby]);
 
   // ✅ Definir columns con el tipo correcto
-    
 
   return (
     <>
@@ -141,6 +140,17 @@ const CompositeLoby = ({ loby }: { loby: "psicologo" | "juridico" }) => {
                           ...initialValuesPsychological,
                           id_entrevista: row.id,
                         });
+                      } else {
+                        setExtraLegal("legal", row);
+                        setHandleLegal({
+                          ...initialValuesLegal,
+                          id_entrevista: row.id,
+                        });
+                        setExtraPsychological("psychologicalEvaluation", {
+                          ...(row as unknown as any),
+                          id_entrevista: row.id,
+                        });
+                        setModalOpenLegal(true, false);
                       }
                     }}
                   >
@@ -188,7 +198,11 @@ const CompositeLoby = ({ loby }: { loby: "psicologo" | "juridico" }) => {
                       ...initialValuesLegal,
                       id_entrevista: row.id,
                     });
-                    setModalOpenLegal();
+                    setExtraPsychological("psychologicalEvaluation", {
+                      ...(row as unknown as any),
+                      id_entrevista: row.id,
+                    });
+                    setModalOpenLegal(true, false);
                   }
                 }}
               >

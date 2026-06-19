@@ -34,7 +34,7 @@ export type GenericDataReturn<
   selectedItem: T | null;
   initialValues: T;
   meta: { page: number; total: number; limit: number };
-  setOpen: (open?: boolean) => void;
+  setOpen: (open?: boolean, reinitializedForm?: boolean) => void;
   setSelectedItem: (item: T | null) => void;
   handleChangeItem: (item: T) => void;
   setPrefix: (prefix: string) => void;
@@ -51,8 +51,8 @@ export type GenericDataReturn<
     item: T | T[],
     formData?: boolean,
     fetchAfter?: boolean,
-  ) => Promise<void>;
-  removeItemData: (item: T) => Promise<void>;
+  ) => Promise<boolean>; // void -> boolean
+  removeItemData: (item: T) => Promise<boolean>;
   request: (
     options: {
       data?: Partial<T>;
@@ -166,29 +166,25 @@ export const useGenericData = <
     return await fetchData(hooksRef.current);
   }, [fetchData]);
 
-  const postItemWrapped = useCallback(
-    async (item: T | T[], formData?: boolean, fetchAfter?: boolean) => {
-      await postItem(item, formData, fetchAfter, hooksRef.current);
-    },
-    [postItem],
-  );
+const postItemWrapped = useCallback(
+  async (item: T | T[], formData?: boolean, fetchAfter?: boolean) => {
+    return await postItem(item, formData, fetchAfter, hooksRef.current); // ← agregar return
+  },
+  [postItem],
+);
 
-  const removeItemWrapped = useCallback(
-    async (item: T) => {
-      await removeItemData(item, hooksRef.current);
-    },
-    [removeItemData],
-  );
-  const requestWrapped = useCallback(
-    async (options: any, callback: any) => {
-      console.log("📦 En requestWrapped - getData recibido:", options.getData);
-      console.log("📦 En requestWrapped - options completas:", options);
-      const result = await request(options, callback);
-      console.log("📦 En requestWrapped - después de llamar a request");
-      return result;
-    },
-    [request],
-  );
+const removeItemWrapped = useCallback(
+  async (item: T): Promise<boolean> => {
+    return await removeItemData(item, hooksRef.current);
+  },
+  [removeItemData],
+);
+const requestWrapped = useCallback(
+  async (options: any, callback: any): Promise<T | T[] | undefined> => {
+    return await request(options, callback);
+  },
+  [request],
+);
 
   // ─── Inicialización: solo depende de prefix y autoFetch ──────────────
   // Se usan refs para acceder a los valores actuales del store sin

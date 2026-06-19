@@ -35,6 +35,7 @@ const UsePsychologicalEvaluationModuleData = (): DataReturn => {
       especifique_problematica_abordada:null,
       activo:true,
       id_entrevista:0,
+      observaciones:null,
      }),
      [],
    );

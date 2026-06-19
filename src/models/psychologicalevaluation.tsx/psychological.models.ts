@@ -6,5 +6,6 @@ export interface PyschologicalEvaluation {
   id_problematica_abordada: number[];
   especifique_problematica_abordada:string,
   id_violencia_asociada: number[];
+  observaciones:string,
   activo:boolean,
 }

@@ -598,15 +598,26 @@ export type LayoutItem<TForm = any, THooks = any> =
 // NUEVO: UI RENDER PROP (control total de la página)
 // ====================================================================
 
+// models/genericmodels.model.ts
+
+// models/genericmodels.model.ts
+
 export type UIRenderProp<TForm = any, TTable = any, THooks = any> = (params: {
   Form: React.ComponentType<{}>;
   Table: React.ComponentType<{}>;
-  components: Record<
+  registeredComponents: Record<
     string,
-    React.ComponentType<RegisteredComponentProps<TForm, THooks>>
+    | React.ComponentType<RegisteredComponentProps<TForm, THooks>>
+    | React.ReactNode
   >;
-  hooks: GenericDataReturn<TForm>;
-  formik: any;
+  hook: GenericDataReturn<TForm>;
+  modal: {
+    open: boolean;
+    close: () => void;
+    openWith: (data?: TForm) => void;
+  };
+  overrides: OverrideComponents;
+  globalTypeOverrides: GlobalTypeOverrides;
 }) => React.ReactNode;
 
 // ====================================================================
@@ -771,10 +782,10 @@ export type RenderContext<TForm = any, TTable = any, THooks = any> = {
   overrides: OverrideComponents;
   hook: GenericDataReturn<TForm>;
   modal: { open: boolean; close: () => void; openWith: (data?: TForm) => void };
-  // NUEVO: componentes registrados disponibles en el contexto de renderizado
   registeredComponents: Record<
     string,
-    React.ComponentType<RegisteredComponentProps<TForm, THooks>>
+    | React.ComponentType<RegisteredComponentProps<TForm, THooks>>
+    | React.ReactNode
   >;
   globalTypeOverrides: GlobalTypeOverrides;
 };

@@ -13,5 +13,6 @@ export type RowProps = {
     };
     children: React.ReactNode;
     autoPadding?: boolean;
+    className?:string,
   };
   

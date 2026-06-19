@@ -93,6 +93,7 @@ interface Person {
   fechaIngreso?: string;
   psicologoAsignado?: string;
   notes?: string;
+  observaciones?: string; // 👈 Agrega esta línea
 }
 
 interface Appointment {
@@ -438,14 +439,24 @@ const ApptModal: React.FC<{
   appt: Appointment | null;
   persons: Person[];
   dateKey: string;
+  defaultPersonId?: number; // 👈 nuevo
+
   onSave: (form: Appointment) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
-}> = ({ appt, persons, dateKey, onSave, onDelete, onClose }) => {
+}> = ({
+  appt,
+  persons,
+  dateKey,
+  onSave,
+  onDelete,
+  onClose,
+  defaultPersonId,
+}) => {
   const isNew = !appt;
   const initialValues: Appointment = appt || {
     id: uid(),
-    personId: persons[0]?.id || 0,
+    personId: defaultPersonId ?? persons[0]?.id ?? 0, // 👈 usa el de drag&drop si existe
     date:
       dateKey ||
       fmtDate(
@@ -457,7 +468,7 @@ const ApptModal: React.FC<{
     duration: 30,
     attended: true,
     followUpNotes: "",
-    primeravez:false,
+    primeravez: false,
   };
   return (
     <CustomModal
@@ -477,7 +488,9 @@ const ApptModal: React.FC<{
             <FormikAutocomplete
               name="personId"
               label="Persona"
-              options={persons.map((p) => ({ value: p.id, label: p.nombre }))}
+              options={persons
+                .filter((p) => p.id != null && p.nombre) // 👈 descarta nulos/vacíos
+                .map((p) => ({ value: p.id, label: p.nombre }))}
               required
               idKey="value"
               labelKey="label"
@@ -722,7 +735,7 @@ const PersonDetailModal: React.FC<{
     setExtra,
     setOpen: setModalOpenPsychological,
     handleChangeItem: setHandleChangePsychological,
-    evaluationPerson
+    evaluationPerson,
   } = UsePsychologicalEvaluationModuleData();
   return (
     <CustomModal isOpen onClose={onClose} title={`Detalle de ${person.nombre}`}>
@@ -797,7 +810,6 @@ const PersonDetailModal: React.FC<{
                 <div style={{ fontSize: 13 }}>🏥 {person.obraSocial}</div>
               )}
             </div>
-           
           </div>
         </div>
         <div>
@@ -851,21 +863,21 @@ const PersonDetailModal: React.FC<{
                   variant="solid"
                   size="sm"
                   color="yellow"
-                  onClick={async() => {
+                  onClick={async () => {
                     setModalOpenPsychological();
-                    let res = await evaluationPerson(person.id)
-                    console.log("🚀 ~ PersonDetailModal ~ res:", res)
-                    res = prepareForForm(res)
-                    console.log("🚀 ~ PersonDetailModal ~ res:", res)
+                    let res = await evaluationPerson(person.id);
+                    console.log("🚀 ~ PersonDetailModal ~ res:", res);
+                    res = prepareForForm(res);
+                    console.log("🚀 ~ PersonDetailModal ~ res:", res);
                     setExtra("psychologicalEvaluation", {
                       ...(res as unknown as Loby),
                       id: person?.["folio"],
                     });
-                    setTimeout(()=>{
+                    setTimeout(() => {
                       setHandleChangePsychological(
-                      res as unknown as PyschologicalEvaluation,
-                    );
-                    },500)
+                        res as unknown as PyschologicalEvaluation,
+                      );
+                    }, 500);
                   }}
                   disabled={!!closureInfo}
                 >
@@ -1157,7 +1169,6 @@ const DayPanelDesktop: React.FC<{
 
 // FiltersModal
 
-
 // ReportsModal
 const ReportsModal: React.FC<{
   appointments: Appointment[];
@@ -1207,6 +1218,8 @@ const ReportsModal: React.FC<{
           Teléfono: p.phone || "N/A",
           Email: p.email || "N/A",
           Edad: p.edad || "N/A",
+          Observaciones: p.observaciones || "N/A", // 👈 Agrega esta línea
+
           "Obra Social": p.obraSocial || "N/A",
           "Fecha Ingreso": p.fechaIngreso || "N/A",
           Estado: closures.find((c) => c.personId === String(p.id))
@@ -1675,6 +1688,8 @@ const AdminDashboard: React.FC<{
         Paciente: p?.nombre || "N/A",
         Edad: edad,
         Teléfono: p?.phone || "N/A",
+
+        Observaciones: p?.observaciones || "N/A", // 👈 Columna de observaciones
         Psicólogo: a.psicologoNombre || "N/A",
         "Duración (min)": a.duration,
         "Tipo de cita": a.primeravez ? "Primera vez" : "Subsecuente", // 👈 Nueva columna
@@ -2466,7 +2481,7 @@ const AgendaPro: React.FC<AgendaProProps> = ({
     loading: loadingPersons,
     open: isModalOpenPsychological,
     selectPersonCalendary,
-    evaluationPerson
+    evaluationPerson,
   } = UsePsychologicalEvaluationModuleData();
   const {
     items: listAppointments,
@@ -2490,6 +2505,7 @@ const AgendaPro: React.FC<AgendaProProps> = ({
   const [modalAppt, setModalAppt] = useState<{
     appt: Appointment | null;
     dateKey: string;
+    personId?: number;
   } | null>(null);
   const [personDetail, setPersonDetail] = useState<Person | null>(null);
   const [closureModalPerson, setClosureModalPerson] = useState<Person | null>(
@@ -2516,30 +2532,32 @@ const AgendaPro: React.FC<AgendaProProps> = ({
     if (initialPersons === undefined && getDiary) getDiary();
     if (initialAppointments === undefined && loadAgenda) loadAgenda();
   }, [getDiary, loadAgenda]);
-useEffect(() => {
-  if (listDiary && listDiary.length > 0 && initialPersons === undefined) {
-    // Asegurar que el teléfono se mapea correctamente
-    const personsWithPhone = listDiary.map((p: any) => ({
-      id: p.id,
-      nombre: p.nombre,
-      phone: p.telefono || p.phone || null, // ← aquí mapeamos el teléfono
-      email: p.email,
-      edad: p.edad,
-      fechaNacimiento: p.fecha_nacimiento,
-      genero: p.genero,
-      telefonoEmergencia: p.telefono_emergencia,
-      obraSocial: p.obra_social,
-      numeroAfiliado: p.numero_afiliado,
-      escolaridad: p.escolaridad,
-      ocupacion: p.ocupacion,
-      derivadoPor: p.derivado_por,
-      fechaIngreso: p.fecha_ingreso,
-      psicologoAsignado: p.psicologo_asignado,
-      notes: p.notes,
-    }));
-    setPersons(personsWithPhone);
-  }
-}, [listDiary, initialPersons]);
+  useEffect(() => {
+    if (listDiary && listDiary.length > 0 && initialPersons === undefined) {
+      // Asegurar que el teléfono se mapea correctamente
+      const personsWithPhone = listDiary.map((p: any) => ({
+        id: p.id,
+        nombre: p.nombre,
+        phone: p.telefono || p.phone || null, // ← aquí mapeamos el teléfono
+        email: p.email,
+        edad: p.edad,
+        fechaNacimiento: p.fecha_nacimiento,
+        genero: p.genero,
+        telefonoEmergencia: p.telefono_emergencia,
+        obraSocial: p.obra_social,
+        numeroAfiliado: p.numero_afiliado,
+        escolaridad: p.escolaridad,
+        ocupacion: p.ocupacion,
+        derivadoPor: p.derivado_por,
+        fechaIngreso: p.fecha_ingreso,
+        psicologoAsignado: p.psicologo_asignado,
+        observaciones: p.observaciones || p.notes || null, // 👈 Agrega esta línea
+
+        notes: p.notes,
+      }));
+      setPersons(personsWithPhone);
+    }
+  }, [listDiary, initialPersons]);
   useEffect(() => {
     if (
       closuresFromHook &&
@@ -2574,29 +2592,30 @@ useEffect(() => {
         })),
       );
   }, [agendaData?.cierres, initialClosures]);
-  useEffect(() => {
-    const citasArray = listAppointments?.[0]?.citas;
-    if (
-      citasArray &&
-      Array.isArray(citasArray) &&
-      citasArray.length > 0 &&
-      initialAppointments === undefined
-    )
-      setAppointments(
-        citasArray.map((c: any) => ({
-          id: String(c.id),
-          personId: c.personaId,
-          date: c.fecha,
-          time: c.hora,
-          duration: c.duracion,
-          attended: c.asistio,
-          followUpNotes: c.notasSeguimiento || "",
-          folio: c.folio,
-          psicologoNombre: c.nombre_completo,
-          primeravez: c.primeravez ?? false, // 👈 Mapea el campo
-        })),
-      );
-  }, [listAppointments, initialAppointments]);
+ useEffect(() => {
+   const citasArray = listAppointments?.[0]?.citas;
+   if (
+     citasArray &&
+     Array.isArray(citasArray) &&
+     citasArray.length > 0 &&
+     initialAppointments === undefined
+   ) {
+     setAppointments(
+       citasArray.map((c: any) => ({
+         id: String(c.id),
+         personId: c.personaId,
+         date: c.fecha ? c.fecha.split("T")[0] : "", // ✅ NORMALIZA A YYYY-MM-DD
+         time: c.hora,
+         duration: c.duracion,
+         attended: c.asistio,
+         followUpNotes: c.notasSeguimiento || "",
+         folio: c.folio,
+         psicologoNombre: c.nombre_completo,
+         primeravez: c.primeravez ?? false,
+       })),
+     );
+   }
+ }, [listAppointments, initialAppointments]);
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", handleResize);
@@ -2671,37 +2690,37 @@ useEffect(() => {
     [reabrirCaso, loadAgenda],
   );
 
-  const saveAppt = useCallback(
-    async (appt: Appointment) => {
-      setAppointments((prev) => {
-        const exists = prev.find((a) => a.id === appt.id);
-        return exists
-          ? prev.map((a) => (a.id === appt.id ? appt : a))
-          : [...prev, appt];
-      });
-      try {
-        const citaData = {
-          id: parseInt(appt.id) || 0,
-          personaId: appt.personId,
-          fecha: appt.date,
-          hora: appt.time,
-          duracion: appt.duration,
-          asistio: appt.attended,
-          notasSeguimiento: appt.followUpNotes,
-          primeravez: appt.primeravez, // 👈 Envía el campo al backend
-        };
-        await saveAppointment(citaData);
-        emit(appt.id ? "appointment:updated" : "appointment:created", appt);
-        await loadAgenda();
-      } catch (error) {
-        console.error(error);
-        if (!appt.id)
-          setAppointments((prev) => prev.filter((a) => a.id !== appt.id));
-      }
-      setModalAppt(null);
-    },
-    [saveAppointment, loadAgenda, emit],
-  );
+const saveAppt = useCallback(
+  async (appt: Appointment) => {
+    setAppointments((prev) => {
+      const exists = prev.find((a) => a.id === appt.id);
+      return exists
+        ? prev.map((a) => (a.id === appt.id ? appt : a))
+        : [...prev, appt];
+    });
+    try {
+      const citaData = {
+        id: parseInt(appt.id) || 0,
+        personaId: appt.personId,
+        fecha: appt.date, // ✅ Ya está en YYYY-MM-DD
+        hora: appt.time,
+        duracion: appt.duration,
+        asistio: appt.attended,
+        notasSeguimiento: appt.followUpNotes,
+        primeravez: appt.primeravez,
+      };
+      await saveAppointment(citaData);
+      emit(appt.id ? "appointment:updated" : "appointment:created", appt);
+      await loadAgenda();
+    } catch (error) {
+      console.error(error);
+      if (!appt.id)
+        setAppointments((prev) => prev.filter((a) => a.id !== appt.id));
+    }
+    setModalAppt(null);
+  },
+  [saveAppointment, loadAgenda, emit],
+);
 
   const deleteAppt = useCallback(
     async (id: string) => {
@@ -2720,25 +2739,28 @@ useEffect(() => {
     [deleteAppointment, loadAgenda, emit, appointments],
   );
 
-  const moveAppt = useCallback(
-    async (apptId: string, sourceDate: string, targetDate: string) => {
-      setAppointments((prev) =>
-        prev.map((a) => (a.id === apptId ? { ...a, date: targetDate } : a)),
-      );
-      try {
-        await moveAppointment(parseInt(apptId), targetDate);
-        emit("appointment:moved", { apptId, from: sourceDate, to: targetDate });
-        await loadAgenda();
-      } catch (error) {
-        console.error(error);
-        setAppointments((prev) =>
-          prev.map((a) => (a.id === apptId ? { ...a, date: sourceDate } : a)),
-        );
-      }
-    },
-    [moveAppointment, loadAgenda, emit],
-  );
-
+ const moveAppt = useCallback(
+   async (apptId: string, sourceDate: string, targetDate: string) => {
+     setAppointments((prev) =>
+       prev.map((a) => (a.id === apptId ? { ...a, date: targetDate } : a)),
+     );
+     try {
+       // Si el backend requiere ISO, puedes hacer:
+       // const targetISO = new Date(targetDate).toISOString();
+       // await moveAppointment(parseInt(apptId), targetISO);
+       // Si acepta YYYY-MM-DD, usa targetDate directamente:
+       await moveAppointment(parseInt(apptId), targetDate);
+       emit("appointment:moved", { apptId, from: sourceDate, to: targetDate });
+       await loadAgenda();
+     } catch (error) {
+       console.error(error);
+       setAppointments((prev) =>
+         prev.map((a) => (a.id === apptId ? { ...a, date: sourceDate } : a)),
+       );
+     }
+   },
+   [moveAppointment, loadAgenda, emit],
+ );
   const saveClosure = useCallback(
     async (
       personId: string,
@@ -2853,7 +2875,7 @@ useEffect(() => {
     setSelectedDayPanel(null);
     setPersonDetail(null);
     setClosureModalPerson(null);
-    setModalAppt({ appt, dateKey });
+    setModalAppt({ appt, dateKey, personId });
   };
   const openPersonDetail = (person: Person) => {
     setSelectedDayPanel(null);
@@ -3001,7 +3023,6 @@ useEffect(() => {
         </div>
       </div>
       <div style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9" }}>
-       
         {(filters.edadMin ||
           filters.edadMax ||
           filters.genero ||
@@ -3123,7 +3144,7 @@ useEffect(() => {
           }}
         />
         {filteredPersons.map((p, i) => {
-          console.log("ccc",p)
+          console.log("ccc", p);
           const pal = PERSON_PALETTES[i % PERSON_PALETTES.length];
           const total = appointments.filter((a) => a.personId === p.id).length;
           const isClosed = isPersonCaseClosed(p.id);
@@ -3805,6 +3826,7 @@ useEffect(() => {
           appt={modalAppt.appt}
           persons={persons}
           dateKey={modalAppt.dateKey}
+          defaultPersonId={modalAppt.personId}
           onSave={saveAppt}
           onDelete={deleteAppt}
           onClose={() => setModalAppt(null)}
@@ -3848,7 +3870,7 @@ useEffect(() => {
           onClose={() => setShowReportsModal(false)}
         />
       )}
-   
+
       {quickNote && (
         <QuickNoteModal
           appointment={quickNote}

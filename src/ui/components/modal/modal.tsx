@@ -1,5 +1,5 @@
 // CustomModal.tsx
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { AiOutlineClose, AiOutlineExpandAlt } from "react-icons/ai";
 import { motion, AnimatePresence } from "framer-motion";
 import { theme } from "../../../config/themes";
@@ -18,8 +18,9 @@ interface ModalProps {
   footerClassName?: string;
   zIndex?: number | string;
   closeOnBackdropClick?: boolean;
-  fullModal?: boolean; // permite expandir a pantalla completa (como en CompositePage)
-  hideDefaultFooter?: boolean; // si se proporciona footer personalizado, oculta el predeterminado
+  fullModal?: boolean;
+  hideDefaultFooter?: boolean;
+  expand?: boolean;
 }
 
 const CustomModal = ({
@@ -33,14 +34,19 @@ const CustomModal = ({
   subtitle,
   headerClassName = "",
   footerClassName = "",
-  zIndex = 200,
+  zIndex = 300,
   closeOnBackdropClick = true,
   fullModal = false,
   hideDefaultFooter = false,
+  expand = false,
 }: ModalProps) => {
   const { width: windowWidth } = useWindowSize();
   const isMobile = windowWidth < 768;
-  const [isExpanded, setIsExpanded] = useState(false); // para expandir en desktop
+  const [isExpanded, setIsExpanded] = useState(expand);
+
+  // El z-index del botón de cierre flotante en móvil debe estar por encima del modal
+  const closeButtonZIndex =
+    typeof zIndex === "number" ? zIndex + 10 : `calc(${zIndex} + 10)`;
 
   useEffect(() => {
     if (isOpen) {
@@ -61,36 +67,55 @@ const CustomModal = ({
 
   const toggleExpand = () => setIsExpanded(!isExpanded);
 
-  // Altura del cuerpo según dispositivo y estado expandido
   const getBodyHeight = () => {
     if (isMobile) return `calc(100vh - 140px)`;
     if (fullModal || isExpanded) return `calc(100vh - 120px)`;
     return `calc(80vh - 120px)`;
   };
 
-  // Estilos del header: gradiente igual al CompositePage
   const headerStyle = {
     background: `linear-gradient(135deg, ${theme.colors.primary.DEFAULT}, ${theme.colors.primary.dark})`,
     borderBottom: `1px solid ${theme.colors.border.DEFAULT}40`,
   };
 
-  // Botón cerrar blanco con hover efecto vidrio
-  const CloseButton = () => (
-    <button
-      onClick={onClose}
-      className="p-2 transition-colors rounded-lg"
-      style={{ color: theme.colors.text.inverse }}
-      onMouseEnter={(e) =>
-        (e.currentTarget.style.background = "rgba(255,255,255,0.2)")
-      }
-      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-      aria-label="Cerrar"
-    >
-      <AiOutlineClose size={18} />
-    </button>
-  );
+  const CloseButton = ({ floating = false }: { floating?: boolean }) => {
+    if (floating) {
+      return (
+        <button
+          onClick={onClose}
+          className="w-14 h-14 flex items-center justify-center rounded-full shadow-xl active:scale-95 transition-transform"
+          style={{
+            background: theme.colors.background.card,
+            border: `2px solid ${theme.colors.border.DEFAULT}`,
+            WebkitTapHighlightColor: "transparent",
+            cursor: "pointer",
+            touchAction: "manipulation",
+          }}
+          aria-label="Cerrar modal"
+        >
+          <AiOutlineClose
+            size={24}
+            style={{ color: theme.colors.text.primary }}
+          />
+        </button>
+      );
+    }
+    return (
+      <button
+        onClick={onClose}
+        className="p-2 transition-colors rounded-lg"
+        style={{ color: theme.colors.text.inverse }}
+        onMouseEnter={(e) =>
+          (e.currentTarget.style.background = "rgba(255,255,255,0.2)")
+        }
+        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+        aria-label="Cerrar"
+      >
+        <AiOutlineClose size={18} />
+      </button>
+    );
+  };
 
-  // Botón expandir (solo en desktop y si fullModal está habilitado)
   const ExpandButton = () => (
     <button
       onClick={toggleExpand}
@@ -102,9 +127,9 @@ const CustomModal = ({
     </button>
   );
 
-  // Render para móvil (hoja inferior)
   const renderMobile = () => (
-    <div className="fixed inset-0 z-[600]">
+    // ✅ zIndex aplicado via style, no hardcodeado
+    <div className="fixed inset-0" style={{ zIndex }}>
       <motion.div
         className="absolute inset-0 backdrop-blur-sm"
         style={{ background: "rgba(0, 0, 0, 0.5)" }}
@@ -113,11 +138,17 @@ const CustomModal = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       />
-      <div className="fixed top-0 left-0 right-0 z-50 pointer-events-none">
+
+      {/* ✅ Botón flotante de cierre también usa el zIndex dinámico */}
+      <div
+        className="fixed top-6 right-4 pointer-events-none"
+        style={{ zIndex: closeButtonZIndex }}
+      >
         <div className="pointer-events-auto">
-          <CloseButton />
+          <CloseButton floating />
         </div>
       </div>
+
       <motion.div
         className="absolute bottom-0 left-0 right-0 rounded-t-3xl overflow-hidden flex flex-col"
         style={{
@@ -156,12 +187,18 @@ const CustomModal = ({
             )}
           </div>
         </div>
+
         <div
           className="flex-1 overflow-y-auto"
-          style={{ height: getBodyHeight(), WebkitOverflowScrolling: "touch" }}
+          style={{
+            height: getBodyHeight(),
+            WebkitOverflowScrolling: "touch",
+            background: theme.colors.background.card,
+          }}
         >
           <div className="px-6 py-4 pb-8">{children}</div>
         </div>
+
         {!hideDefaultFooter && footer && (
           <div className="flex-shrink-0">{footer}</div>
         )}
@@ -169,17 +206,15 @@ const CustomModal = ({
           <div
             className="px-6 py-4 border-t"
             style={{ borderTopColor: theme.colors.border.DEFAULT }}
-          >
-            {/* Aquí podrías poner botones por defecto si quieres */}
-          </div>
+          />
         )}
       </motion.div>
     </div>
   );
 
-  // Render para desktop/tablet (modal centrado)
   const renderDesktop = () => (
-    <div className="fixed inset-0 z-[300]">
+    // ✅ zIndex aplicado via style, no hardcodeado
+    <div className="fixed inset-0" style={{ zIndex }}>
       <motion.div
         className="absolute inset-0 backdrop-blur-sm"
         style={{ background: "rgba(0, 0, 0, 0.5)" }}
@@ -188,6 +223,7 @@ const CustomModal = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       />
+
       <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
         <motion.div
           className="pointer-events-auto flex flex-col overflow-hidden rounded-xl"
@@ -248,7 +284,11 @@ const CustomModal = ({
           {/* Body */}
           <div
             className="flex-1 overflow-y-auto"
-            style={{ height: getBodyHeight(), maxHeight: "calc(90vh - 120px)" }}
+            style={{
+              height: getBodyHeight(),
+              maxHeight: "calc(90vh - 120px)",
+              background: theme.colors.background.card,
+            }}
           >
             <div className="p-6">{children}</div>
           </div>

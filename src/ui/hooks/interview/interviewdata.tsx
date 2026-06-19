@@ -272,7 +272,6 @@ const UseInterview = (): InterviewDataReturn => {
             estado: item.Estado,
           }));
 
-          console.log("cargando inf", colonias);
           set({ colonias_agresor: colonias, loadingCp_agresor: false });
 
           return res;

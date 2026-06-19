@@ -48,7 +48,7 @@ export interface GenericStore<T extends object> {
   _autoFetched: boolean;
   _debugEnabled: boolean;
 
-  setOpen: (open?: boolean) => void;
+  setOpen: (open?: boolean, reinitializedForm?: boolean) => void;
   setPrefix: (prefix: string) => void;
   setRepo: (repo: GenericRepository<T>) => void;
   setSelectedItem: (item: T | null) => void;
@@ -65,8 +65,8 @@ export interface GenericStore<T extends object> {
     formData?: boolean,
     fetchAfter?: boolean,
     hooks?: StoreLifecycleHooks<T>,
-  ) => Promise<void>;
-  removeItemData: (item: T, hooks?: StoreLifecycleHooks<T>) => Promise<void>;
+  ) => Promise<boolean>; // void -> boolean
+  removeItemData: (item: T, hooks?: StoreLifecycleHooks<T>) => Promise<boolean>;
   request: (
     options: {
       data?: Partial<T>;
@@ -240,10 +240,10 @@ export function createGenericStore<
         set((s: any) => ({
           items: typeof items === "function" ? items(s.items) : items,
         })),
-      setOpen: (open?: boolean) =>
+      setOpen: (open?: boolean, reinitializedForm: boolean = false) =>
         set((s: any) => ({
-          open: open ? open : !s.open,
-          initialValues: _original,
+          open: open !== undefined ? open : !s.open,
+          ...(reinitializedForm && { initialValues: _original }),
         })),
       setPrefix: (prefix) => set({ prefix }),
       setRepo: (repo) => set({ _repo: repo }),
@@ -337,7 +337,7 @@ export function createGenericStore<
 
       postItem: async (item, formData, fetchAfter = true, hooks) => {
         const repo = get()._repo;
-        if (!repo) return;
+        if (!repo) return false;
 
         const start = performance.now();
         const payload = hooks?.beforePost
@@ -354,11 +354,12 @@ export function createGenericStore<
             hooks?.afterPost?.(item);
             if (fetchAfter) await get().fetchData(hooks);
             log("postItem", "success", { response: data.data }, duration);
-            console.log("es aqui carnal")
             set({ open: false });
+            return true; // ✅
           } else {
             showToast(data.message, "error");
             log("postItem", "error", { message: data.message }, duration);
+            return false; // ❌ API respondió con error
           }
         } catch (error: any) {
           const duration = performance.now() - start;
@@ -367,6 +368,7 @@ export function createGenericStore<
           (hooks?.onError ?? cfg.middlewares.onError)?.(msg);
           showToast(msg, "error");
           set({ error: msg });
+          return false; // ❌ excepción
         } finally {
           set({ loading: false, initialValues: _original });
         }
@@ -398,10 +400,12 @@ export function createGenericStore<
               { message: data.message },
               duration,
             );
+            return true; // ✅
           } else {
             set({ items: previous });
             showToast(data.message, "error");
             log("removeItemData", "error", { message: data.message }, duration);
+            return false; // ✅
           }
         } catch (error: any) {
           const duration = performance.now() - start;

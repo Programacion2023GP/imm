@@ -1,6 +1,4 @@
 import React, { useState, useRef, useEffect, type ReactNode } from "react";
-import ReactDOM from "react-dom";
-import { MdMoreVert } from "react-icons/md";
 import { theme } from "../../../config/themes";
 
 type UserCardProps = {
@@ -8,157 +6,131 @@ type UserCardProps = {
   title: string;
   subtitle?: string;
   children?: () => ReactNode;
-  actions?: () => ReactNode;
+  actions?: ReactNode; // Ahora es ReactNode directo, no función
+  footerActions?: ReactNode; // Nuevo: acciones en el footer
+  variant?: "default" | "elevated" | "outlined";
+  size?: "sm" | "md" | "lg";
 };
 
 const CustomCard: React.FC<UserCardProps> = ({
+  avatar,
   title,
   subtitle,
   children,
-  actions,
+  actions, // Acciones en el header (dropdown)
+  footerActions, // ✅ NUEVO: acciones en el footer
+  variant = "default",
+  size = "md",
 }) => {
-  const [showActions, setShowActions] = useState(false);
-  const actionsRef = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const [coords, setCoords] = useState<{ top: number; left: number }>({
-    top: 0,
-    left: 0,
-  });
-
+  const [isHovered, setIsHovered] = useState(false);
   const hasChildren = !!children;
-  const hasActions = !!actions;
+  const hasFooterActions = !!footerActions;
 
-  // Cerrar dropdown al hacer clic fuera
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        actionsRef.current &&
-        !actionsRef.current.contains(event.target as Node)
-      ) {
-        setShowActions(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-    };
-  }, []);
-
-  // Posicionar dropdown correctamente
-  const toggleActions = (event: React.MouseEvent) => {
-    event.stopPropagation();
-    if (!actionsRef.current) return;
-
-    const rect = actionsRef.current.getBoundingClientRect();
-    const dropdownWidth = 160;
-    const windowWidth = window.innerWidth;
-
-    let left = rect.left + window.scrollX;
-    if (left + dropdownWidth > windowWidth - 16)
-      left = windowWidth - dropdownWidth - 16;
-
-    const top = rect.bottom + window.scrollY + 4;
-
-    setCoords({ top, left });
-    setShowActions(!showActions);
+  // Tamaños dinámicos
+  const sizeStyles = {
+    sm: { padding: "p-3", titleSize: "text-sm", avatarSize: "w-8 h-8" },
+    md: { padding: "p-4", titleSize: "text-base", avatarSize: "w-10 h-10" },
+    lg: { padding: "p-6", titleSize: "text-lg", avatarSize: "w-12 h-12" },
   };
 
-  const handleActionClick = (callback: () => void) => {
-    return (event: React.MouseEvent) => {
-      event.stopPropagation();
-      setShowActions(false);
-      callback();
-    };
+  const currentSize = sizeStyles[size];
+
+  // Variantes visuales
+  const variantStyles = {
+    default: {
+      border: `1px solid ${theme.colors.border.DEFAULT}`,
+      shadow: isHovered ? theme.shadows.lg : theme.shadows.card,
+    },
+    elevated: {
+      border: "none",
+      shadow: isHovered ? theme.shadows.xl : theme.shadows.md,
+    },
+    outlined: {
+      border: `2px solid ${theme.colors.primary.DEFAULT}`,
+      shadow: "none",
+    },
+  };
+
+  const currentVariant = variantStyles[variant];
+
+  // Renderizar avatar
+  const renderAvatar = () => {
+    if (!avatar) return null;
+    if (typeof avatar === "string") {
+      return (
+        <img
+          src={avatar}
+          alt="avatar"
+          className={`${currentSize.avatarSize} rounded-full object-cover flex-shrink-0`}
+          style={{ border: `2px solid ${theme.colors.border.light}` }}
+        />
+      );
+    }
+    return <div className="flex-shrink-0">{avatar}</div>;
   };
 
   return (
     <div
-      className="rounded-xl p-4 flex flex-col gap-3 overflow-hidden max-w-sm relative"
+      className={`${currentSize.padding} rounded-xl flex flex-col overflow-hidden relative transition-all duration-200`}
       style={{
         background: theme.colors.background.card,
-        border: `1px solid ${theme.colors.border.DEFAULT}`,
-        boxShadow: theme.shadows.sm,
+        ...currentVariant,
+        transition: `box-shadow ${theme.transitions.normal}, transform ${theme.transitions.fast}`,
+        transform: isHovered ? "translateY(-2px)" : "translateY(0)",
       }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 relative">
-        {/* Title y Subtitle */}
+      {/* Línea decorativa superior con gradiente */}
+      <div
+        className="absolute top-0 left-0 right-0 h-1"
+        style={{
+          background: `linear-gradient(90deg, ${theme.colors.primary.DEFAULT}, ${theme.colors.primary.light})`,
+        }}
+      />
+
+      {/* HEADER: Avatar + Título + Subtítulo */}
+      <div className="flex items-start gap-3 relative mt-1">
+        {renderAvatar()}
         <div className="flex flex-col flex-1 min-w-0">
           <div
-            className="font-semibold text-base text-wrap"
+            className={`${currentSize.titleSize} font-semibold leading-tight`}
             style={{ color: theme.colors.text.primary }}
           >
             {title}
           </div>
           {subtitle && (
             <div
-              className="text-sm text-wrap"
+              className="text-sm leading-tight mt-0.5"
               style={{ color: theme.colors.text.secondary }}
             >
               {subtitle}
             </div>
           )}
         </div>
-
-        {/* Actions icon */}
-        {hasActions && (
-          <div ref={actionsRef} className="ml-1 relative">
-            <button
-              onClick={toggleActions}
-              className="p-1 rounded transition-colors"
-              style={{ color: theme.colors.text.disabled }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = theme.colors.text.secondary;
-                e.currentTarget.style.background =
-                  theme.colors.background.surface;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = theme.colors.text.disabled;
-                e.currentTarget.style.background = "transparent";
-              }}
-            >
-              <MdMoreVert size={20} />
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* Body */}
+      {/* BODY: Contenido principal */}
       {hasChildren && (
-        <div className="mt-1" style={{ color: theme.colors.text.secondary }}>
-          {children && children()}
+        <div
+          className="mt-3 text-sm leading-relaxed"
+          style={{ color: theme.colors.text.secondary }}
+        >
+          {typeof children === "function" ? children() : children}
         </div>
       )}
 
-      {/* Dropdown de acciones usando portal */}
-      {showActions &&
-        hasActions &&
-        ReactDOM.createPortal(
-          <div
-            ref={dropdownRef}
-            className="py-1 rounded-md shadow-md z-[999]"
-            style={{
-              position: "fixed",
-              top: coords.top,
-              left: coords.left,
-              minWidth: "160px",
-              background: theme.colors.background.card,
-              border: `1px solid ${theme.colors.border.DEFAULT}`,
-              boxShadow: theme.shadows.dropdown,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {actions && actions()}
-          </div>,
-          document.body,
-        )}
+      {/* FOOTER: Acciones principales */}
+      {hasFooterActions && (
+        <div
+          className="mt-4 pt-3 flex items-center gap-2 flex-wrap border-t"
+          style={{
+            borderColor: theme.colors.border.light,
+          }}
+        >
+          {footerActions}
+        </div>
+      )}
     </div>
   );
 };

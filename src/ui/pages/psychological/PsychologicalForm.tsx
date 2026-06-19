@@ -15,6 +15,7 @@ import {
   FormikInput,
   FormikMultiSelect,
   FormikSwitch,
+  FormikTextArea,
 } from "../../formik/FormikInputs/FormikInput";
 import { PyschologicalEvaluation } from "../../../models/psychologicalevaluation.tsx/psychological.models";
 import { Loby } from "../../../models/loby/loby.model";
@@ -75,7 +76,6 @@ export const PsychologicalForm = () => {
     postItem: submitPsychological,
     loading: loadingPsychological,
   } = UsePsychologicalEvaluationModuleData();
-    console.log("🚀 ~ PsychologicalForm ~ psychologicalInitialValues:", psychologicalInitialValues)
    const { items: violence, loading: loadingViolence } =
      UseAssociatedviolencesData();
 
@@ -236,9 +236,9 @@ export const PsychologicalForm = () => {
                 <FormikAutocomplete
                   label="Psicologo responsable"
                   name="id_responsable"
+                  labelKey={"nombre_completo"}
                   options={psicologos}
                   disabled={persist.auth.id_rol == 4}
-                  labelKey={"nombre_completo"}
                   loading={loadingUsers}
                   idKey={"id"}
                 />
@@ -269,6 +269,7 @@ export const PsychologicalForm = () => {
                   loading={loadingViolence}
                 />
               </CustomBox>
+              <FormikTextArea label="observaciones" name="observaciones"/>
               <FormikSwitch label="Activo" name="activo" />
             </>
           )}
