@@ -74,6 +74,7 @@ export type CaseTransform = "uppercase" | "lowercase" | "none";
 export type ConfigActions = {
   onBeforePost?: () => void;
   onafterPost?: () => void;
+  onBeforeClosed?: () => void;
 };
 export interface FieldItem {
   name: string;
@@ -2710,6 +2711,40 @@ const CompositeCrud = <
     if (!finalSwipeActions && !finalListTile && !finalQuickFilters?.enabled) {
       return undefined;
     }
+    const wrappedListTile = finalListTile
+      ? {
+          title: (row: any) => finalListTile.title?.(row, actionsDispatch),
+          subtitle: (row: any) =>
+            finalListTile.subtitle?.(row, actionsDispatch),
+          leading: (row: any) => finalListTile.leading?.(row, actionsDispatch),
+          trailing: (row: any) =>
+            finalListTile.trailing?.(row, actionsDispatch),
+        }
+      : undefined;
+
+    // ─── Envolver swipeActions para inyectar hooks ──────────────────────
+    let wrappedSwipeActions = undefined;
+    if (finalSwipeActions) {
+      wrappedSwipeActions = {
+        left: finalSwipeActions.left?.map((item: any) => ({
+          ...item,
+          action: (row: any) => item.action?.(row, actionsDispatch),
+        })),
+        right: finalSwipeActions.right?.map((item: any) => ({
+          ...item,
+          action: (row: any) => item.action?.(row, actionsDispatch),
+        })),
+      };
+    }
+    let wrappedBottomSheet = undefined;
+    if (mobileCfg?.bottomSheet) {
+      const originalBuilder = mobileCfg.bottomSheet.builder;
+      wrappedBottomSheet = {
+        ...mobileCfg.bottomSheet,
+        builder: (row: any, onClose: () => void) =>
+          originalBuilder(row, onClose, actionsDispatch),
+      };
+    }
 
     const defaultListTile = {
       title: (row: any) => {
@@ -2730,9 +2765,22 @@ const CompositeCrud = <
         mobileCfg?.activeViews !== undefined
           ? mobileCfg.activeViews
           : enableMobileViews,
-      listTile: finalListTile || defaultListTile,
+      listTile: wrappedListTile || {
+        title: (row: any) => {
+          const firstKey = Object.keys(row)[0];
+          return row[firstKey] || "Registro";
+        },
+        leading: (row: any) => (
+          <div className="w-10 h-10 rounded-full bg-[#9B2242] text-white flex items-center justify-center font-bold">
+            {String(Object.values(row)[0] || "?")
+              .charAt(0)
+              .toUpperCase()}
+          </div>
+        ),
+      },
     };
-    if (finalSwipeActions) result.swipeActions = finalSwipeActions;
+
+    if (wrappedSwipeActions) result.swipeActions = wrappedSwipeActions;
     if (finalQuickFilters?.enabled) {
       result.quickFilters = {
         enabled: true,
@@ -2749,7 +2797,8 @@ const CompositeCrud = <
       };
     }
 
-    if (mobileCfg?.bottomSheet) result.bottomSheet = mobileCfg.bottomSheet;
+    if (wrappedBottomSheet) result.bottomSheet = wrappedBottomSheet;
+
     return result;
   }, [
     crudConfig?.mobileConfig,
@@ -2760,7 +2809,8 @@ const CompositeCrud = <
     enableMobileViews,
     advancedConfig,
     showDeleteConfirmation,
-  ]);
+    actionsDispatch, // <-- añadir esta dependencia
+  ]);;
 
   // ─── Custom render mode (crudConfig.render) ─────────────────────────────────
   if (crudConfig?.uiRender) {
@@ -2771,6 +2821,7 @@ const CompositeCrud = <
 
   // ─── Default render ──────────────────────────────────────────────────────────
   const mobileConfigValue = buildMobileConfig();
+  const allowCreate = crudConfig?.tableActions?.allowCreate !== false; // true por defecto
 
   const buildSectionedModalFooter = useCallback((): React.ReactNode => {
     if (!sectioned.hasSections) return undefined;
@@ -3083,7 +3134,7 @@ const CompositeCrud = <
               <FiActivity className="mr-1.5 h-3.5 w-3.5" /> Auditoría
             </button>
           )}
-          {hook.items?.length > 0 && tableColumns.length > 0 && (
+          {allowCreate && tableColumns.length > 0 && (
             <Tooltip content="Agregar Registro">
               <button
                 onClick={() => hook.setOpen(true)}
@@ -3169,14 +3220,13 @@ const CompositeCrud = <
       )}
 
       {/* Main content */}
-      <div className="min-h-[400px]">
+      <div className="flex-1 h-auto">
         {isAdvanced && advancedHook.isRealtimeConnected && (
           <div className="flex items-center gap-2 mb-2 text-xs text-green-600">
             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>{" "}
             Tiempo real conectado
           </div>
         )}
-
         {(!(isAdvanced && advancedHook.viewMode) ||
           advancedHook.viewMode === "table") && (
           <>
@@ -3234,7 +3284,12 @@ const CompositeCrud = <
       {/* Modal Form */}
       <CompositePage
         isOpen={hook.open}
-        onClose={() => hook.setOpen(false)}
+        onClose={() => {
+          hook.setOpen(false);
+          if (callbacks?.onBeforeClosed) {
+            callbacks.onBeforeClosed();
+          }
+        }}
         formDirection="modal"
         fullModal={false}
         modalTitle={
@@ -3269,16 +3324,13 @@ const CompositeCrud = <
             <FormikForm
               initialValues={hook.initialValues as TForm}
               onSubmit={async (values) => {
-              
                 try {
                   if (callbacks?.onafterPost) {
-
                     await callbacks?.onafterPost();
                   }
                   if (hasFileFields) await hook.postItem(values as TForm, true);
                   else await hook.postItem(values as TForm);
                   if (callbacks?.onBeforePost) {
-
                     await callbacks?.onBeforePost();
                   }
                 } catch (error) {

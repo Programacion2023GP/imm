@@ -12,6 +12,7 @@ import {
   FaFileImage,
   FaFileWord,
   FaFileExcel,
+  FaFile,
 } from "react-icons/fa6";
 import type { Caso } from "./types";
 import { theme } from "../../../../config/themes";
@@ -340,7 +341,7 @@ const PdfThumbnail: React.FC<{ ev: Evidencia }> = ({ ev }) => {
     >
       <iframe
         src={`${ev.evidencia_url}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&view=FitH`}
-        title={ev.nombre_original ?? "preview pdf"}
+        title={'pdf'}
         onError={() => setFailed(true)}
         scrolling="no"
         style={{
@@ -494,7 +495,6 @@ const EvidenciaCard: React.FC<{
             whiteSpace: "nowrap",
           }}
         >
-          {ev.nombre_original ?? "Archivo"}
         </div>
         <div
           style={{
@@ -1110,8 +1110,7 @@ function handleEvidenciaClick(ev: Evidencia & { etapaId: string }) {
                                     gap: 3,
                                   }}
                                 >
-                                  <FaPaperclip size={9} />{" "}
-                                  {ev.nombre_original ?? "archivo"}
+                                  <FaFile size={12} />{" "}
                                 </span>
                               ))}
                             </div>

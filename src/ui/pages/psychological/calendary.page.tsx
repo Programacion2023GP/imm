@@ -63,6 +63,9 @@ import {
 } from "chart.js";
 import { Bar, Line, Pie, Doughnut } from "react-chartjs-2";
 import { prepareForForm } from "../../components/compositecustoms/compositeCrud";
+import { FaFilePdf } from "react-icons/fa6";
+import UseInterview from "../../hooks/interview/interviewdata";
+import { EntrevistaShowResponse } from "../../../models/interview/interview.model";
 
 ChartJS.register(
   CategoryScale,
@@ -2592,30 +2595,30 @@ const AgendaPro: React.FC<AgendaProProps> = ({
         })),
       );
   }, [agendaData?.cierres, initialClosures]);
- useEffect(() => {
-   const citasArray = listAppointments?.[0]?.citas;
-   if (
-     citasArray &&
-     Array.isArray(citasArray) &&
-     citasArray.length > 0 &&
-     initialAppointments === undefined
-   ) {
-     setAppointments(
-       citasArray.map((c: any) => ({
-         id: String(c.id),
-         personId: c.personaId,
-         date: c.fecha ? c.fecha.split("T")[0] : "", // ✅ NORMALIZA A YYYY-MM-DD
-         time: c.hora,
-         duration: c.duracion,
-         attended: c.asistio,
-         followUpNotes: c.notasSeguimiento || "",
-         folio: c.folio,
-         psicologoNombre: c.nombre_completo,
-         primeravez: c.primeravez ?? false,
-       })),
-     );
-   }
- }, [listAppointments, initialAppointments]);
+  useEffect(() => {
+    const citasArray = listAppointments?.[0]?.citas;
+    if (
+      citasArray &&
+      Array.isArray(citasArray) &&
+      citasArray.length > 0 &&
+      initialAppointments === undefined
+    ) {
+      setAppointments(
+        citasArray.map((c: any) => ({
+          id: String(c.id),
+          personId: c.personaId,
+          date: c.fecha ? c.fecha.split("T")[0] : "", // ✅ NORMALIZA A YYYY-MM-DD
+          time: c.hora,
+          duration: c.duracion,
+          attended: c.asistio,
+          followUpNotes: c.notasSeguimiento || "",
+          folio: c.folio,
+          psicologoNombre: c.nombre_completo,
+          primeravez: c.primeravez ?? false,
+        })),
+      );
+    }
+  }, [listAppointments, initialAppointments]);
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", handleResize);
@@ -2690,37 +2693,37 @@ const AgendaPro: React.FC<AgendaProProps> = ({
     [reabrirCaso, loadAgenda],
   );
 
-const saveAppt = useCallback(
-  async (appt: Appointment) => {
-    setAppointments((prev) => {
-      const exists = prev.find((a) => a.id === appt.id);
-      return exists
-        ? prev.map((a) => (a.id === appt.id ? appt : a))
-        : [...prev, appt];
-    });
-    try {
-      const citaData = {
-        id: parseInt(appt.id) || 0,
-        personaId: appt.personId,
-        fecha: appt.date, // ✅ Ya está en YYYY-MM-DD
-        hora: appt.time,
-        duracion: appt.duration,
-        asistio: appt.attended,
-        notasSeguimiento: appt.followUpNotes,
-        primeravez: appt.primeravez,
-      };
-      await saveAppointment(citaData);
-      emit(appt.id ? "appointment:updated" : "appointment:created", appt);
-      await loadAgenda();
-    } catch (error) {
-      console.error(error);
-      if (!appt.id)
-        setAppointments((prev) => prev.filter((a) => a.id !== appt.id));
-    }
-    setModalAppt(null);
-  },
-  [saveAppointment, loadAgenda, emit],
-);
+  const saveAppt = useCallback(
+    async (appt: Appointment) => {
+      setAppointments((prev) => {
+        const exists = prev.find((a) => a.id === appt.id);
+        return exists
+          ? prev.map((a) => (a.id === appt.id ? appt : a))
+          : [...prev, appt];
+      });
+      try {
+        const citaData = {
+          id: parseInt(appt.id) || 0,
+          personaId: appt.personId,
+          fecha: appt.date, // ✅ Ya está en YYYY-MM-DD
+          hora: appt.time,
+          duracion: appt.duration,
+          asistio: appt.attended,
+          notasSeguimiento: appt.followUpNotes,
+          primeravez: appt.primeravez,
+        };
+        await saveAppointment(citaData);
+        emit(appt.id ? "appointment:updated" : "appointment:created", appt);
+        await loadAgenda();
+      } catch (error) {
+        console.error(error);
+        if (!appt.id)
+          setAppointments((prev) => prev.filter((a) => a.id !== appt.id));
+      }
+      setModalAppt(null);
+    },
+    [saveAppointment, loadAgenda, emit],
+  );
 
   const deleteAppt = useCallback(
     async (id: string) => {
@@ -2739,28 +2742,28 @@ const saveAppt = useCallback(
     [deleteAppointment, loadAgenda, emit, appointments],
   );
 
- const moveAppt = useCallback(
-   async (apptId: string, sourceDate: string, targetDate: string) => {
-     setAppointments((prev) =>
-       prev.map((a) => (a.id === apptId ? { ...a, date: targetDate } : a)),
-     );
-     try {
-       // Si el backend requiere ISO, puedes hacer:
-       // const targetISO = new Date(targetDate).toISOString();
-       // await moveAppointment(parseInt(apptId), targetISO);
-       // Si acepta YYYY-MM-DD, usa targetDate directamente:
-       await moveAppointment(parseInt(apptId), targetDate);
-       emit("appointment:moved", { apptId, from: sourceDate, to: targetDate });
-       await loadAgenda();
-     } catch (error) {
-       console.error(error);
-       setAppointments((prev) =>
-         prev.map((a) => (a.id === apptId ? { ...a, date: sourceDate } : a)),
-       );
-     }
-   },
-   [moveAppointment, loadAgenda, emit],
- );
+  const moveAppt = useCallback(
+    async (apptId: string, sourceDate: string, targetDate: string) => {
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === apptId ? { ...a, date: targetDate } : a)),
+      );
+      try {
+        // Si el backend requiere ISO, puedes hacer:
+        // const targetISO = new Date(targetDate).toISOString();
+        // await moveAppointment(parseInt(apptId), targetISO);
+        // Si acepta YYYY-MM-DD, usa targetDate directamente:
+        await moveAppointment(parseInt(apptId), targetDate);
+        emit("appointment:moved", { apptId, from: sourceDate, to: targetDate });
+        await loadAgenda();
+      } catch (error) {
+        console.error(error);
+        setAppointments((prev) =>
+          prev.map((a) => (a.id === apptId ? { ...a, date: sourceDate } : a)),
+        );
+      }
+    },
+    [moveAppointment, loadAgenda, emit],
+  );
   const saveClosure = useCallback(
     async (
       personId: string,
@@ -2971,6 +2974,7 @@ const saveAppt = useCallback(
     XLSX.utils.book_append_sheet(wb, ws, "Citas");
     XLSX.writeFile(wb, `citas_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
+  const interviewData = UseInterview();
 
   const sidebarContent = (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -3144,7 +3148,6 @@ const saveAppt = useCallback(
           }}
         />
         {filteredPersons.map((p, i) => {
-          console.log("ccc", p);
           const pal = PERSON_PALETTES[i % PERSON_PALETTES.length];
           const total = appointments.filter((a) => a.personId === p.id).length;
           const isClosed = isPersonCaseClosed(p.id);
@@ -3242,6 +3245,28 @@ const saveAppt = useCallback(
                   )}
                 </div>
               </div>
+              <span onClick={(e) => e.stopPropagation()}>
+                <Tooltip content="PDF">
+                  <CustomButton
+                    variant="icon"
+                    color="pink"
+                    onClick={() => {
+                      const item = interviewData.items.find(
+                        (it) => it.id === p.id,
+                      );
+                      if (item) {
+                        interviewData.setExtra(
+                          "selectInterview",
+                          item as unknown as EntrevistaShowResponse,
+                        );
+                        interviewData.setExtra("openCaratula",true);
+                      }
+                    }}
+                  >
+                    <FaFilePdf />
+                  </CustomButton>
+                </Tooltip>
+              </span>
               <span style={{ fontSize: 18, color: "#9ca3af" }}>›</span>
             </div>
           );

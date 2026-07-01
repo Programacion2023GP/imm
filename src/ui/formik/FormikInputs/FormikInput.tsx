@@ -5335,8 +5335,8 @@ export const DynamicSelectFieldLocal = React.memo(
         label={field.label}
         options={options}
         compact
-        idKey={field.selectIdKey as never}
-        labelKey={field.selectLabelKey as never}
+        idKey={(field.selectIdKey as never) ?? ("id" as never)}
+        labelKey={(field.selectLabelKey as never) ?? ("label" as never)}
         responsive={responsive}
         onRefresh={refreshFn}
         onAdd={addFn}

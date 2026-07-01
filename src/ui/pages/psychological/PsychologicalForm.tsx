@@ -202,23 +202,22 @@ export const PsychologicalForm = () => {
       onClose={() => setModalOpenPsychological(false)}
       title="Apertura de Expediente Psicológico"
     >
-
       <div className="space-y-3">
         <FormikForm
           key={psychologicalInitialValues.id}
-          ref={formikRef}
+          formikRef={formikRef}
           initialValues={psychologicalInitialValues}
           buttonMessage="Guardar"
           buttonLoading={loadingPsychological}
           onSubmit={async (values) => {
             await submitPsychological(values);
-            await loadAgenda()
+            await loadAgenda();
             await getLoby("psicologo");
           }}
           validationSchema={validationSchema}
           children={(values, r, c, a, errors) => (
             <>
-              {loadingPsychological && (<Spinner/>)}
+              {loadingPsychological && <Spinner />}
               <RowComponent>
                 <ColComponent
                   responsive={{ "2xl": 6, lg: 6, md: 12, sm: 12, xl: 12 }}
@@ -269,7 +268,7 @@ export const PsychologicalForm = () => {
                   loading={loadingViolence}
                 />
               </CustomBox>
-              <FormikTextArea label="observaciones" name="observaciones"/>
+              <FormikTextArea label="observaciones" name="observaciones" />
               <FormikSwitch label="Activo" name="activo" />
             </>
           )}

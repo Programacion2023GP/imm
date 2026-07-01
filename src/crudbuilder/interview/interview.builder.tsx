@@ -1029,6 +1029,10 @@ export const interviewBuilderCrud = ConfigCrud<InterviewForm, InterviewTable, Ho
           formik.setFieldValue("estado", colonia.estado);
           formik.setFieldValue("municipio", colonia.municipio);
           formik.setFieldValue("zona", colonia.zona);
+          formik.setFieldValue("latitud", colonia.latitud);
+          formik.setFieldValue("longitud", colonia.longitud);
+
+
         }
       },
       loadingHook: () => UseInterview().loadingCp,

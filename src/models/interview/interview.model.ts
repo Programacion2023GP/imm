@@ -35,7 +35,8 @@ export interface InterviewForm {
   especifica_domicilio: string;
   sector: string;
   ocurrio_extranjero: boolean;
-
+  latitud: number;
+  longitud: number;
   fecha_hecho: string;
   hora_hecho: string;
   dia_festivo: boolean;
@@ -155,7 +156,7 @@ export interface InterviewForm {
   id_servicios_trabajo_social: number[];
   id_servicios_juridicos: number[];
   id_servicios_psicologicos: number[];
-  comentarios_ruta_antencion:string,
+  comentarios_ruta_antencion: string;
 
   //CANALIZACION
   id_dependencia: number;

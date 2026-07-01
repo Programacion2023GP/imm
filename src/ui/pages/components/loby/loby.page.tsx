@@ -193,6 +193,7 @@ const CompositeLoby = ({ loby }: { loby: "psicologo" | "juridico" }) => {
                       id_entrevista: row.id,
                     });
                   } else {
+                    
                     setExtraLegal("legal", row);
                     setHandleLegal({
                       ...initialValuesLegal,
@@ -202,7 +203,7 @@ const CompositeLoby = ({ loby }: { loby: "psicologo" | "juridico" }) => {
                       ...(row as unknown as any),
                       id_entrevista: row.id,
                     });
-                    setModalOpenLegal(true, false);
+                    setModalOpenLegal(true,false);
                   }
                 }}
               >

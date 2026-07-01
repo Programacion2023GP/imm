@@ -387,10 +387,10 @@ export type TableColumnConfig<TTable = any, THooks = any> = {
 // TABLE ACTIONS CONFIG
 // ====================================================================
 
-export interface BottomSheetConfig<T = any> {
+export interface BottomSheetConfig<T = any, THooks = any> {
   height?: number | string;
   showCloseButton?: boolean;
-  builder: (row: T, onClose: () => void) => React.ReactNode;
+  builder: (row: T, onClose: () => void, hooks?: THooks) => React.ReactNode;
 }
 
 export interface TableActionButton<
@@ -421,6 +421,7 @@ export interface TableActionsConfig<
   isEditing?: boolean;
   isDelete?: boolean;
   moreButtons?: TableActionButton<TRecord, THooks, TMainHook>[];
+  allowCreate?: boolean; // ← nuevo
 }
 
 export interface TableHeaderConfig {
@@ -433,23 +434,23 @@ export interface TableHeaderConfig {
 // MOBILE CONFIGURATION
 // ====================================================================
 
-export interface SwipeActionItem {
+export interface SwipeActionItem<T = any, THooks = any> {
   icon: React.ReactNode;
   color: string;
   label?: string;
-  action?: (row: any) => void;
+  action?: (row: T, hooks?: THooks) => void;
 }
 
-export interface SwipeActionsConfig {
-  left?: SwipeActionItem[];
-  right?: SwipeActionItem[];
+export interface SwipeActionsConfig<T = any, THooks = any> {
+  left?: SwipeActionItem<T, THooks>[];
+  right?: SwipeActionItem<T, THooks>[];
 }
 
-export interface MobileListTileConfig<T = any> {
-  leading?: (row: T) => React.ReactNode;
-  title?: (row: T) => React.ReactNode;
-  subtitle?: (row: T) => React.ReactNode;
-  trailing?: (row: T) => React.ReactNode;
+export interface MobileListTileConfig<T = any, THooks = any> {
+  leading?: (row: T, hooks?: THooks) => React.ReactNode;
+  title?: (row: T, hooks?: THooks) => React.ReactNode;
+  subtitle?: (row: T, hooks?: THooks) => React.ReactNode;
+  trailing?: (row: T, hooks?: THooks) => React.ReactNode;
 }
 
 export type MobileQuickFilterType = "text" | "date" | "select" | "number";
@@ -467,13 +468,13 @@ export interface MobileQuickFiltersConfig<TTable = any> {
   filters?: MobileQuickFilterItem<TTable>[];
 }
 
-export interface MobileConfig<T = any> {
+export interface MobileConfig<T = any, THooks = any> {
   enabled?: boolean;
   activeViews?: boolean;
-  listTile?: MobileListTileConfig<T>;
-  swipeActions?: SwipeActionsConfig;
+  listTile?: MobileListTileConfig<T, THooks>;
+  swipeActions?: SwipeActionsConfig<T, THooks>;
   quickFilters?: MobileQuickFiltersConfig<T>;
-  bottomSheet?: BottomSheetConfig<T>;
+  bottomSheet?: BottomSheetConfig<T, THooks>;
 }
 
 // ====================================================================
@@ -1120,7 +1121,12 @@ export const ConfigCrud = <
           tableHeaderConfig = header;
           return methods;
         },
-        mobile: (config: MobileConfig<TTable>) => {
+        // En genericmodels.model.ts, dentro de ConfigCrud
+        mobile: <
+          TCustomHooks extends Record<string, any> = Record<string, any>,
+        >(
+          config: MobileConfig<TTable, TCustomHooks>,
+        ) => {
           mobileConfigValue = config;
           return methods;
         },

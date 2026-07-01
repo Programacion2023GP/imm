@@ -6,8 +6,7 @@ import {
 } from "../../../library/reactztore/hook/usegenericdata";
 import type {
   InterviewForm,
-  Dependientes,
-  RedApoyo,
+
   InterviewTable,
   EntrevistaShowResponse,
 } from "../../../models/interview/interview.model";
@@ -21,6 +20,8 @@ export interface Colonia {
   zona: string;
   municipio: string;
   estado: string;
+  latitud:number,
+  longitud:number
 }
 
 export interface ExtraStateInterview {
@@ -128,6 +129,8 @@ export const initialInterviewForm: InterviewForm = {
   referencias: "",
   zona: "",
   migrante: false,
+   latitud:0,
+  longitud:0,
   pertenece_pueblo_indigena: false,
   autoidentificacion_etnica: "",
   tiene_discapacidad: false,
@@ -241,6 +244,8 @@ const UseInterview = (): InterviewDataReturn => {
             zona: item.Zona,
             municipio: item.Municipio,
             estado: item.Estado,
+            latitud: item.Latitud,
+            longitud: item.Longitud,
           }));
 
           set({ colonias: colonias, loadingCp: false });

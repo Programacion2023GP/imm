@@ -38,9 +38,10 @@ const PageInterview = lazy(
 const Psicologico = lazy(
   () => import("./ui/pages/psychological/psychological.page"),
 );
-const Legal = lazy(
-  () => import("./ui/pages/legal/legal.page"),
+const Events = lazy(
+  () => import("./ui/pages/events/events.page"),
 );
+const Legal = lazy(() => import("./ui/pages/legal/legal.page"));
 const PageUsers = lazy(
   () => import("./ui/pages/catalogues/users/pageusers.page"),
 );
@@ -179,6 +180,13 @@ const MainLayout = () => {
         "/juridico",
         <RiFileList3Line />,
         "Seguimiento de antenciones Legales/Juridicas (M3)",
+      ),
+      createRouteItem(
+        8,
+        "EVENTOS",
+        "/eventos",
+        <RiFileList3Line />,
+        "Eventos (M4)",
       ),
       createChildrenItem(7, "CATALOGOS", "Catálogos", <FaBuildingColumns />, [
         createRouteItem(
@@ -325,6 +333,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const routePermissions: Record<string, string> = {
     "/expedienteuno": "ENTREVISTA",
     "/psicologo": "PSICOLOGO",
+    "/juridico": "JURIDICO",
+
     "/catalogos/usuarios": "CATALOGOS",
     "/catalogos/permisos": "CATALOGOS",
     "/catalogos/roles": "CATALOGOS",
@@ -370,6 +380,7 @@ const DefaultRedirect = () => {
       ENTREVISTA: "/expedienteuno",
       PSICOLOGO: "/psicologo",
       CATALOGOS: "/catalogos/usuarios",
+      JURIDICO:"/juridico"
     };
 
     const redirectUrl = getRedirectRouteByPrefix(routesByPrefix, "/dashboard");
@@ -436,6 +447,14 @@ function App() {
           element={
             <Suspense fallback={<Spinner />}>
               <Legal />
+            </Suspense>
+          }
+        />
+        <Route
+          path="eventos"
+          element={
+            <Suspense fallback={<Spinner />}>
+              <Events />
             </Suspense>
           }
         />

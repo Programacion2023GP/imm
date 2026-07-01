@@ -13,7 +13,9 @@ export interface Legal {
   fecha_acompanamiento: string;
   fecha_denuncia: string;
   nombre_imputado: string;
-  carpeta_investigacion: number;
+
+
+  carpeta_investigacion: string;
   causa_penal: number;
   comentarios_procesales: string;
   id_autoridad_emisora: number;
@@ -22,22 +24,29 @@ export interface Legal {
   fecha_medida: string;
   fecha_termino_medida: string;
   id_tipo_medida: number;
-  descripcion_medida:string,
-  fecha_cierre:string,
-  id_motivo_cierre:string,
-  observaciones:string,
+  descripcion_medida: string;
+  fecha_cierre: string;
+  id_motivo_cierre: string;
+  observaciones: string;
+  nombre?: string;
 }
 export interface LegalTable extends Legal {
   folio: number;
   edad: number;
-  nombre: string;
+  entrevista_nombre:string,
   telefono: string;
   colonia: string;
   estado: string;
   municipio: string;
   calle: string;
-  nombre_agresor:string,
-  relacion_victima:string,
+  nombre_agresor: string;
+  relacion_victima: string;
+  curp?: string;
+  zona?: string;
+  activo?: boolean;
+  incidentes_nombres: string;
+  abogado:string,
+  responsable_nombre?: string;
   incidentes: {
     id: number;
     nombre: string;

@@ -11,7 +11,6 @@ import { useMemo, useRef } from "react";
 import getValidationSchema from "./validations";
 import { FormikProps } from "formik";
 import { ProccessJuridic } from "../../../../models/proccessjuridic/processjuridic";
-import { RowComponent } from "../../../components/responsive/Responsive";
 import CustomButton from "../../../components/button/custombuttom";
 import UseLegalData from "../../../hooks/legal/uselegal";
 
@@ -108,7 +107,7 @@ const FormProccessJuridic = () => {
     return getValidationSchema(type);
   }, [type]);
   const formikRef = useRef<FormikProps<ProccessJuridic>>(null);
-
+ 
   return (
     <CustomModal
       title={type}

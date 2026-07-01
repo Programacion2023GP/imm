@@ -11,6 +11,7 @@ interface ExtraState {
   legal: Loby;
   selected:LegalTable,
   openModal:boolean,
+  openPdf:boolean,
 }
 interface Methods {
 }
@@ -61,18 +62,15 @@ const UseLegalData = (): DataReturn => {
      autoFetch: true,
      extraState: {
        legal: null,
-       selected:null,
-       openModal:false
+       selected: null,
+       openModal: false,
+       openPdf: false,
      },
      // persistKey: "departments-persist",
      hooks: {
-       onError: (msg) =>
-         console.error("[UseLegalData]", msg),
+       onError: (msg) => console.error("[UseLegalData]", msg),
      },
-     extension: (set, get, prefix) => ({
-      
-      
-     }),
+     extension: (set, get, prefix) => ({}),
    });
 };
 
